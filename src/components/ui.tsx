@@ -357,8 +357,11 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
-      <div className="fade-in absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="sheet-in relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-t-[26px] bg-[var(--card)] px-4 pb-8 pt-2.5 pb-safe">
+      <div className="fade-in absolute inset-0 bg-black/30" onClick={onClose} />
+      <div
+        className="sheet-in relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-t-[26px] px-4 pb-8 pt-2.5 pb-safe"
+        style={{ background: 'var(--sheet)', WebkitBackdropFilter: 'blur(28px) saturate(180%)', backdropFilter: 'blur(28px) saturate(180%)', borderTop: '1px solid var(--edge)' }}
+      >
         <div className="mx-auto mb-2.5 h-1 w-9 rounded-full bg-[var(--hairline)]" />
         {title && <h3 className="mb-3.5 text-center text-[16px] font-semibold">{title}</h3>}
         {children}

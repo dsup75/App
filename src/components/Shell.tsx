@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   House, BookOpen, Wallet, Briefcase, LayoutGrid, Plus, ListTodo, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Timer,
-  FileText, HandCoins, Users, StickyNote, CalendarDays, QrCode, ClipboardList,
+  FileText, HandCoins, Users, StickyNote, CalendarDays, QrCode, ClipboardList, Wand2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { IconBubble, Sheet, cx, type Tone } from './ui';
@@ -68,6 +68,7 @@ export function Shell({ children }: { children: ReactNode }) {
 }
 
 const ACTIONS: { label: string; to: string; icon: LucideIcon; tone: Tone }[] = [
+  { label: 'Smart add', to: '/smart', icon: Wand2, tone: 'primary' },
   { label: 'Task', to: '/r/tasks/new', icon: ListTodo, tone: 'blue' },
   { label: 'Income', to: '/r/incomes/new', icon: ArrowDownLeft, tone: 'income' },
   { label: 'Expense', to: '/r/expenses/new', icon: ArrowUpRight, tone: 'expense' },

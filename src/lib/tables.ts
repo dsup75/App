@@ -50,7 +50,12 @@ export const PRIORITIES = o([['low', 'Low'], ['medium', 'Medium'], ['high', 'Hig
 export const TASK_STATUS = o([['pending', 'Pending'], ['in_progress', 'In Progress'], ['waiting', 'Waiting for Client'], ['completed', 'Completed'], ['cancelled', 'Cancelled']]);
 export const TASK_TYPES = o([['task', 'Task'], ['follow_up', 'Follow-up'], ['approval', 'Pending approval'], ['creative', 'Creative requirement'], ['meeting', 'Meeting / call']]);
 export const ACCOUNT_TYPES = o([['cash', 'Cash'], ['bank', 'Bank'], ['upi', 'UPI app'], ['wallet', 'Wallet'], ['custom', 'Custom']]);
-export const UPI_APPS = o([['gpay', 'Google Pay'], ['phonepe', 'PhonePe'], ['paytm', 'Paytm'], ['bhim', 'BHIM'], ['amazonpay', 'Amazon Pay'], ['cred', 'CRED'], ['bank_app', 'Bank app'], ['other', 'Other']]);
+export const UPI_APPS = o([['gpay', 'Google Pay'], ['phonepe', 'PhonePe'], ['paytm', 'Paytm'], ['bhim', 'BHIM'], ['amazonpay', 'Amazon Pay'], ['cred', 'CRED'], ['bank_app', 'Bank app'], ['netbanking', 'Net banking'], ['card', 'Card'], ['cash', 'Cash'], ['other', 'Other']]);
+export const PAYMENT_MODES = o([['personal', 'Personal'], ['business', 'Business']]);
+const nowTime = () => {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
 export const CATEGORY_KINDS = o([['income', 'Income'], ['expense', 'Expense']]);
 export const PAYER_TYPES = o([['client', 'Client (company directly)'], ['client_staff', 'Client staff / on behalf'], ['other', 'Other person']]);
 export const PAYMENT_METHODS = o([['upi', 'UPI'], ['bank', 'Bank transfer'], ['cash', 'Cash'], ['payment_link', 'Payment link'], ['card', 'Card'], ['cheque', 'Cheque'], ['other', 'Other']]);
@@ -89,9 +94,14 @@ export const TABLES: Record<TableName, TableDef> = {
       { key: 'client_name', label: 'Client / company (if not in Clients)', type: 'text', placeholder: 'Optional' },
       { key: 'payer_type', label: 'Received from', type: 'select', options: PAYER_TYPES, default: () => 'client' },
       { key: 'payer_name', label: 'Payer name', type: 'text', placeholder: 'Who actually paid, e.g. Rahul (staff)' },
+      { key: 'payment_mode', label: 'Payment mode', type: 'select', options: PAYMENT_MODES, default: () => 'personal' },
       { key: 'payment_method', label: 'Payment method', type: 'select', options: PAYMENT_METHODS, default: () => 'upi' },
+      { key: 'payment_app', label: 'Received on app', type: 'select', options: UPI_APPS },
       { key: 'reference', label: 'UTR / reference no.', type: 'text', placeholder: 'Optional' },
-      area, txnDate, notes,
+      { key: 'payment_link', label: 'Payment link', type: 'text', placeholder: 'https://… (optional)' },
+      area, txnDate,
+      { key: 'txn_time', label: 'Time received', type: 'time', default: nowTime },
+      notes,
       { key: 'payment_request_id', label: 'Payment request', type: 'text', hidden: true },
     ],
   },
@@ -102,9 +112,16 @@ export const TABLES: Record<TableName, TableDef> = {
       { key: 'amount_paise', label: 'Amount (₹)', type: 'money', required: true },
       { key: 'account_id', label: 'Paid from', type: 'account', required: true },
       { key: 'category_id', label: 'Category', type: 'category', categoryKind: 'expense' },
+      { key: 'payment_mode', label: 'Payment mode', type: 'select', options: PAYMENT_MODES, default: () => 'personal' },
+      { key: 'payment_method', label: 'Payment method', type: 'select', options: PAYMENT_METHODS, default: () => 'upi' },
+      { key: 'payment_app', label: 'Paid with app', type: 'select', options: UPI_APPS },
+      { key: 'reference', label: 'UTR / reference no.', type: 'text', placeholder: 'Optional' },
+      { key: 'payment_link', label: 'Payment link', type: 'text', placeholder: 'https://… (optional)' },
       area,
       { ...clientRef(), label: 'For client (business expense)' },
-      txnDate, notes,
+      txnDate,
+      { key: 'txn_time', label: 'Time paid', type: 'time', default: nowTime },
+      notes,
     ],
   },
   transfers: {
@@ -114,7 +131,9 @@ export const TABLES: Record<TableName, TableDef> = {
       { key: 'amount_paise', label: 'Amount (₹)', type: 'money', required: true },
       { key: 'from_account_id', label: 'From account', type: 'account', required: true },
       { key: 'to_account_id', label: 'To account', type: 'account', required: true },
-      txnDate, notes,
+      txnDate,
+      { key: 'txn_time', label: 'Time', type: 'time', default: nowTime },
+      notes,
     ],
     validate: (v) => (v.from_account_id && v.from_account_id === v.to_account_id ? 'From and To accounts must be different.' : null),
   },
@@ -204,16 +223,16 @@ export const TABLES: Record<TableName, TableDef> = {
           : null,
   },
   savings_goals: {
-    table: 'savings_goals', label: 'Savings Goal', plural: 'Savings Goals', titleField: 'name', financial: true,
+    table: 'savings_goals', label: 'Goal', plural: 'Goals', titleField: 'name', financial: true,
     fields: [
-      { key: 'name', label: 'Goal', type: 'text', required: true, placeholder: 'e.g. Laptop' },
+      { key: 'name', label: 'Goal', type: 'text', required: true, placeholder: 'e.g. Laptop, Insurance, Trip' },
       { key: 'target_paise', label: 'Target (₹)', type: 'money', required: true },
       { key: 'target_date', label: 'Target date', type: 'date' },
       notes,
     ],
   },
   savings_entries: {
-    table: 'savings_entries', label: 'Savings Entry', plural: 'Savings Entries', titleField: 'title', financial: true,
+    table: 'savings_entries', label: 'Goal Entry', plural: 'Goal Entries', titleField: 'title', financial: true,
     fields: [
       { key: 'goal_id', label: 'Goal', type: 'ref', refTable: 'savings_goals', required: true },
       { key: 'title', label: 'Title', type: 'text', required: true, default: () => 'Contribution' },

@@ -38,9 +38,10 @@ export async function testScript(url: string, key: string): Promise<string> {
 const SHEETS: { table: string; sheet: string; cols: string[] }[] = [
   { table: 'accounts', sheet: 'Accounts', cols: ['id', 'name', 'type', 'opening_balance_paise', 'notes', 'created_at', 'updated_at'] },
   { table: 'categories', sheet: 'Categories', cols: ['id', 'name', 'kind', 'created_at', 'updated_at'] },
-  { table: 'incomes', sheet: 'Income', cols: ['id', 'txn_date', 'title', 'amount_paise', 'account_id', 'category_id', 'client_name', 'payer_type', 'payer_name', 'payment_method', 'reference', 'area', 'notes', 'created_at', 'updated_at'] },
-  { table: 'expenses', sheet: 'Expenses', cols: ['id', 'txn_date', 'title', 'amount_paise', 'account_id', 'category_id', 'area', 'notes', 'created_at', 'updated_at'] },
+  { table: 'incomes', sheet: 'Income', cols: ['id', 'txn_date', 'title', 'amount_paise', 'account_id', 'category_id', 'client_name', 'payer_type', 'payer_name', 'payment_method', 'reference', 'payment_app', 'txn_time', 'payment_mode', 'payment_link', 'area', 'notes', 'created_at', 'updated_at'] },
+  { table: 'expenses', sheet: 'Expenses', cols: ['id', 'txn_date', 'txn_time', 'title', 'amount_paise', 'account_id', 'category_id', 'payment_method', 'payment_app', 'reference', 'payment_mode', 'payment_link', 'area', 'notes', 'created_at', 'updated_at'] },
   { table: 'transfers', sheet: 'Transfers', cols: ['id', 'txn_date', 'title', 'amount_paise', 'from_account_id', 'to_account_id', 'notes', 'created_at', 'updated_at'] },
+  { table: 'savings_goals', sheet: 'Goals', cols: ['id', 'name', 'target_paise', 'target_date', 'notes', 'created_at', 'updated_at'] },
   { table: 'payment_requests', sheet: 'Payment Requests', cols: ['id', 'title', 'client_name', 'amount_paise', 'due_date', 'status', 'paid_at', 'note', 'created_at', 'updated_at'] },
   { table: 'tasks', sheet: 'Tasks', cols: ['id', 'title', 'area', 'priority', 'status', 'due_date', 'completed_at', 'notes', 'created_at', 'updated_at'] },
 ];

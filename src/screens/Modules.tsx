@@ -154,7 +154,7 @@ export function SavingsScreen() {
   return (
     <TableList
       table="savings_goals"
-      title="Savings Goals"
+      title="Goals"
       order="created_at"
       asc
       header={(rows) => (

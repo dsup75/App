@@ -151,13 +151,14 @@ export function RecordDetail() {
           .filter((f) => f.required || (row[f.key] !== null && row[f.key] !== undefined && row[f.key] !== ''))
           .map((f) => {
             const to = linkTarget(f, row);
+            const url = f.key === 'payment_link' && /^https?:\/\//i.test(String(row[f.key] ?? '')) ? String(row[f.key]) : null;
             return (
               <ListRow
                 key={f.key}
                 title={<span className="text-[12.5px] font-normal text-muted">{f.label}</span>}
                 subtitle={<span className="whitespace-pre-wrap text-[14.5px] text-fg">{formatValue(f, row[f.key], nameOf)}</span>}
-                onClick={to ? () => nav(to) : undefined}
-                chevron={!!to}
+                onClick={to ? () => nav(to) : url ? () => window.open(url, '_blank') : undefined}
+                chevron={!!to || !!url}
               />
             );
           })}

@@ -225,7 +225,7 @@ function GoalSummary({ row, reloadKey }: { row: Row; reloadKey: number }) {
       <div className="mt-3">
         <ProgressBar pct={pct} color="#7CE0B0" />
       </div>
-      <p className="mt-2 text-[11px] opacity-75">Savings entries set money aside; they are not counted as new income.</p>
+      <p className="mt-2 text-[11px] opacity-75">Goal entries set money aside; they are not counted as new income.</p>
     </HeroCard>
   );
 }

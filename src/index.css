@@ -2,46 +2,62 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ---------- Theme: clean light + deep forest green ---------- */
+/* ---------- Theme: liquid glass + deep forest green ---------- */
 :root {
-  --bg: #f4f6f5;
-  --card: #ffffff;
-  --card-2: #f1f5f3;
+  --bg: #eef3f0;
+  --card: rgba(255, 255, 255, 0.58);
+  --card-2: rgba(255, 255, 255, 0.5);
+  --solid: #ffffff;
   --text: #0f1e17;
-  --muted: #6b7c74;
+  --muted: #5f726a;
   --primary: #1e5b45;
   --primary-2: #2f7a5c;
-  --primary-soft: #e3f1ea;
+  --primary-soft: rgba(47, 122, 92, 0.13);
   --danger: #e5484d;
-  --income: #1e9e61;
+  --income: #1a9a5c;
   --expense: #e5484d;
   --hairline: rgba(15, 30, 23, 0.08);
-  --field: #f4f7f5;
-  --shadow: 0 1px 2px rgba(15, 30, 23, 0.04), 0 6px 20px rgba(15, 30, 23, 0.06);
-  --nav: rgba(255, 255, 255, 0.86);
-  --hero-1: #23674e;
-  --hero-2: #143f30;
+  --edge: rgba(255, 255, 255, 0.75);
+  --edge-hi: rgba(255, 255, 255, 0.95);
+  --field: rgba(255, 255, 255, 0.55);
+  --shadow: 0 8px 28px rgba(20, 60, 45, 0.08), 0 1px 2px rgba(20, 60, 45, 0.05);
+  --nav: rgba(255, 255, 255, 0.62);
+  --sheet: rgba(248, 251, 249, 0.9);
+  --hero-1: #2a7457;
+  --hero-2: #12392b;
+  --blob1: rgba(52, 211, 153, 0.38);
+  --blob2: rgba(45, 212, 191, 0.26);
+  --blob3: rgba(132, 204, 22, 0.16);
+  --blob4: rgba(56, 189, 248, 0.16);
   color-scheme: light;
 }
 
 .dark {
-  --bg: #0c1310;
-  --card: #141e19;
-  --card-2: #1a2621;
+  --bg: #08100c;
+  --card: rgba(28, 44, 36, 0.48);
+  --card-2: rgba(255, 255, 255, 0.06);
+  --solid: #121c17;
   --text: #ecf4f0;
   --muted: #8ea39a;
   --primary: #3fae7e;
   --primary-2: #56c592;
-  --primary-soft: rgba(63, 174, 126, 0.14);
+  --primary-soft: rgba(63, 174, 126, 0.16);
   --danger: #ff6b6f;
   --income: #4cc98d;
   --expense: #ff6b6f;
-  --hairline: rgba(255, 255, 255, 0.07);
-  --field: #1a2621;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
-  --nav: rgba(20, 30, 25, 0.88);
+  --hairline: rgba(255, 255, 255, 0.08);
+  --edge: rgba(255, 255, 255, 0.12);
+  --edge-hi: rgba(255, 255, 255, 0.2);
+  --field: rgba(255, 255, 255, 0.05);
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --nav: rgba(20, 32, 26, 0.6);
+  --sheet: rgba(14, 23, 19, 0.92);
   --hero-1: #1f5a44;
-  --hero-2: #0f3024;
+  --hero-2: #0b2a1f;
+  --blob1: rgba(16, 185, 129, 0.2);
+  --blob2: rgba(20, 184, 166, 0.13);
+  --blob3: rgba(132, 204, 22, 0.07);
+  --blob4: rgba(56, 189, 248, 0.08);
   color-scheme: dark;
 }
 
@@ -78,7 +94,11 @@ select {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background: radial-gradient(40rem 22rem at 100% -10%, var(--primary-soft), transparent 70%);
+  background:
+    radial-gradient(34rem 26rem at -10% -5%, var(--blob1), transparent 62%),
+    radial-gradient(30rem 24rem at 110% 18%, var(--blob2), transparent 60%),
+    radial-gradient(28rem 22rem at 20% 70%, var(--blob3), transparent 60%),
+    radial-gradient(30rem 26rem at 100% 100%, var(--blob4), transparent 60%);
 }
 
 .pt-safe {
@@ -89,37 +109,75 @@ select {
 }
 
 @layer components {
-  /* Cards */
+  /* Glass cards */
   .glass {
     background: var(--card);
-    border: 1px solid var(--hairline);
-    box-shadow: var(--shadow);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    backdrop-filter: blur(22px) saturate(180%);
+    border: 1px solid var(--edge);
+    box-shadow: var(--shadow), inset 0 1px 0 var(--edge-hi);
   }
   .glass-strong {
     background: var(--nav);
-    -webkit-backdrop-filter: blur(20px) saturate(170%);
-    backdrop-filter: blur(20px) saturate(170%);
-    border: 1px solid var(--hairline);
-    box-shadow: var(--shadow);
+    -webkit-backdrop-filter: blur(26px) saturate(190%);
+    backdrop-filter: blur(26px) saturate(190%);
+    border: 1px solid var(--edge);
+    box-shadow: var(--shadow), inset 0 1px 0 var(--edge-hi);
   }
   .hero {
+    position: relative;
+    overflow: hidden;
     color: #fff;
     background:
-      radial-gradient(18rem 10rem at 100% 0%, rgba(255, 255, 255, 0.12), transparent 70%),
+      radial-gradient(16rem 9rem at 100% 0%, rgba(255, 255, 255, 0.22), transparent 70%),
+      radial-gradient(14rem 10rem at 0% 120%, rgba(124, 224, 176, 0.25), transparent 70%),
       linear-gradient(140deg, var(--hero-1), var(--hero-2));
-    box-shadow: 0 10px 28px rgba(20, 63, 48, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow:
+      0 12px 30px rgba(18, 57, 43, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.28);
   }
 
-  /* Buttons: soft secondary by default */
+  /* Liquid glass buttons */
   .liquid {
     position: relative;
-    background: var(--card-2);
+    overflow: hidden;
+    isolation: isolate;
     color: var(--text);
-    border: 1px solid var(--hairline);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.32));
+    -webkit-backdrop-filter: blur(14px) saturate(180%);
+    backdrop-filter: blur(14px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.9),
+      inset 0 -2px 5px rgba(20, 60, 45, 0.06),
+      0 3px 10px rgba(20, 60, 45, 0.08);
     transition:
-      transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
-      background 0.2s,
+      transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+      box-shadow 0.2s,
       opacity 0.2s;
+  }
+  .dark .liquid {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.18),
+      inset 0 -2px 5px rgba(0, 0, 0, 0.25),
+      0 3px 10px rgba(0, 0, 0, 0.3);
+  }
+  .liquid::before {
+    content: '';
+    position: absolute;
+    inset: 1px 10% auto 10%;
+    height: 48%;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+    opacity: 0.6;
+    z-index: -1;
+    pointer-events: none;
+  }
+  .dark .liquid::before {
+    opacity: 0.18;
   }
   .liquid:active:not(:disabled) {
     transform: scale(0.95);
@@ -128,20 +186,28 @@ select {
     opacity: 0.45;
   }
   .liquid-primary {
-    background: linear-gradient(180deg, var(--primary-2), var(--primary)) !important;
-    border-color: transparent !important;
+    background: linear-gradient(180deg, rgba(58, 150, 110, 0.95), rgba(24, 82, 61, 0.95)) !important;
+    border-color: rgba(255, 255, 255, 0.35) !important;
     color: #fff !important;
-    box-shadow: 0 4px 12px rgba(30, 91, 69, 0.25);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.45),
+      inset 0 -3px 8px rgba(0, 0, 0, 0.15),
+      0 6px 16px rgba(30, 91, 69, 0.3) !important;
   }
   .liquid-danger {
-    background: rgba(229, 72, 77, 0.1) !important;
-    border-color: transparent !important;
+    background: linear-gradient(180deg, rgba(255, 235, 236, 0.85), rgba(255, 220, 222, 0.55)) !important;
+    border-color: rgba(255, 255, 255, 0.8) !important;
     color: var(--danger) !important;
   }
+  .dark .liquid-danger {
+    background: linear-gradient(180deg, rgba(255, 107, 111, 0.2), rgba(255, 107, 111, 0.08)) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+  }
   .hero .liquid {
-    background: rgba(255, 255, 255, 0.14);
-    border-color: rgba(255, 255, 255, 0.18);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.1));
+    border-color: rgba(255, 255, 255, 0.3);
     color: #fff;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35);
   }
 
   .field {

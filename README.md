@@ -15,7 +15,10 @@ iOS-style liquid glass design, dark + light theme, multi-user (har user ka data 
 - **Payments:** kisne pay kiya (client direct / staff / other), method, UTR; UPI payment requests with QR + share; invoices with partial payments, status (Draft/Sent/Partial/Paid/Overdue/Cancelled), PDF
 - **Udhaar/Loans:** lent/borrowed, multiple repayments, simple interest, overdue/settled
 - **Group split:** equal / amount / % / item-wise, multiple payers, who-owes-whom, settlements
-- **Savings goals:** contributions & withdrawals, progress
+- **Goals:** money goals with contributions & withdrawals, progress
+- **Smart Add:** text likho ya payment screenshot daalo → draft → Approve → entry save (text bina AI ke; screenshot ke liye AI setup)
+- **Payment details:** kis app se pay/receive (GPay, PhonePe…), time, payment link, Personal/Business mode, UTR
+- **Syllabus templates:** JEE (PCM), NEET (PCB), CBSE, UP Board, other state boards — Class 11/12 (NCERT rationalised chapter names; official syllabus se check karein)
 - **Study:** subjects (Physics/Chemistry/Maths default), chapters (status, revisions, weak, backlog), Pomodoro (sirf real focus time save), study sessions, mock tests (JEE marking, accuracy), exam countdown
 - **Clients:** clients, projects, campaigns (Meta/Google…), client tasks, follow-ups, approvals, client-wise billing
 - **Daily life:** tasks (priority, status, waiting for client), habits + morning/evening routine + streaks, events, notes, shopping list, unified calendar (month/week/day)
@@ -27,7 +30,7 @@ iOS-style liquid glass design, dark + light theme, multi-user (har user ka data 
 ## One-time setup (phone se)
 
 ### 1. Database banao
-`supabase/migrations/` ki files **number ke order mein** chalao (0001 → 0002 → 0003):
+`supabase/migrations/` ki files **number ke order mein** chalao (0001 → 0002 → 0003 → 0004):
 1. GitHub pe file kholo → **Raw** → poora text copy karo.
 2. Supabase → **SQL Editor** → **New query** → paste → **Run** → "Success" aana chahiye.
 3. Agli file ke liye repeat karo. (Dobara chalane se kuch nahi bigadta.)
@@ -59,7 +62,7 @@ Har user apni khud ki Sheet + script connect karta hai, isliye kisi ka data mix 
 1. Free Gemini API key: aistudio.google.com → Get API key.
 2. Supabase → **Edge Functions** → Deploy new function → **Via Editor** → name `assistant` → `supabase/functions/assistant/index.ts` ka code paste → Deploy.
 3. Edge Functions → **Secrets** → `GEMINI_API_KEY` = aapki key. (Model badalna ho to `GEMINI_MODEL` secret.)
-Key phone/app mein kabhi nahi jaati. Bina setup ke bhi quick questions kaam karte hain.
+Key phone/app mein kabhi nahi jaati. Bina setup ke bhi quick questions aur typed Smart Add kaam karte hain. Screenshot se entry (Smart Add) bhi isi function se chalti hai — code update ho to function dobara paste karke Deploy karein.
 
 ---
 

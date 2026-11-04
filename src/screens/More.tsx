@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import {
   ListTodo, Receipt, HandCoins, Users, PiggyBank, TrendingUp, Bot, Settings, Trash2, CalendarDays, QrCode, Flame, StickyNote,
-  ShoppingCart, CalendarCheck, Link2, Timer, Megaphone, FolderKanban,
+  ShoppingCart, CalendarCheck, Link2, Timer, Megaphone, FolderKanban, Target, Wand2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { IconBubble, Page, SectionTitle, type Tone } from '../components/ui';
@@ -28,11 +28,12 @@ const SECTIONS: { title: string; items: Item[] }[] = [
   {
     title: 'Money',
     items: [
-      { label: 'Invoices', to: '/invoices', icon: Receipt, tone: 'primary' },
+      { label: 'Smart add', to: '/smart', icon: Wand2, tone: 'primary' },
+      { label: 'Invoices', to: '/invoices', icon: Receipt, tone: 'blue' },
       { label: 'Requests', to: '/requests', icon: QrCode, tone: 'teal' },
       { label: 'Udhaar', to: '/loans', icon: HandCoins, tone: 'amber' },
       { label: 'Split', to: '/groups', icon: Users, tone: 'violet' },
-      { label: 'Savings', to: '/savings', icon: PiggyBank, tone: 'pink' },
+      { label: 'Goals', to: '/goals', icon: Target, tone: 'pink' },
       { label: 'Allocate', to: '/allocations', icon: Link2, tone: 'blue' },
     ],
   },

@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { friendlyError, type Row } from '../lib/db';
 import { currentMonth, monthRange, shiftMonth, todayISO, formatDate } from '../lib/dates';
 import { formatINR, paiseToInput, sumPaise } from '../lib/money';
-import { AREAS, optionLabel, PAYER_TYPES, PAYMENT_METHODS } from '../lib/tables';
+import { AREAS, optionLabel, PAYER_TYPES, PAYMENT_METHODS, UPI_APPS } from '../lib/tables';
 import { useLookups } from '../lib/useLookups';
 import { useToast } from '../context/ToastContext';
 import { exportCSV, exportPDFTable, exportXLSX, pdfMoney, saveFile } from '../lib/exporter';
@@ -95,17 +95,20 @@ export function ReportsScreen() {
     exp.forEach((r) => m.set(r.account_id, { in: m.get(r.account_id)?.in ?? 0, out: (m.get(r.account_id)?.out ?? 0) + r.amount_paise }));
     return [...m.entries()].map(([id, v]) => ({ name: nameOf(id), ...v })).sort((a, b) => b.in + b.out - a.in - a.out);
   }, [inc, exp, nameOf]);
+  const byAppOut = useMemo(() => groupSum(exp, (r) => (r.payment_app ? optionLabel(UPI_APPS, r.payment_app) : 'Not set')), [exp]);
+  const byAppIn = useMemo(() => groupSum(inc, (r) => (r.payment_app ? optionLabel(UPI_APPS, r.payment_app) : 'Not set')), [inc]);
+  const mode = (rows: Row[], m: string) => sumPaise(rows.filter((r) => (r.payment_mode ?? 'personal') === m));
   const interestIn = data ? sumPaise(data.repayments.map((r) => ({ amount_paise: r.interest_paise }))) : 0;
 
   const label = preset === 'custom' ? `${formatDate(range.from)} – ${formatDate(range.to)}` : `${formatDate(range.from)} – ${formatDate(range.to)}`;
 
   const txnRows = () =>
     [
-      ...inc.map((r) => [r.txn_date, 'Income', r.title, paiseToInput(r.amount_paise), nameOf(r.account_id), r.category_id ? nameOf(r.category_id) : '', optionLabel(AREAS, r.area), r.client_id ? nameOf(r.client_id) : r.client_name ?? '', r.payer_name ?? '', r.payer_type ? optionLabel(PAYER_TYPES, r.payer_type) : '', r.payment_method ? optionLabel(PAYMENT_METHODS, r.payment_method) : '', r.reference ?? '', r.notes ?? '']),
-      ...exp.map((r) => [r.txn_date, 'Expense', r.title, paiseToInput(-r.amount_paise), nameOf(r.account_id), r.category_id ? nameOf(r.category_id) : '', optionLabel(AREAS, r.area), r.client_id ? nameOf(r.client_id) : '', '', '', '', '', r.notes ?? '']),
+      ...inc.map((r) => [r.txn_date + (r.txn_time ? ' ' + String(r.txn_time).slice(0, 5) : ''), 'Income', r.title, paiseToInput(r.amount_paise), nameOf(r.account_id), r.category_id ? nameOf(r.category_id) : '', optionLabel(AREAS, r.area), r.client_id ? nameOf(r.client_id) : r.client_name ?? '', r.payer_name ?? '', r.payer_type ? optionLabel(PAYER_TYPES, r.payer_type) : '', r.payment_method ? optionLabel(PAYMENT_METHODS, r.payment_method) : '', r.reference ?? '', r.notes ?? '', r.payment_app ? optionLabel(UPI_APPS, r.payment_app) : '', r.payment_mode ?? '', r.payment_link ?? '']),
+      ...exp.map((r) => [r.txn_date + (r.txn_time ? ' ' + String(r.txn_time).slice(0, 5) : ''), 'Expense', r.title, paiseToInput(-r.amount_paise), nameOf(r.account_id), r.category_id ? nameOf(r.category_id) : '', optionLabel(AREAS, r.area), r.client_id ? nameOf(r.client_id) : '', '', '', r.payment_method ? optionLabel(PAYMENT_METHODS, r.payment_method) : '', r.reference ?? '', r.notes ?? '', r.payment_app ? optionLabel(UPI_APPS, r.payment_app) : '', r.payment_mode ?? '', r.payment_link ?? '']),
       ...(area === 'all' && data ? data.transfers.map((r) => [r.txn_date, 'Transfer', r.title, paiseToInput(r.amount_paise), `${nameOf(r.from_account_id)} → ${nameOf(r.to_account_id)}`, '', '', '', '', '', '', '', r.notes ?? '']) : []),
     ].sort((a, b) => String(a[0]).localeCompare(String(b[0])));
-  const headers = ['Date', 'Type', 'Title', 'Amount (INR)', 'Account', 'Category', 'Area', 'Client', 'Payer', 'Received from', 'Method', 'Reference', 'Notes'];
+  const headers = ['Date / time', 'Type', 'Title', 'Amount (INR)', 'Account', 'Category', 'Area', 'Client', 'Payer', 'Received from', 'Method', 'Reference', 'Notes', 'App', 'Mode', 'Payment link'];
   const fname = (ext: string) => `DeepBoost-Report-${range.from}-to-${range.to}.${ext}`;
 
   const run = async (k: string, fn: () => Promise<unknown>) => {
@@ -174,12 +177,22 @@ export function ReportsScreen() {
           </div>
           {interestIn > 0 && <p className="px-1 text-[12px] text-muted">Loan interest moved in this period: {formatINR(interestIn)} (tracked separately).</p>}
 
+          <div className="grid grid-cols-2 gap-2">
+            <KV label="Personal: in / out" value={`${formatINR(mode(inc, 'personal'))} / ${formatINR(mode(exp, 'personal'))}`} />
+            <KV label="Business: in / out" value={`${formatINR(mode(inc, 'business'))} / ${formatINR(mode(exp, 'business'))}`} />
+          </div>
+
           <SectionTitle>Spending by category</SectionTitle>
           <CategoryBreakdown rows={byCategory} />
           <SectionTitle>Income by category</SectionTitle>
           <CategoryBreakdown rows={incByCategory} />
 
-          <SectionTitle>By account / UPI app</SectionTitle>
+          <SectionTitle>Paid with app</SectionTitle>
+          <CategoryBreakdown rows={byAppOut} />
+          <SectionTitle>Received on app</SectionTitle>
+          <CategoryBreakdown rows={byAppIn} />
+
+          <SectionTitle>By account</SectionTitle>
           <List>
             {byAccount.length === 0 && <ListRow title="No entries" />}
             {byAccount.map((a) => (

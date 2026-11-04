@@ -104,6 +104,16 @@ export function RecordForm({
           if (row && v && row[fd.filterBy.column] !== v) next[fd.key] = '';
         }
       });
+      // Picking an account that is a UPI app fills "which app" automatically
+      if ((k === 'account_id' || k === 'from_account_id') && 'payment_app' in next) {
+        const acc = accounts.find((a) => a.id === v);
+        if (acc?.upi_app) next.payment_app = acc.upi_app;
+        else if (acc?.type === 'cash') next.payment_app = 'cash';
+        if (acc?.type === 'cash' && 'payment_method' in next) next.payment_method = 'cash';
+        else if (acc?.upi_app && 'payment_method' in next && next.payment_method === 'cash') next.payment_method = 'upi';
+      }
+      // Business payment mode → business area (can still be changed)
+      if (k === 'payment_mode' && v === 'business' && next.area === 'personal') next.area = 'business';
       return next;
     });
     if (errors[k] || errors._form) setErrors((e) => ({ ...e, [k]: '', _form: '' }));
@@ -121,6 +131,7 @@ export function RecordForm({
         const pick = fd.key === 'to_account_id' ? active.find((a) => a.id !== next.from_account_id) : active[0];
         if (pick) {
           next[fd.key] = pick.id;
+          if ('payment_app' in next && !next.payment_app && pick.upi_app) next.payment_app = pick.upi_app;
           changed = true;
         }
       });

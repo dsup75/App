@@ -10,15 +10,18 @@ import { useLock } from '../context/LockContext';
 import { RecordLine } from '../components/RecordLine';
 import { Shortcut } from './Clients';
 import { TableList } from '../components/TableList';
+import { TEMPLATES, applyTemplate, type SyllabusTemplate } from '../lib/syllabus';
 import {
-  BarChart, Button, Card, Empty, ErrorBox, FormRow, HeroCard, IconBubble, IconButton, List, ListRow, Page, ProgressBar, SectionTitle, SeeAll, Segmented, Spinner,
+  BarChart, Button, Card, Empty, ErrorBox, FormRow, HeroCard, IconBubble, IconButton, List, ListRow, Page, ProgressBar, SectionTitle, SeeAll, Segmented, Sheet, Spinner,
 } from '../components/ui';
+import { LibraryBig } from 'lucide-react';
 
 export function StudyHub() {
   const nav = useNavigate();
   const { nameOf } = useLookups();
   const [data, setData] = useState<{ subjects: Row[]; chapters: Row[]; sessions: Row[]; tests: Row[]; exams: Row[] } | null>(null);
   const [error, setError] = useState('');
+  const [tplOpen, setTplOpen] = useState(false);
 
   const load = useCallback(async () => {
     setError('');
@@ -110,7 +113,24 @@ export function StudyHub() {
         <Shortcut icon={<BookOpen size={16} />} label="Sessions" onClick={() => nav('/sessions')} />
       </div>
 
-      <SectionTitle right={<SeeAll onClick={() => nav('/r/subjects/new')} label="+ Subject" />}>Subjects</SectionTitle>
+      {data.chapters.length === 0 && (
+        <Card className="flex items-center gap-3">
+          <IconBubble tone="violet"><LibraryBig size={17} /></IconBubble>
+          <p className="flex-1 text-[13px] text-muted">Load JEE, NEET or board chapters in one tap.</p>
+          <Button size="sm" variant="primary" onClick={() => setTplOpen(true)}>Templates</Button>
+        </Card>
+      )}
+
+      <SectionTitle
+        right={
+          <div className="flex gap-3">
+            <SeeAll onClick={() => setTplOpen(true)} label="Templates" />
+            <SeeAll onClick={() => nav('/r/subjects/new')} label="+ Subject" />
+          </div>
+        }
+      >
+        Subjects
+      </SectionTitle>
       {data.subjects.length === 0 ? (
         <Empty title="No subjects" />
       ) : (
@@ -159,6 +179,8 @@ export function StudyHub() {
         </>
       )}
 
+      <TemplateSheet open={tplOpen} onClose={() => setTplOpen(false)} onApplied={load} />
+
       <SectionTitle right={<SeeAll onClick={() => nav('/tests')} />}>Recent tests</SectionTitle>
       {data.tests.length === 0 ? (
         <Empty title="No tests yet" action={<Button size="sm" onClick={() => nav('/r/mock_tests/new')}>Add test result</Button>} />
@@ -170,6 +192,41 @@ export function StudyHub() {
         </List>
       )}
     </Page>
+  );
+}
+
+function TemplateSheet({ open, onClose, onApplied }: { open: boolean; onClose: () => void; onApplied: () => void }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState('');
+  const apply = async (t: SyllabusTemplate) => {
+    setBusy(t.id);
+    try {
+      const n = await applyTemplate(t);
+      toast(n ? `${n} chapters added from ${t.title}` : 'All chapters already added');
+      onApplied();
+      onClose();
+    } catch (e) {
+      toast(friendlyError(e), 'error');
+    } finally {
+      setBusy('');
+    }
+  };
+  return (
+    <Sheet open={open} onClose={onClose} title="Syllabus templates">
+      <p className="mb-3 text-center text-[12.5px] text-muted">
+        Chapter names follow NCERT (rationalised) books. Check your official syllabus — you can edit or delete any chapter later.
+      </p>
+      <List>
+        {TEMPLATES.map((t) => (
+          <ListRow
+            key={t.id}
+            title={t.title}
+            subtitle={t.description}
+            right={busy === t.id ? <span className="text-[12px] text-muted">Adding…</span> : <Button size="sm" onClick={() => apply(t)} disabled={!!busy}>Add</Button>}
+          />
+        ))}
+      </List>
+    </Sheet>
   );
 }
 

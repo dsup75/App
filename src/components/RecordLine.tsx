@@ -8,7 +8,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { formatINR } from '../lib/money';
 import { formatDate, relativeDay } from '../lib/dates';
-import { optionLabel, TASK_STATUS, CHAPTER_STATUS, PROJECT_STATUS, CAMPAIGN_STATUS, PLATFORMS, CLIENT_STATUS, type TableName } from '../lib/tables';
+import { optionLabel, UPI_APPS, TASK_STATUS, CHAPTER_STATUS, PROJECT_STATUS, CAMPAIGN_STATUS, PLATFORMS, CLIENT_STATUS, type TableName } from '../lib/tables';
 import { IconBubble, ListRow, Badge, type Tone } from './ui';
 
 export const TABLE_ICON: Record<TableName, { icon: LucideIcon; tone: Tone }> = {
@@ -58,11 +58,11 @@ export function RecordLine({ table, row, nameOf }: { table: TableName; row: any;
 
   switch (table) {
     case 'incomes':
-      sub = [relativeDay(row.txn_date), nameOf(row.account_id), row.payer_name].filter(Boolean).join(' · ');
+      sub = [relativeDay(row.txn_date), row.txn_time && String(row.txn_time).slice(0, 5), row.payment_app ? optionLabel(UPI_APPS, row.payment_app) : nameOf(row.account_id), row.payer_name].filter(Boolean).join(' · ');
       right = money(row.amount_paise, 'in');
       break;
     case 'expenses':
-      sub = [relativeDay(row.txn_date), nameOf(row.account_id), row.category_id && nameOf(row.category_id)].filter(Boolean).join(' · ');
+      sub = [relativeDay(row.txn_date), row.txn_time && String(row.txn_time).slice(0, 5), row.payment_app ? optionLabel(UPI_APPS, row.payment_app) : nameOf(row.account_id), row.category_id && nameOf(row.category_id)].filter(Boolean).join(' · ');
       right = money(row.amount_paise, 'out');
       break;
     case 'transfers':

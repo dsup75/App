@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Landmark, Tag, Plus, QrCode, FileText, HandCoins, PiggyBank, Users, Link2, Smartphone } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Landmark, Tag, Plus, QrCode, FileText, HandCoins, Target, Users, Wand2, Smartphone } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchBalances, fetchMoney, friendlyError, type Balance, type Row } from '../lib/db';
 import { currentMonth, monthLabel, monthRange, shiftMonth } from '../lib/dates';
@@ -77,12 +77,12 @@ function useMonthData(month: string) {
 }
 
 const TOOLS = [
+  { label: 'Smart add', to: '/smart', icon: Wand2, tone: 'primary' as const },
   { label: 'Requests', to: '/requests', icon: QrCode, tone: 'teal' as const },
-  { label: 'Invoices', to: '/invoices', icon: FileText, tone: 'primary' as const },
+  { label: 'Invoices', to: '/invoices', icon: FileText, tone: 'blue' as const },
   { label: 'Udhaar', to: '/loans', icon: HandCoins, tone: 'amber' as const },
-  { label: 'Savings', to: '/savings', icon: PiggyBank, tone: 'pink' as const },
+  { label: 'Goals', to: '/goals', icon: Target, tone: 'pink' as const },
   { label: 'Split', to: '/groups', icon: Users, tone: 'violet' as const },
-  { label: 'Allocate', to: '/allocations', icon: Link2, tone: 'blue' as const },
 ];
 
 function Overview({ month }: { month: string }) {

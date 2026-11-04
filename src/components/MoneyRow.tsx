@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight } from 'lucide-react';
 import { formatINR } from '../lib/money';
 import { relativeDay } from '../lib/dates';
+import { optionLabel, UPI_APPS } from '../lib/tables';
 import { IconBubble, ListRow } from './ui';
 
 export type MoneyKind = 'incomes' | 'expenses' | 'transfers';
@@ -19,7 +20,9 @@ export function MoneyRow({ kind, row, nameOf }: { kind: MoneyKind; row: any; nam
   const sub =
     kind === 'transfers'
       ? `${nameOf(row.from_account_id)} → ${nameOf(row.to_account_id)}`
-      : [nameOf(row.account_id), row.category_id ? nameOf(row.category_id) : null].filter(Boolean).join(' · ');
+      : [row.payment_app ? optionLabel(UPI_APPS, row.payment_app) : nameOf(row.account_id), row.category_id ? nameOf(row.category_id) : null, row.payment_mode === 'business' ? 'Business' : null]
+          .filter(Boolean)
+          .join(' · ');
   const amount =
     kind === 'incomes' ? (
       <span className="font-semibold text-income">{formatINR(row.amount_paise, { sign: true })}</span>
@@ -32,7 +35,7 @@ export function MoneyRow({ kind, row, nameOf }: { kind: MoneyKind; row: any; nam
     <ListRow
       icon={icon}
       title={row.title}
-      subtitle={`${relativeDay(row.txn_date)} · ${sub}`}
+      subtitle={`${relativeDay(row.txn_date)}${row.txn_time ? ` ${String(row.txn_time).slice(0, 5)}` : ''} · ${sub}`}
       right={amount}
       onClick={() => nav(`/r/${kind}/${row.id}`)}
     />
