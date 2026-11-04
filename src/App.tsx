@@ -27,6 +27,7 @@ import { CalendarScreen } from './screens/Calendar';
 import { ReportsScreen } from './screens/Reports';
 import { AssistantScreen } from './screens/Assistant';
 import { SmartAdd } from './screens/SmartAdd';
+import { ListsScreen } from './screens/Lists';
 import {
   InvoicesScreen, LoansScreen, SavingsScreen, NotesScreen, EventsScreen, ShoppingScreen, CampaignsScreen, ProjectsScreen, AllocationsScreen,
 } from './screens/Modules';
@@ -88,6 +89,7 @@ function Gate() {
           <Route path="/goals" element={<SavingsScreen />} />
           <Route path="/savings" element={<Navigate to="/goals" replace />} />
           <Route path="/smart" element={<SmartAdd />} />
+          <Route path="/lists" element={<ListsScreen />} />
           <Route path="/groups" element={<GroupsScreen />} />
           <Route path="/groups/:id" element={<GroupDetail />} />
           <Route path="/allocations" element={<AllocationsScreen />} />

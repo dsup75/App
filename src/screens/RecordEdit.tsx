@@ -7,6 +7,9 @@ import { paiseToInput } from '../lib/money';
 import { useLookups } from '../lib/useLookups';
 import { useToast } from '../context/ToastContext';
 import { RecordForm, initialFormState } from '../components/RecordForm';
+import { initialExtras, type Extras } from '../components/MoneyExtras';
+import { supabase } from '../lib/supabase';
+import { softDelete } from '../lib/db';
 import { Button, Empty, ErrorBox, Page, Sheet, Spinner } from '../components/ui';
 import { formatValue } from './RecordDetail';
 
@@ -44,6 +47,9 @@ export function RecordEdit() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [pending, setPending] = useState<{ values: Record<string, any>; changes: { label: string; from: string; to: string }[] } | null>(null);
+  const [extras, setExtras] = useState<Extras | undefined>(undefined);
+  const [origAllocs, setOrigAllocs] = useState<{ id: string; income_id: string; amount_paise: number }[]>([]);
+  const [newAllocs, setNewAllocs] = useState<{ id?: string; income_id: string; amount_paise: number }[] | null>(null);
 
   useEffect(() => {
     if (!valid) return;
@@ -84,6 +90,21 @@ export function RecordEdit() {
         if (dupId && 'txn_date' in state) state.txn_date = todayISO();
         if (dupId && (t === 'tasks' || t === 'payment_requests')) state.status = 'pending';
         if (dupId && 'payment_request_id' in state) state.payment_request_id = '';
+        if (t === 'expenses' && id) {
+          supabase
+            .from('allocations')
+            .select('id,income_id,amount_paise')
+            .eq('expense_id', id)
+            .is('deleted_at', null)
+            .then(({ data }) => {
+              const a = (data as any[]) ?? [];
+              setOrigAllocs(a);
+              setExtras(initialExtras(r, a));
+              setInitial(state);
+            });
+          return;
+        }
+        if (t === 'incomes' || t === 'expenses') setExtras(initialExtras(r));
         setInitial(state);
       })
       .catch((e) => setError(friendlyError(e)));
@@ -95,10 +116,30 @@ export function RecordEdit() {
   if (t === 'group_expenses') return <GroupExpenseRedirect id={id ?? dupId} groupId={params.get('group_id')} />;
   const pageTitle = editing ? `Edit ${def.label}` : dupId ? `Copy ${def.label}` : fromRequest ? 'Record payment' : `New ${def.label}`;
 
-  const save = async (values: Record<string, any>) => {
+  const syncAllocs = async (expenseId: string, list: { id?: string; income_id: string; amount_paise: number }[] | null) => {
+    if (t !== 'expenses' || !list) return;
+    const keep = new Set(list.filter((a) => a.id).map((a) => a.id));
+    for (const o of origAllocs) if (!keep.has(o.id)) await softDelete('allocations', o.id);
+    for (const a of list) {
+      const o = origAllocs.find((x) => x.id === a.id);
+      if (o) {
+        if (o.income_id !== a.income_id || o.amount_paise !== a.amount_paise)
+          await updateRecord('allocations', o.id, { income_id: a.income_id, amount_paise: a.amount_paise });
+      } else await createRecord('allocations', { expense_id: expenseId, income_id: a.income_id, amount_paise: a.amount_paise });
+    }
+  };
+
+  const save = async (values: Record<string, any>, allocs = newAllocs) => {
     setSaving(true);
     try {
-      const saved = editing ? await updateRecord(t, id!, values) : await createRecord(t, values);
+      const saved = Object.keys(values).length || !editing ? (editing ? await updateRecord(t, id!, values) : await createRecord(t, values)) : { id: id! };
+      try {
+        await syncAllocs(saved.id, allocs);
+      } catch (e) {
+        toast(`Saved, but income link failed: ${friendlyError(e)}`, 'error');
+        nav(`/r/${t}/${saved.id}`, { replace: true });
+        return;
+      }
       toast(editing ? 'Changes saved' : `${def.label} added`);
       nav(`/r/${t}/${saved.id}`, { replace: true });
     } catch (e) {
@@ -109,16 +150,20 @@ export function RecordEdit() {
     }
   };
 
-  const onSubmit = (values: Record<string, any>) => {
-    if (!editing || !original) return save(values);
+  const onSubmit = (values: Record<string, any>, allocs?: { id?: string; income_id: string; amount_paise: number }[]) => {
+    setNewAllocs(allocs ?? null);
+    if (!editing || !original) return save(values, allocs ?? null);
     // Only send changed fields (keeps edit history clean)
     const changed: Record<string, any> = {};
+    const same = (a: unknown, b: unknown) => (typeof a === 'object' || typeof b === 'object' ? JSON.stringify(a ?? null) === JSON.stringify(b ?? null) : String(a ?? null) === String(b ?? null));
     for (const f of def.fields) {
       if (!(f.key in values)) continue;
-      const before = original[f.key] ?? null;
-      const after = values[f.key] ?? null;
-      if (String(before) !== String(after)) changed[f.key] = after;
+      if (!same(original[f.key], values[f.key])) changed[f.key] = values[f.key] ?? null;
     }
+    const allocsChanged =
+      t === 'expenses' &&
+      JSON.stringify((allocs ?? []).map((a) => [a.id ?? '', a.income_id, a.amount_paise])) !== JSON.stringify(origAllocs.map((a) => [a.id, a.income_id, a.amount_paise]));
+    if (!Object.keys(changed).length && allocsChanged) return save({}, allocs ?? null);
     if (!Object.keys(changed).length) {
       toast('No changes to save');
       return nav(-1);
@@ -135,7 +180,7 @@ export function RecordEdit() {
       });
       return;
     }
-    save(changed);
+    save(changed, allocs ?? null);
   };
 
   return (
@@ -145,7 +190,7 @@ export function RecordEdit() {
       ) : !initial ? (
         <Spinner />
       ) : (
-        <RecordForm table={t} initial={initial} saving={saving} submitLabel={editing ? 'Save changes' : `Add ${def.label}`} onSubmit={onSubmit} />
+        <RecordForm table={t} initial={initial} extrasInitial={extras} saving={saving} submitLabel={editing ? "Save changes" : `Add ${def.label}`} onSubmit={onSubmit} />
       )}
 
       <Sheet open={!!pending} onClose={() => setPending(null)} title="Confirm money change">

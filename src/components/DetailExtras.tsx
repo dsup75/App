@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileDown, Plus, Copy } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { formatINR, sumPaise } from '../lib/money';
+import { formatINR, paiseToInput, sumPaise } from '../lib/money';
 import { formatDate, todayISO } from '../lib/dates';
 import { optionLabel, UPI_APPS, type TableName } from '../lib/tables';
 import { useAuth } from '../context/AuthContext';
@@ -38,8 +38,14 @@ export function DetailExtras({ table, row, nameOf, reloadKey }: { table: TableNa
     case 'savings_goals':
       return <GoalSummary row={row} reloadKey={reloadKey} />;
     case 'incomes':
-    case 'expenses':
       return <AllocationSummary table={table} row={row} reloadKey={reloadKey} />;
+    case 'expenses':
+      return (
+        <>
+          <AllocationSummary table={table} row={row} reloadKey={reloadKey} />
+          <SplitSummary row={row} reloadKey={reloadKey} />
+        </>
+      );
     case 'mock_tests':
       return <TestSummary row={row} />;
     case 'clients':
@@ -246,6 +252,69 @@ function AllocationSummary({ table, row, reloadKey }: { table: 'incomes' | 'expe
       <KV label={table === 'incomes' ? 'Allocated' : 'Funded'} value={formatINR(used)} />
       <KV label={table === 'incomes' ? 'Unallocated' : 'Still unfunded'} value={formatINR(row.amount_paise - used)} />
     </div>
+  );
+}
+
+function SplitSummary({ row, reloadKey }: { row: Row; reloadKey: number }) {
+  const nav = useNavigate();
+  const [got, setGot] = useState<Row[]>([]);
+  const people: { name: string; amount_paise: number }[] = Array.isArray(row.split_with) ? row.split_with : [];
+  useEffect(() => {
+    if (!people.length) return;
+    supabase
+      .from('incomes')
+      .select('id,payer_name,amount_paise')
+      .eq('split_expense_id', row.id)
+      .is('deleted_at', null)
+      .then(({ data }) => setGot((data as Row[]) ?? []));
+  }, [row.id, reloadKey, people.length]);
+  if (!people.length) return null;
+  const others = people.reduce((s, p) => s + Number(p.amount_paise), 0);
+  return (
+    <Card className="space-y-2.5">
+      <div className="flex items-center justify-between">
+        <p className="text-[14.5px] font-semibold">Split</p>
+        <span className="text-[12.5px] text-muted">Your share {formatINR(row.amount_paise - others)}</span>
+      </div>
+      {people.map((p) => {
+        const received = got.filter((g) => (g.payer_name ?? '').toLowerCase() === p.name.toLowerCase()).reduce((s, g) => s + Number(g.amount_paise), 0);
+        const due = Math.max(0, Number(p.amount_paise) - received);
+        return (
+          <div key={p.name} className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[14px] font-medium">{p.name}</p>
+              <p className="text-[12px] text-muted">
+                Share {formatINR(p.amount_paise)}
+                {received ? ` · got ${formatINR(received)}` : ''}
+              </p>
+            </div>
+            {due === 0 ? (
+              <Badge tone="primary">Settled</Badge>
+            ) : (
+              <Button
+                size="sm"
+                onClick={() =>
+                  nav(
+                    `/r/incomes/new?${new URLSearchParams({
+                      split_expense_id: row.id,
+                      payer_name: p.name,
+                      payer_type: 'other',
+                      amount_paise: paiseToInput(due),
+                      title: `${p.name} — share of ${row.title}`,
+                      payment_mode: row.payment_mode ?? 'personal',
+                      area: row.area ?? 'personal',
+                    }).toString()}`,
+                  )
+                }
+              >
+                Got {formatINR(due)}
+              </Button>
+            )}
+          </div>
+        );
+      })}
+      <p className="text-[11.5px] text-muted">When someone pays back, tap their button — it is saved as income linked to this expense.</p>
+    </Card>
   );
 }
 

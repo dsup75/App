@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { TABLES, type Field, type TableName } from '../lib/tables';
 import { parseRupeesToPaise, parseSignedRupeesToPaise, paiseToInput } from '../lib/money';
 import { useLookups } from '../lib/useLookups';
+import { useCustomOptions } from '../lib/options';
+import { supabase } from '../lib/supabase';
+import { MoneyExtras, extrasToDb, initialExtras, type Extras } from './MoneyExtras';
 import { Button, Card, FormRow, Toggle } from './ui';
 
 type Values = Record<string, any>;
@@ -82,17 +85,39 @@ export function RecordForm({
   submitLabel,
   saving,
   onSubmit,
+  extrasInitial,
 }: {
   table: TableName;
   initial: Record<string, string>;
   submitLabel: string;
   saving?: boolean;
-  onSubmit: (values: Values) => void;
+  onSubmit: (values: Values, allocs?: { id?: string; income_id: string; amount_paise: number }[]) => void;
+  extrasInitial?: Extras;
 }) {
   const def = TABLES[table];
   const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { accounts, categories, refs, loaded } = useLookups();
+  const { optionsFor } = useCustomOptions();
+  const money = table === 'incomes' || table === 'expenses';
+  const [ex, setEx] = useState<Extras>(extrasInitial ?? initialExtras(null));
+  const [contacts, setContacts] = useState<{ id: string; name: string; role: string | null }[]>([]);
+  const [typeName, setTypeName] = useState(false);
+
+  // Client staff names for "Payer name"
+  useEffect(() => {
+    if (table !== 'incomes' || !form.client_id) {
+      setContacts([]);
+      return;
+    }
+    supabase
+      .from('client_contacts')
+      .select('id,name,role')
+      .eq('client_id', form.client_id)
+      .is('deleted_at', null)
+      .order('name')
+      .then(({ data }) => setContacts((data as any[]) ?? []));
+  }, [table, form.client_id]);
 
   const set = (k: string, v: string) => {
     setForm((f) => {
@@ -141,6 +166,20 @@ export function RecordForm({
 
   const submit = () => {
     const { values, errors: errs } = toDbValues(table, form);
+    if (!Object.values(errs).some(Boolean) && money) {
+      const r = extrasToDb(table as 'incomes' | 'expenses', ex, values.amount_paise ?? 0, accounts);
+      if (typeof r === 'string') errs._form = r;
+      else {
+        values.sources = r.sources;
+        if (r.sources.length) {
+          values.account_id = r.sources[0].account_id;
+          values.payment_app = null;
+        }
+        if (table === 'expenses') values.split_with = r.split_with;
+        setErrors(errs);
+        return onSubmit(values, r.allocs);
+      }
+    }
     setErrors(errs);
     if (!Object.values(errs).some(Boolean)) onSubmit(values);
   };
@@ -176,17 +215,20 @@ export function RecordForm({
             <Toggle checked={v === 'true'} onChange={(x) => set(f.key, x ? 'true' : 'false')} />
           </div>
         );
-      case 'select':
+      case 'select': {
+        const opts = f.listKey ? optionsFor(f.listKey, f.options ?? []) : f.options ?? [];
+        const withCurrent = v && !opts.some((o) => o.value === v) ? [...opts, { value: v, label: v }] : opts;
         return (
           <select className="field" value={v} onChange={(e) => set(f.key, e.target.value)}>
             {!f.required && !f.default && <option value="">—</option>}
-            {f.options?.map((o) => (
+            {withCurrent.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
             ))}
           </select>
         );
+      }
       case 'account': {
         const opts = accounts.filter((a) => !a.deleted_at || a.id === v);
         return (
@@ -232,6 +274,32 @@ export function RecordForm({
       case 'json':
         return null;
       default:
+        if (table === 'incomes' && f.key === 'payer_name' && contacts.length && !typeName) {
+          const known = contacts.some((c) => c.name === v);
+          return (
+            <select
+              className="field"
+              value={known ? v : v ? '__other' : ''}
+              onChange={(e) => {
+                if (e.target.value === '__other') {
+                  setTypeName(true);
+                  return;
+                }
+                set(f.key, e.target.value);
+                if (e.target.value && form.payer_type === 'client') set('payer_type', 'client_staff');
+              }}
+            >
+              <option value="">— Select staff —</option>
+              {contacts.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                  {c.role ? ` (${c.role})` : ''}
+                </option>
+              ))}
+              <option value="__other">{v && !known ? `${v} (typed)` : 'Someone else… (type name)'}</option>
+            </select>
+          );
+        }
         return <input className="field" value={v} placeholder={f.placeholder} onChange={(e) => set(f.key, e.target.value)} />;
     }
   };
@@ -247,8 +315,10 @@ export function RecordForm({
               {renderField(f)}
             </FormRow>
           ))}
-        {errors._form && <p className="px-0.5 text-[13px] text-danger">{errors._form}</p>}
+        {!money && errors._form && <p className="px-0.5 text-[13px] text-danger">{errors._form}</p>}
       </Card>
+      {money && <MoneyExtras table={table as 'incomes' | 'expenses'} ex={ex} setEx={setEx} totalText={form.amount_paise ?? ''} accounts={accounts} />}
+      {money && errors._form && <p className="px-1 text-[13px] text-danger">{errors._form}</p>}
       <Button variant="primary" size="lg" full loading={saving} onClick={submit}>
         {submitLabel}
       </Button>

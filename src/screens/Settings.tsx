@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { Lock, Fingerprint, Timer, LogOut, FileSpreadsheet, User, Moon, KeyRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -15,6 +16,7 @@ import { Badge, Button, Card, Confirm, FormRow, IconBubble, List, ListRow, Page,
 
 export function SettingsScreen() {
   const { user, settings, reloadSettings, signOut } = useAuth();
+  const nav = useNavigate();
   const { config, updateConfig, lockNow, suppressBriefly } = useLock();
   const toast = useToast();
   const [theme, setTheme] = useState<ThemeMode>(getThemeMode());
@@ -128,6 +130,17 @@ export function SettingsScreen() {
         The PIN protects this app on this phone. Your data on the server is protected by your password and database security
         rules.
       </p>
+
+      <SectionTitle>Lists</SectionTitle>
+      <List>
+        <ListRow
+          icon={<IconBubble tone="teal"><FileSpreadsheet size={18} /></IconBubble>}
+          title="Manage lists"
+          subtitle="Categories, accounts, clients & staff, payment apps, methods…"
+          onClick={() => nav('/lists')}
+          chevron
+        />
+      </List>
 
       <PaymentsBusiness />
 

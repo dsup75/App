@@ -10,6 +10,7 @@ import { CHILDREN, type ChildSpec } from '../lib/children';
 import { formatINR, paiseToInput } from '../lib/money';
 import { formatDate, formatDateTime } from '../lib/dates';
 import { useLookups } from '../lib/useLookups';
+import { useCustomOptions } from '../lib/options';
 import { useToast } from '../context/ToastContext';
 import { RequestPanel } from '../components/RequestPanel';
 import { DetailExtras } from '../components/DetailExtras';
@@ -39,7 +40,11 @@ export function formatValue(f: Field | undefined, value: unknown, nameOf: (id: s
       return nameOf(String(value));
     case 'json':
       if (Array.isArray(value))
-        return value.map((x: any) => `${nameOf(x.member_id)} ${formatINR(Number(x.amount_paise))}`).join(', ') || '—';
+        return (
+          value
+            .map((x: any) => `${x.name ?? nameOf(x.member_id ?? x.account_id)} ${formatINR(Number(x.amount_paise))}`)
+            .join(', ') || '—'
+        );
       return JSON.stringify(value);
     default:
       return String(value);
@@ -60,6 +65,7 @@ export function RecordDetail() {
   const nav = useNavigate();
   const toast = useToast();
   const { nameOf, reload: reloadLookups } = useLookups();
+  const { labelOf } = useCustomOptions();
   const [row, setRow] = useState<Row | null | undefined>(undefined);
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [error, setError] = useState('');
@@ -148,7 +154,7 @@ export function RecordDetail() {
       <List>
         {def.fields
           .filter((f) => !(showAmount && f === amountField) && f.key !== def.titleField && !f.hidden)
-          .filter((f) => f.required || (row[f.key] !== null && row[f.key] !== undefined && row[f.key] !== ''))
+          .filter((f) => f.required || (row[f.key] !== null && row[f.key] !== undefined && row[f.key] !== '' && !(Array.isArray(row[f.key]) && !row[f.key].length)))
           .map((f) => {
             const to = linkTarget(f, row);
             const url = f.key === 'payment_link' && /^https?:\/\//i.test(String(row[f.key] ?? '')) ? String(row[f.key]) : null;
@@ -156,7 +162,7 @@ export function RecordDetail() {
               <ListRow
                 key={f.key}
                 title={<span className="text-[12.5px] font-normal text-muted">{f.label}</span>}
-                subtitle={<span className="whitespace-pre-wrap text-[14.5px] text-fg">{formatValue(f, row[f.key], nameOf)}</span>}
+                subtitle={<span className="whitespace-pre-wrap text-[14.5px] text-fg">{f.listKey ? labelOf(f.listKey, row[f.key]) : formatValue(f, row[f.key], nameOf)}</span>}
                 onClick={to ? () => nav(to) : url ? () => window.open(url, '_blank') : undefined}
                 chevron={!!to || !!url}
               />

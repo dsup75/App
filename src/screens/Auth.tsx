@@ -190,7 +190,7 @@ function Forgot({ onBack }: { onBack: () => void }) {
         </>
       ) : (
         <>
-          <p className="text-[14px] text-muted">We sent a code to {email}. Enter it below with your new password.</p>
+          <p className="text-[14px] text-muted">We sent an email to {email}. Enter the 6-digit code from it below with your new password. (Check Spam too. Don't tap the link in the email — use the code.)</p>
           <FormRow label="Code">
             <input className="field tracking-[0.3em]" inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} />
           </FormRow>

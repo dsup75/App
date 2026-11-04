@@ -41,6 +41,8 @@ export const TABLE_ICON: Record<TableName, { icon: LucideIcon; tone: Tone }> = {
   study_sessions: { icon: Timer, tone: 'primary' },
   mock_tests: { icon: ClipboardCheck, tone: 'violet' },
   exams: { icon: GraduationCap, tone: 'expense' },
+  client_contacts: { icon: Users, tone: 'teal' },
+  custom_options: { icon: Tag, tone: 'muted' },
 };
 
 /** One generic row for any record type */
@@ -112,6 +114,9 @@ export function RecordLine({ table, row, nameOf }: { table: TableName; row: any;
     case 'mock_tests':
       sub = formatDate(row.test_date);
       right = <span className="shrink-0 text-[14px] font-semibold">{row.obtained_marks}/{row.total_marks}</span>;
+      break;
+    case 'client_contacts':
+      sub = [row.role, row.phone].filter(Boolean).join(' · ');
       break;
     case 'exams': {
       const days = Math.round((new Date(row.exam_date + 'T00:00:00').getTime() - new Date(new Date().toDateString()).getTime()) / 86400000);

@@ -5,7 +5,8 @@ export type TableName =
   | 'incomes' | 'expenses' | 'transfers' | 'tasks' | 'accounts' | 'categories' | 'payment_requests'
   | 'clients' | 'projects' | 'campaigns' | 'invoices' | 'allocations' | 'loans' | 'loan_repayments'
   | 'savings_goals' | 'savings_entries' | 'groups' | 'group_members' | 'group_expenses' | 'group_settlements'
-  | 'habits' | 'events' | 'notes' | 'shopping_items' | 'subjects' | 'chapters' | 'study_sessions' | 'mock_tests' | 'exams';
+  | 'habits' | 'events' | 'notes' | 'shopping_items' | 'subjects' | 'chapters' | 'study_sessions' | 'mock_tests' | 'exams'
+  | 'client_contacts' | 'custom_options';
 
 export type FieldType =
   | 'text' | 'textarea' | 'money' | 'signed_money' | 'date' | 'time' | 'select'
@@ -31,7 +32,11 @@ export interface Field {
   hint?: string;
   default?: () => unknown;
   hidden?: boolean;
+  /** dropdown the user can extend / trim in Settings → Manage lists */
+  listKey?: ListKey;
 }
+
+export type ListKey = 'payment_app' | 'payment_method' | 'task_type' | 'platform';
 
 export interface TableDef {
   table: TableName;
@@ -95,14 +100,16 @@ export const TABLES: Record<TableName, TableDef> = {
       { key: 'payer_type', label: 'Received from', type: 'select', options: PAYER_TYPES, default: () => 'client' },
       { key: 'payer_name', label: 'Payer name', type: 'text', placeholder: 'Who actually paid, e.g. Rahul (staff)' },
       { key: 'payment_mode', label: 'Payment mode', type: 'select', options: PAYMENT_MODES, default: () => 'personal' },
-      { key: 'payment_method', label: 'Payment method', type: 'select', options: PAYMENT_METHODS, default: () => 'upi' },
-      { key: 'payment_app', label: 'Received on app', type: 'select', options: UPI_APPS },
+      { key: 'payment_method', label: 'Payment method', type: 'select', options: PAYMENT_METHODS, listKey: 'payment_method', default: () => 'upi' },
+      { key: 'payment_app', label: 'Received on app', type: 'select', options: UPI_APPS, listKey: 'payment_app' },
       { key: 'reference', label: 'UTR / reference no.', type: 'text', placeholder: 'Optional' },
       { key: 'payment_link', label: 'Payment link', type: 'text', placeholder: 'https://… (optional)' },
       area, txnDate,
       { key: 'txn_time', label: 'Time received', type: 'time', default: nowTime },
       notes,
       { key: 'payment_request_id', label: 'Payment request', type: 'text', hidden: true },
+      { key: 'split_expense_id', label: 'Split repayment of', type: 'ref', refTable: 'expenses', hidden: true },
+      { key: 'sources', label: 'Received in accounts', type: 'json' },
     ],
   },
   expenses: {
@@ -113,8 +120,8 @@ export const TABLES: Record<TableName, TableDef> = {
       { key: 'account_id', label: 'Paid from', type: 'account', required: true },
       { key: 'category_id', label: 'Category', type: 'category', categoryKind: 'expense' },
       { key: 'payment_mode', label: 'Payment mode', type: 'select', options: PAYMENT_MODES, default: () => 'personal' },
-      { key: 'payment_method', label: 'Payment method', type: 'select', options: PAYMENT_METHODS, default: () => 'upi' },
-      { key: 'payment_app', label: 'Paid with app', type: 'select', options: UPI_APPS },
+      { key: 'payment_method', label: 'Payment method', type: 'select', options: PAYMENT_METHODS, listKey: 'payment_method', default: () => 'upi' },
+      { key: 'payment_app', label: 'Paid with app', type: 'select', options: UPI_APPS, listKey: 'payment_app' },
       { key: 'reference', label: 'UTR / reference no.', type: 'text', placeholder: 'Optional' },
       { key: 'payment_link', label: 'Payment link', type: 'text', placeholder: 'https://… (optional)' },
       area,
@@ -122,6 +129,8 @@ export const TABLES: Record<TableName, TableDef> = {
       txnDate,
       { key: 'txn_time', label: 'Time paid', type: 'time', default: nowTime },
       notes,
+      { key: 'sources', label: 'Paid from accounts', type: 'json' },
+      { key: 'split_with', label: 'Split with', type: 'json' },
     ],
   },
   transfers: {
@@ -142,7 +151,7 @@ export const TABLES: Record<TableName, TableDef> = {
     fields: [
       { key: 'name', label: 'Account name', type: 'text', required: true, placeholder: 'e.g. SBI, GPay, PhonePe' },
       { key: 'type', label: 'Type', type: 'select', options: ACCOUNT_TYPES, default: () => 'bank' },
-      { key: 'upi_app', label: 'UPI app (if any)', type: 'select', options: UPI_APPS },
+      { key: 'upi_app', label: 'UPI app (if any)', type: 'select', options: UPI_APPS, listKey: 'payment_app' },
       { key: 'upi_id', label: 'UPI ID (to receive payments)', type: 'text', placeholder: 'e.g. name@okaxis' },
       { key: 'opening_balance_paise', label: 'Opening balance (₹)', type: 'signed_money', default: () => 0 },
       notes,
@@ -288,7 +297,7 @@ export const TABLES: Record<TableName, TableDef> = {
     fields: [
       { key: 'title', label: 'Task', type: 'text', required: true, placeholder: 'What needs to be done?' },
       area,
-      { key: 'task_type', label: 'Type', type: 'select', options: TASK_TYPES, default: () => 'task' },
+      { key: 'task_type', label: 'Type', type: 'select', options: TASK_TYPES, listKey: 'task_type', default: () => 'task' },
       { key: 'priority', label: 'Priority', type: 'select', options: PRIORITIES, default: () => 'medium' },
       { key: 'status', label: 'Status', type: 'select', options: TASK_STATUS, default: () => 'pending' },
       { key: 'due_date', label: 'Due date', type: 'date', default: todayISO },
@@ -400,6 +409,25 @@ export const TABLES: Record<TableName, TableDef> = {
   },
 
   /* ---------------- Clients ---------------- */
+  client_contacts: {
+    table: 'client_contacts', label: 'Client Staff', plural: 'Client Staff', titleField: 'name', financial: false,
+    fields: [
+      clientRef(true),
+      { key: 'name', label: 'Name', type: 'text', required: true, placeholder: 'e.g. Sejal' },
+      { key: 'role', label: 'Role', type: 'text', placeholder: 'e.g. Accounts, Owner' },
+      { key: 'phone', label: 'Phone', type: 'text' },
+      { key: 'email', label: 'Email', type: 'text' },
+    ],
+  },
+  custom_options: {
+    table: 'custom_options', label: 'List item', plural: 'List items', titleField: 'label', financial: false,
+    fields: [
+      { key: 'list_key', label: 'List', type: 'text', required: true },
+      { key: 'label', label: 'Name', type: 'text', required: true },
+      { key: 'value', label: 'Value', type: 'text', required: true },
+      { key: 'hidden', label: 'Hidden', type: 'bool', default: () => false },
+    ],
+  },
   clients: {
     table: 'clients', label: 'Client', plural: 'Clients', titleField: 'name', financial: false,
     fields: [
@@ -431,7 +459,7 @@ export const TABLES: Record<TableName, TableDef> = {
       clientRef(true),
       { key: 'project_id', label: 'Project', type: 'ref', refTable: 'projects', filterBy: { column: 'client_id', field: 'client_id' } },
       { key: 'name', label: 'Campaign name', type: 'text', required: true },
-      { key: 'platform', label: 'Platform', type: 'select', options: PLATFORMS, default: () => 'meta' },
+      { key: 'platform', label: 'Platform', type: 'select', options: PLATFORMS, listKey: 'platform', default: () => 'meta' },
       { key: 'objective', label: 'Objective', type: 'text', placeholder: 'e.g. Leads, Sales, Awareness' },
       { key: 'status', label: 'Status', type: 'select', options: CAMPAIGN_STATUS, default: () => 'planned' },
       { key: 'budget_paise', label: 'Budget (₹)', type: 'money' },

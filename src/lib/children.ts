@@ -13,6 +13,7 @@ export interface ChildSpec {
 
 export const CHILDREN: Partial<Record<TableName, ChildSpec[]>> = {
   clients: [
+    { table: 'client_contacts', fk: 'client_id', title: 'Staff / contacts', order: 'name', addLabel: 'Staff' },
     { table: 'tasks', fk: 'client_id', title: 'Client tasks & follow-ups', order: 'due_date', addLabel: 'Task', extra: { area: 'business' } },
     { table: 'invoices', fk: 'client_id', title: 'Invoices', order: 'issue_date', addLabel: 'Invoice' },
     { table: 'incomes', fk: 'client_id', title: 'Payments received', order: 'txn_date', addLabel: 'Payment', extra: { area: 'business' } },

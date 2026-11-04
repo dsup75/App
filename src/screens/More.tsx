@@ -50,6 +50,7 @@ const SECTIONS: { title: string; items: Item[] }[] = [
     items: [
       { label: 'Reports', to: '/reports', icon: TrendingUp, tone: 'primary' },
       { label: 'Assistant', to: '/assistant', icon: Bot, tone: 'violet' },
+      { label: 'Manage lists', to: '/lists', icon: ListTodo, tone: 'teal' },
       { label: 'Recycle Bin', to: '/recycle', icon: Trash2, tone: 'expense' },
       { label: 'Settings', to: '/settings', icon: Settings, tone: 'muted' },
     ],
