@@ -436,7 +436,7 @@ function SheetSync() {
         </div>
         {progress && <p className="px-1 text-[12px] text-muted">{progress}</p>}
         {settings?.last_synced_at && <p className="px-1 text-[12px] text-muted">Last sync: {formatDateTime(settings.last_synced_at)}</p>}
-        <p className="px-1 text-[12px] text-muted">The app works without this. The sheet gets a copy of your data; the app database stays the main record.</p>
+        <p className="px-1 text-[12px] text-muted">The app works without this. The sheet gets a full copy of your data (25+ tabs) and updates automatically every 6 hours when the app is opened; tap Sync now any time. The app database stays the main record.</p>
       </Card>
     </>
   );

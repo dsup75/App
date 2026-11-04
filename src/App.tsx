@@ -28,6 +28,9 @@ import { ReportsScreen } from './screens/Reports';
 import { AssistantScreen } from './screens/Assistant';
 import { SmartAdd } from './screens/SmartAdd';
 import { ListsScreen } from './screens/Lists';
+import { syncAll } from './lib/sheets';
+import { saveSettings } from './lib/db';
+import { useRef } from 'react';
 import {
   InvoicesScreen, LoansScreen, SavingsScreen, NotesScreen, EventsScreen, ShoppingScreen, CampaignsScreen, ProjectsScreen, AllocationsScreen,
 } from './screens/Modules';
@@ -52,6 +55,28 @@ function BackButton() {
   return null;
 }
 
+/** Quietly copies data to the user's Google Sheet when the last sync is older than 6 hours. */
+function AutoSync() {
+  const { user, settings, reloadSettings } = useAuth();
+  const done = useRef(false);
+  useEffect(() => {
+    if (done.current || !user || !settings?.apps_script_url || !settings.sheet_verified_at) return;
+    const last = settings.last_synced_at ? new Date(settings.last_synced_at).getTime() : 0;
+    if (Date.now() - last < 6 * 3600 * 1000) return;
+    done.current = true;
+    const t = setTimeout(() => {
+      syncAll(settings.apps_script_url!, settings.sync_key ?? '')
+        .then(() => saveSettings(user.id, { last_synced_at: new Date().toISOString() }))
+        .then(reloadSettings)
+        .catch(() => {
+          /* silent — manual "Sync now" shows errors */
+        });
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [user, settings, reloadSettings]);
+  return null;
+}
+
 function Gate() {
   const { session, loading } = useAuth();
   const { ready, locked } = useLock();
@@ -68,6 +93,7 @@ function Gate() {
   return (
     <>
       <BackButton />
+      <AutoSync />
       <Shell>
         <Routes>
           <Route path="/" element={<Home />} />

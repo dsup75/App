@@ -43,24 +43,46 @@ const SHEETS: { table: string; sheet: string; cols: string[] }[] = [
   { table: 'transfers', sheet: 'Transfers', cols: ['id', 'txn_date', 'title', 'amount_paise', 'from_account_id', 'to_account_id', 'notes', 'created_at', 'updated_at'] },
   { table: 'savings_goals', sheet: 'Goals', cols: ['id', 'name', 'target_paise', 'target_date', 'notes', 'created_at', 'updated_at'] },
   { table: 'payment_requests', sheet: 'Payment Requests', cols: ['id', 'title', 'client_name', 'amount_paise', 'due_date', 'status', 'paid_at', 'note', 'created_at', 'updated_at'] },
-  { table: 'tasks', sheet: 'Tasks', cols: ['id', 'title', 'area', 'priority', 'status', 'due_date', 'completed_at', 'notes', 'created_at', 'updated_at'] },
+  { table: 'tasks', sheet: 'Tasks', cols: ['id', 'title', 'area', 'task_type', 'priority', 'status', 'due_date', 'client_id', 'completed_at', 'notes', 'created_at', 'updated_at'] },
+  { table: 'clients', sheet: 'Clients', cols: ['id', 'name', 'contact_person', 'phone', 'email', 'business_type', 'status', 'start_date', 'notes', 'created_at'] },
+  { table: 'client_contacts', sheet: 'Client Staff', cols: ['id', 'client_id', 'name', 'role', 'phone', 'email', 'created_at'] },
+  { table: 'invoices', sheet: 'Invoices', cols: ['id', 'invoice_no', 'client_id', 'title', 'period', 'amount_paise', 'issue_date', 'due_date', 'status', 'notes', 'created_at'] },
+  { table: 'allocations', sheet: 'Allocations', cols: ['id', 'income_id', 'expense_id', 'amount_paise', 'notes', 'created_at'] },
+  { table: 'loans', sheet: 'Udhaar & Loans', cols: ['id', 'direction', 'person', 'principal_paise', 'account_id', 'start_date', 'due_date', 'interest_type', 'interest_rate_bp', 'notes', 'created_at'] },
+  { table: 'loan_repayments', sheet: 'Loan Repayments', cols: ['id', 'loan_id', 'title', 'principal_paise', 'interest_paise', 'account_id', 'txn_date', 'notes', 'created_at'] },
+  { table: 'savings_entries', sheet: 'Goal Entries', cols: ['id', 'goal_id', 'title', 'amount_paise', 'txn_date', 'notes', 'created_at'] },
+  { table: 'group_expenses', sheet: 'Group Expenses', cols: ['id', 'group_id', 'title', 'amount_paise', 'txn_date', 'split_type', 'notes', 'created_at'] },
+  { table: 'group_settlements', sheet: 'Group Settlements', cols: ['id', 'group_id', 'from_member_id', 'to_member_id', 'amount_paise', 'txn_date', 'notes', 'created_at'] },
+  { table: 'projects', sheet: 'Projects', cols: ['id', 'client_id', 'name', 'status', 'start_date', 'deadline', 'budget_paise', 'notes', 'created_at'] },
+  { table: 'campaigns', sheet: 'Campaigns', cols: ['id', 'client_id', 'name', 'platform', 'objective', 'status', 'budget_paise', 'start_date', 'end_date', 'results', 'notes', 'created_at'] },
+  { table: 'study_sessions', sheet: 'Study Sessions', cols: ['id', 'session_date', 'title', 'subject_id', 'chapter_id', 'minutes', 'kind', 'notes', 'created_at'] },
+  { table: 'chapters', sheet: 'Chapters', cols: ['id', 'subject_id', 'name', 'class_level', 'status', 'revision_count', 'is_weak', 'is_backlog', 'notes'] },
+  { table: 'mock_tests', sheet: 'Mock Tests', cols: ['id', 'name', 'exam', 'subject_id', 'test_date', 'total_marks', 'obtained_marks', 'correct', 'incorrect', 'unattempted', 'weak_chapters', 'notes'] },
+  { table: 'habits', sheet: 'Habits', cols: ['id', 'name', 'slot', 'area', 'target_per_week', 'notes', 'created_at'] },
+  { table: 'events', sheet: 'Events', cols: ['id', 'title', 'event_date', 'start_time', 'end_time', 'area', 'location', 'notes'] },
+  { table: 'notes', sheet: 'Notes', cols: ['id', 'title', 'body', 'area', 'pinned', 'updated_at'] },
 ];
 
 export async function syncAll(url: string, key: string, onProgress?: (msg: string) => void): Promise<number> {
-  // Resolve names so the sheet is readable
-  const [acc, cat] = await Promise.all([
-    supabase.from('accounts').select('id,name'),
-    supabase.from('categories').select('id,name'),
-  ]);
+  // Resolve linked ids to names so the sheet is readable
   const names = new Map<string, string>();
-  (acc.data ?? []).forEach((a: any) => names.set(a.id, a.name));
-  (cat.data ?? []).forEach((c: any) => names.set(c.id, c.name));
+  const nameSources: [string, string][] = [
+    ['accounts', 'id,name'], ['categories', 'id,name'], ['clients', 'id,name'], ['savings_goals', 'id,name'],
+    ['groups', 'id,name'], ['group_members', 'id,name'], ['subjects', 'id,name'], ['chapters', 'id,name'],
+    ['loans', 'id,person'], ['invoices', 'id,invoice_no'], ['incomes', 'id,title'], ['expenses', 'id,title'],
+  ];
+  const lists = await Promise.all(nameSources.map(([t, c]) => supabase.from(t).select(c).limit(10000)));
+  lists.forEach((r) => ((r.data as any[]) ?? []).forEach((x) => names.set(x.id, x.name ?? x.person ?? x.invoice_no ?? x.title)));
 
   let total = 0;
+  const batch: { sheet: string; headers: string[]; rows: unknown[][] }[] = [];
   for (const s of SHEETS) {
-    onProgress?.(`Syncing ${s.sheet}…`);
+    onProgress?.(`Reading ${s.sheet}…`);
     const { data, error } = await supabase.from(s.table).select('*').is('deleted_at', null).limit(10000);
-    if (error) throw error;
+    if (error) {
+      if (/does not exist/i.test(error.message)) continue; // table from a newer update not installed yet
+      throw error;
+    }
     const headers = s.cols.map((c) =>
       c.endsWith('_paise') ? c.replace('_paise', '_inr') : c.endsWith('_id') && c !== 'id' ? c.replace('_id', '') : c,
     );
@@ -70,11 +92,23 @@ export async function syncAll(url: string, key: string, onProgress?: (msg: strin
         if (v === null || v === undefined) return '';
         if (c.endsWith('_paise')) return paiseToInput(Number(v));
         if (c.endsWith('_id') && c !== 'id') return names.get(v) ?? v;
+        if (typeof v === 'object') return JSON.stringify(v);
         return v;
       }),
     );
-    await callScript(url, { action: 'replace', key, sheet: s.sheet, headers, rows });
+    batch.push({ sheet: s.sheet, headers, rows });
     total += rows.length;
+  }
+  onProgress?.('Writing to Google Sheet…');
+  try {
+    await callScript(url, { action: 'replace_many', key, sheets: batch });
+  } catch (e) {
+    // Older script without replace_many → one sheet at a time
+    if (!/Unknown action/i.test((e as Error).message)) throw e;
+    for (const b of batch) {
+      onProgress?.(`Writing ${b.sheet}…`);
+      await callScript(url, { action: 'replace', key, sheet: b.sheet, headers: b.headers, rows: b.rows });
+    }
   }
   return total;
 }
