@@ -1,55 +1,79 @@
 import { useNavigate } from 'react-router-dom';
 import {
-  ListTodo, Receipt, HandCoins, Users, PiggyBank, TrendingUp, Bot, Settings, Trash2, CalendarDays,
+  ListTodo, Receipt, HandCoins, Users, PiggyBank, TrendingUp, Bot, Settings, Trash2, CalendarDays, QrCode, Flame, StickyNote,
+  ShoppingCart, CalendarCheck, Link2, Timer, Megaphone, FolderKanban,
 } from 'lucide-react';
-import { Badge, IconBubble, List, ListRow, Page, SectionTitle } from '../components/ui';
+import type { LucideIcon } from 'lucide-react';
+import { IconBubble, Page, SectionTitle, type Tone } from '../components/ui';
+
+interface Item {
+  label: string;
+  to: string;
+  icon: LucideIcon;
+  tone: Tone;
+}
+
+const SECTIONS: { title: string; items: Item[] }[] = [
+  {
+    title: 'Daily life',
+    items: [
+      { label: 'Tasks', to: '/tasks', icon: ListTodo, tone: 'blue' },
+      { label: 'Habits', to: '/habits', icon: Flame, tone: 'amber' },
+      { label: 'Calendar', to: '/calendar', icon: CalendarDays, tone: 'violet' },
+      { label: 'Events', to: '/events', icon: CalendarCheck, tone: 'blue' },
+      { label: 'Notes', to: '/notes', icon: StickyNote, tone: 'amber' },
+      { label: 'Shopping', to: '/shopping', icon: ShoppingCart, tone: 'teal' },
+    ],
+  },
+  {
+    title: 'Money',
+    items: [
+      { label: 'Invoices', to: '/invoices', icon: Receipt, tone: 'primary' },
+      { label: 'Requests', to: '/requests', icon: QrCode, tone: 'teal' },
+      { label: 'Udhaar', to: '/loans', icon: HandCoins, tone: 'amber' },
+      { label: 'Split', to: '/groups', icon: Users, tone: 'violet' },
+      { label: 'Savings', to: '/savings', icon: PiggyBank, tone: 'pink' },
+      { label: 'Allocate', to: '/allocations', icon: Link2, tone: 'blue' },
+    ],
+  },
+  {
+    title: 'Work & study',
+    items: [
+      { label: 'Projects', to: '/projects', icon: FolderKanban, tone: 'blue' },
+      { label: 'Campaigns', to: '/campaigns', icon: Megaphone, tone: 'pink' },
+      { label: 'Focus timer', to: '/pomodoro', icon: Timer, tone: 'primary' },
+    ],
+  },
+  {
+    title: 'Insights & app',
+    items: [
+      { label: 'Reports', to: '/reports', icon: TrendingUp, tone: 'primary' },
+      { label: 'Assistant', to: '/assistant', icon: Bot, tone: 'violet' },
+      { label: 'Recycle Bin', to: '/recycle', icon: Trash2, tone: 'expense' },
+      { label: 'Settings', to: '/settings', icon: Settings, tone: 'muted' },
+    ],
+  },
+];
 
 export function More() {
   const nav = useNavigate();
-  const soon = (phase: number) => <Badge>Phase {phase}</Badge>;
   return (
     <Page title="More">
-      <SectionTitle>Daily life</SectionTitle>
-      <List>
-        <ListRow icon={<IconBubble tone="blue"><ListTodo size={18} /></IconBubble>} title="Tasks" onClick={() => nav('/tasks')} chevron />
-        <ListRow icon={<IconBubble tone="violet"><CalendarDays size={18} /></IconBubble>} title="Habits, routine & calendar" right={soon(3)} disabled />
-      </List>
-
-      <SectionTitle>Money</SectionTitle>
-      <List>
-        <ListRow icon={<IconBubble tone="primary"><Receipt size={18} /></IconBubble>} title="Invoices" right={soon(2)} disabled />
-        <ListRow icon={<IconBubble tone="amber"><HandCoins size={18} /></IconBubble>} title="Udhaar & Loans" right={soon(2)} disabled />
-        <ListRow icon={<IconBubble tone="violet"><Users size={18} /></IconBubble>} title="Groups & Split" right={soon(2)} disabled />
-        <ListRow icon={<IconBubble tone="income"><PiggyBank size={18} /></IconBubble>} title="Savings goals" right={soon(2)} disabled />
-      </List>
-
-      <SectionTitle>Insights</SectionTitle>
-      <List>
-        <ListRow icon={<IconBubble tone="blue"><TrendingUp size={18} /></IconBubble>} title="Reports & export" right={soon(4)} disabled />
-        <ListRow icon={<IconBubble tone="violet"><Bot size={18} /></IconBubble>} title="AI Assistant" right={soon(4)} disabled />
-      </List>
-
-      <SectionTitle>App</SectionTitle>
-      <List>
-        <ListRow icon={<IconBubble tone="muted"><Settings size={18} /></IconBubble>} title="Settings" onClick={() => nav('/settings')} chevron />
-        <ListRow icon={<IconBubble tone="expense"><Trash2 size={18} /></IconBubble>} title="Recycle Bin" onClick={() => nav('/recycle')} chevron />
-      </List>
-    </Page>
-  );
-}
-
-export function ComingSoon({ title, phase, items }: { title: string; phase: number; items: string[] }) {
-  return (
-    <Page title={title}>
-      <div className="glass rounded-[26px] p-5">
-        <Badge tone="primary">Coming in Phase {phase}</Badge>
-        <p className="mt-3 text-[15px]">This section is planned and not built yet. It will include:</p>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-[14px] text-muted">
-          {items.map((i) => (
-            <li key={i}>{i}</li>
-          ))}
-        </ul>
-      </div>
+      {SECTIONS.map((s) => (
+        <div key={s.title} className="space-y-2">
+          <SectionTitle>{s.title}</SectionTitle>
+          <div className="grid grid-cols-3 gap-2">
+            {s.items.map(({ label, to, icon: Icon, tone }) => (
+              <button key={to} onClick={() => nav(to)} className="glass flex flex-col items-center gap-1.5 rounded-[16px] py-3.5 transition-transform active:scale-95">
+                <IconBubble tone={tone} size={36}>
+                  <Icon size={18} />
+                </IconBubble>
+                <span className="text-[12px] font-semibold">{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
     </Page>
   );
 }

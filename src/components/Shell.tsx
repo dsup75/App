@@ -1,9 +1,11 @@
 import { useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  House, BookOpen, Wallet, Briefcase, LayoutGrid, Plus, ListTodo, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Landmark,
+  House, BookOpen, Wallet, Briefcase, LayoutGrid, Plus, ListTodo, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Timer,
+  FileText, HandCoins, Users, StickyNote, CalendarDays, QrCode, ClipboardList,
 } from 'lucide-react';
-import { Sheet, cx } from './ui';
+import type { LucideIcon } from 'lucide-react';
+import { IconBubble, Sheet, cx, type Tone } from './ui';
 
 const TABS = [
   { to: '/', label: 'Home', icon: House },
@@ -13,7 +15,7 @@ const TABS = [
   { to: '/more', label: 'More', icon: LayoutGrid },
 ];
 
-const TAB_PATHS = ['/', '/study', '/finance', '/clients', '/more', '/tasks', '/recycle'];
+const TAB_PATHS = ['/', '/study', '/finance', '/clients', '/more'];
 
 export function Shell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
@@ -29,14 +31,14 @@ export function Shell({ children }: { children: ReactNode }) {
           <button
             aria-label="Quick add"
             onClick={() => setQuick(true)}
-            className="liquid liquid-primary fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full"
-            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 96px)' }}
+            className="liquid liquid-primary fixed right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 84px)' }}
           >
-            <Plus size={26} strokeWidth={2.5} />
+            <Plus size={22} strokeWidth={2.5} />
           </button>
           <nav
-            className="glass-strong fixed inset-x-3 z-40 mx-auto flex max-w-md items-center justify-around rounded-[28px] px-1 py-1.5"
-            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
+            className="glass-strong fixed inset-x-3 z-40 mx-auto flex max-w-md items-center justify-around rounded-[24px] px-1 py-1"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 10px)' }}
           >
             {TABS.map(({ to, label, icon: Icon }) => (
               <NavLink
@@ -44,15 +46,17 @@ export function Shell({ children }: { children: ReactNode }) {
                 to={to}
                 end={to === '/'}
                 className={({ isActive }) =>
-                  cx(
-                    'flex flex-1 flex-col items-center gap-0.5 rounded-[22px] py-1.5 text-[10px] font-semibold transition-all duration-300',
-                    isActive ? 'liquid text-primary' : 'text-muted',
-                  )
+                  cx('flex flex-1 flex-col items-center gap-0.5 rounded-[18px] py-1.5 text-[10px] font-semibold transition-colors duration-200', isActive ? 'text-primary' : 'text-muted')
                 }
-                style={{ boxShadow: 'none' }}
               >
-                <Icon size={22} strokeWidth={2} />
-                {label}
+                {({ isActive }) => (
+                  <>
+                    <span className={cx('flex h-7 w-12 items-center justify-center rounded-full transition-colors', isActive && 'bg-[var(--primary-soft)]')}>
+                      <Icon size={20} strokeWidth={isActive ? 2.3 : 1.9} />
+                    </span>
+                    {label}
+                  </>
+                )}
               </NavLink>
             ))}
           </nav>
@@ -63,41 +67,43 @@ export function Shell({ children }: { children: ReactNode }) {
   );
 }
 
-const ACTIONS = [
-  { label: 'Task', to: '/r/tasks/new', icon: ListTodo, tone: 'linear-gradient(180deg,#60A5FA,#2563EB)' },
-  { label: 'Income', to: '/r/incomes/new', icon: ArrowDownLeft, tone: 'linear-gradient(180deg,#34D399,#059669)' },
-  { label: 'Expense', to: '/r/expenses/new', icon: ArrowUpRight, tone: 'linear-gradient(180deg,#FB7185,#E11D48)' },
-  { label: 'Transfer', to: '/r/transfers/new', icon: ArrowLeftRight, tone: 'linear-gradient(180deg,#A78BFA,#7C3AED)' },
-  { label: 'Account', to: '/r/accounts/new', icon: Landmark, tone: 'linear-gradient(180deg,#FBBF24,#D97706)' },
+const ACTIONS: { label: string; to: string; icon: LucideIcon; tone: Tone }[] = [
+  { label: 'Task', to: '/r/tasks/new', icon: ListTodo, tone: 'blue' },
+  { label: 'Income', to: '/r/incomes/new', icon: ArrowDownLeft, tone: 'income' },
+  { label: 'Expense', to: '/r/expenses/new', icon: ArrowUpRight, tone: 'expense' },
+  { label: 'Study session', to: '/r/study_sessions/new', icon: Timer, tone: 'primary' },
+  { label: 'Client task', to: '/r/tasks/new?area=business&task_type=follow_up', icon: ClipboardList, tone: 'teal' },
+  { label: 'Invoice', to: '/r/invoices/new', icon: FileText, tone: 'primary' },
+  { label: 'Payment', to: '/r/incomes/new?area=business&payment_method=upi&payer_type=client', icon: ArrowDownLeft, tone: 'teal' },
+  { label: 'Payment request', to: '/r/payment_requests/new', icon: QrCode, tone: 'teal' },
+  { label: 'Loan / Udhaar', to: '/r/loans/new', icon: HandCoins, tone: 'amber' },
+  { label: 'Group expense', to: '/groups', icon: Users, tone: 'violet' },
+  { label: 'Transfer', to: '/r/transfers/new', icon: ArrowLeftRight, tone: 'violet' },
+  { label: 'Note', to: '/r/notes/new', icon: StickyNote, tone: 'amber' },
+  { label: 'Event', to: '/r/events/new', icon: CalendarDays, tone: 'pink' },
 ];
 
 function QuickAdd({ open, onClose }: { open: boolean; onClose: () => void }) {
   const nav = useNavigate();
   return (
-    <Sheet open={open} onClose={onClose} title="Quick Add">
-      <div className="grid grid-cols-3 gap-3">
+    <Sheet open={open} onClose={onClose} title="Quick add">
+      <div className="grid grid-cols-3 gap-2">
         {ACTIONS.map(({ label, to, icon: Icon, tone }) => (
           <button
-            key={to}
+            key={label}
             onClick={() => {
               onClose();
               nav(to);
             }}
-            className="liquid flex flex-col items-center gap-2 rounded-[22px] py-4"
+            className="flex flex-col items-center gap-1.5 rounded-[16px] bg-[var(--card-2)] py-3 transition-transform active:scale-95"
           >
-            <span
-              className="flex h-11 w-11 items-center justify-center rounded-2xl text-white"
-              style={{ background: tone, boxShadow: 'inset 0 1px 1px rgba(255,255,255,.5)' }}
-            >
-              <Icon size={22} />
-            </span>
-            <span className="text-[13px] font-semibold">{label}</span>
+            <IconBubble tone={tone} size={38}>
+              <Icon size={19} />
+            </IconBubble>
+            <span className="text-[12px] font-semibold">{label}</span>
           </button>
         ))}
       </div>
-      <p className="mt-4 text-center text-[12px] text-muted">
-        Invoices, loans, study sessions and client tasks arrive in the next phases.
-      </p>
     </Sheet>
   );
 }

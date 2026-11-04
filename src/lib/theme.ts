@@ -32,7 +32,7 @@ export function isDark(): boolean {
 export async function applyTheme() {
   const dark = isDark();
   document.documentElement.classList.toggle('dark', dark);
-  const color = dark ? '#0B1220' : '#F2F4F7';
+  const color = dark ? '#0C1310' : '#F4F6F5';
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color);
   if (Capacitor.isNativePlatform()) {
     try {

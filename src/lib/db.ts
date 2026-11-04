@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { TableName } from './tables';
+import { invalidateLookups } from './useLookups';
 
 export type Row = Record<string, any> & { id: string };
 
@@ -7,6 +8,8 @@ export function friendlyError(e: unknown): string {
   const err = e as { message?: string; code?: string; details?: string };
   const msg = err?.message ?? String(e);
   if (msg.includes('LINKED_DELETED:')) return msg.split('LINKED_DELETED:')[1].trim();
+  if (msg.includes('APP_ERROR:')) return msg.split('APP_ERROR:')[1].trim();
+  if (err?.code === '23505') return 'This already exists.';
   if (err?.code === '23503')
     return 'This record is still used by other entries. Delete or move those entries first.';
   if (err?.code === '23514') return 'Some values are not allowed. Please check the form.';
@@ -27,22 +30,27 @@ export async function getRecord(table: TableName, id: string): Promise<Row | nul
 }
 
 export async function createRecord(table: TableName, values: Record<string, unknown>): Promise<Row> {
+  invalidateLookups();
   return check(await supabase.from(table).insert(values).select('*').single()) as Row;
 }
 
 export async function updateRecord(table: TableName, id: string, values: Record<string, unknown>): Promise<Row> {
+  invalidateLookups();
   return check(await supabase.from(table).update(values).eq('id', id).select('*').single()) as Row;
 }
 
 export async function softDelete(table: TableName, id: string): Promise<void> {
+  invalidateLookups();
   check(await supabase.from(table).update({ deleted_at: new Date().toISOString() }).eq('id', id));
 }
 
 export async function restoreRecord(table: TableName, id: string): Promise<void> {
+  invalidateLookups();
   check(await supabase.from(table).update({ deleted_at: null }).eq('id', id));
 }
 
 export async function deleteForever(table: TableName, id: string): Promise<void> {
+  invalidateLookups();
   const res = await supabase.from(table).delete().eq('id', id).not('deleted_at', 'is', null).select('id');
   const data = check(res) as { id: string }[];
   if (!data.length) throw new Error('Only records in the Recycle Bin can be deleted permanently.');
@@ -72,6 +80,8 @@ export interface Account {
   id: string;
   name: string;
   type: string;
+  upi_app?: string | null;
+  upi_id?: string | null;
   deleted_at: string | null;
 }
 export interface Category {
@@ -93,6 +103,8 @@ export interface Balance {
   id: string;
   name: string;
   type: string;
+  upi_app?: string | null;
+  upi_id?: string | null;
   opening_balance_paise: number;
   balance_paise: number;
 }
@@ -132,6 +144,10 @@ export interface Settings {
   sync_key: string | null;
   sheet_verified_at: string | null;
   last_synced_at: string | null;
+  upi_id: string | null;
+  upi_name: string | null;
+  business_name: string | null;
+  business_details: string | null;
 }
 
 export async function fetchSettings(userId: string): Promise<Settings | null> {

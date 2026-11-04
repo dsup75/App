@@ -3,18 +3,35 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { createRecord, friendlyError, getRecord, updateRecord, type Row } from '../lib/db';
 import { TABLES, isTableName, type TableName } from '../lib/tables';
 import { todayISO } from '../lib/dates';
+import { paiseToInput } from '../lib/money';
 import { useLookups } from '../lib/useLookups';
 import { useToast } from '../context/ToastContext';
 import { RecordForm, initialFormState } from '../components/RecordForm';
 import { Button, Empty, ErrorBox, Page, Sheet, Spinner } from '../components/ui';
 import { formatValue } from './RecordDetail';
 
-const MONEY_KEYS = ['amount_paise', 'account_id', 'from_account_id', 'to_account_id', 'txn_date', 'opening_balance_paise', 'category_id', 'area'];
+const MONEY_KEYS = [
+  'amount_paise', 'account_id', 'from_account_id', 'to_account_id', 'txn_date', 'opening_balance_paise', 'category_id',
+  'invoice_id', 'income_id', 'expense_id', 'principal_paise', 'interest_paise', 'loan_id', 'direction', 'target_paise', 'goal_id',
+];
+
+/** Group expenses have a custom editor on the group screen */
+function GroupExpenseRedirect({ id, groupId }: { id: string | null | undefined; groupId: string | null }) {
+  const nav = useNavigate();
+  useEffect(() => {
+    if (groupId) nav(`/groups/${groupId}?expense=${id ?? 'new'}`, { replace: true });
+    else if (id)
+      getRecord('group_expenses', id).then((r) => r && nav(`/groups/${r.group_id}?expense=${id}`, { replace: true }));
+    else nav('/groups', { replace: true });
+  }, [id, groupId, nav]);
+  return <Spinner />;
+}
 
 export function RecordEdit() {
   const { table, id } = useParams();
   const [params] = useSearchParams();
   const dupId = params.get('dup');
+  const fromRequest = params.get('from_request');
   const nav = useNavigate();
   const toast = useToast();
   const { nameOf } = useLookups();
@@ -31,8 +48,31 @@ export function RecordEdit() {
   useEffect(() => {
     if (!valid) return;
     const sourceId = id || dupId;
+    if (!sourceId && fromRequest && t === 'incomes') {
+      // "Mark as paid" → prefill income from the payment request
+      getRecord('payment_requests', fromRequest)
+        .then((req) => {
+          const state = initialFormState('incomes');
+          if (req) {
+            state.title = req.client_name ? `${req.client_name} — ${req.title}` : req.title;
+            state.amount_paise = paiseToInput(Number(req.amount_paise));
+            state.client_name = req.client_name ?? '';
+            if (req.account_id) state.account_id = req.account_id;
+            state.payment_request_id = req.id;
+            state.area = 'business';
+          }
+          setInitial(state);
+        })
+        .catch((e) => setError(friendlyError(e)));
+      return;
+    }
     if (!sourceId) {
-      setInitial(initialFormState(t));
+      // Any ?field=value in the URL pre-fills the form (e.g. ?client_id=… from a client page)
+      const prefill: Record<string, string> = {};
+      params.forEach((value, key) => {
+        if (TABLES[t].fields.some((f) => f.key === key)) prefill[key] = value;
+      });
+      setInitial(initialFormState(t, null, prefill));
       return;
     }
     getRecord(t, sourceId)
@@ -42,15 +82,18 @@ export function RecordEdit() {
         setOriginal(id ? r : null);
         const state = initialFormState(t, r);
         if (dupId && 'txn_date' in state) state.txn_date = todayISO();
-        if (dupId && t === 'tasks') state.status = 'pending';
+        if (dupId && (t === 'tasks' || t === 'payment_requests')) state.status = 'pending';
+        if (dupId && 'payment_request_id' in state) state.payment_request_id = '';
         setInitial(state);
       })
       .catch((e) => setError(friendlyError(e)));
-  }, [valid, t, id, dupId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valid, t, id, dupId, fromRequest]);
 
   if (!valid) return <Page title="Not found" back><Empty title="Unknown record type" /></Page>;
   const def = TABLES[t];
-  const pageTitle = editing ? `Edit ${def.label}` : dupId ? `Copy ${def.label}` : `New ${def.label}`;
+  if (t === 'group_expenses') return <GroupExpenseRedirect id={id ?? dupId} groupId={params.get('group_id')} />;
+  const pageTitle = editing ? `Edit ${def.label}` : dupId ? `Copy ${def.label}` : fromRequest ? 'Record payment' : `New ${def.label}`;
 
   const save = async (values: Record<string, any>) => {
     setSaving(true);
@@ -71,6 +114,7 @@ export function RecordEdit() {
     // Only send changed fields (keeps edit history clean)
     const changed: Record<string, any> = {};
     for (const f of def.fields) {
+      if (!(f.key in values)) continue;
       const before = original[f.key] ?? null;
       const after = values[f.key] ?? null;
       if (String(before) !== String(after)) changed[f.key] = after;

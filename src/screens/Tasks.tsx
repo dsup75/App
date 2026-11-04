@@ -35,7 +35,7 @@ export function Tasks() {
 
   const list = useMemo(() => {
     if (!rows) return [];
-    const open = (t: Row) => t.status === 'pending' || t.status === 'in_progress';
+    const open = (t: Row) => t.status === 'pending' || t.status === 'in_progress' || t.status === 'waiting';
     let r = rows.filter((t) => area === 'all' || t.area === area);
     if (view === 'today') r = r.filter((t) => open(t) && (!t.due_date || t.due_date <= today));
     if (view === 'upcoming') r = r.filter((t) => open(t) && t.due_date && t.due_date > today);

@@ -7,27 +7,30 @@ iOS-style liquid glass design, dark + light theme, multi-user (har user ka data 
 
 ---
 
-## Phase 1 mein kya hai
+## Features
 
-- Email login / sign up / password reset (email code se)
-- App lock: 4 ya 6 digit PIN, fingerprint, auto-lock timer, "Lock now", "Forgot PIN"
-- Home dashboard: aaj ke tasks + progress ring, aaj ki income/expense, mahine ka summary, total balance, filters (All / Personal / Study / Business)
-- Finance: income, expense, transfer, accounts (Cash/Bank/UPI/Wallet/Custom), categories, month-wise entries
-- Har record pe: detail screen, edit, copy (duplicate), edit history (purani → nayi value), delete → Recycle Bin → restore / delete forever
-- Paise se related edit pe pehle confirm screen (kya badlega)
-- Tasks: Today / Upcoming / Open / Done, priority, area
-- Settings: name, theme (Auto/Light/Dark), PIN & fingerprint, Google Sheet sync (Apps Script URL, sync key, Test, Save, Sync now, Disconnect), sign out
-
-**Aage aayega:** Phase 2 (invoices, udhaar/loan, group split, savings, allocations) · Phase 3 (study, clients, habits, calendar) · Phase 4 (reports, PDF/Excel export, AI assistant).
-
----
+- **Login & security:** email login, multi-user (har user ka data alag, RLS), PIN 4/6 + fingerprint, auto-lock, password reset by email code
+- **Home:** balance (hide/show), income/expense, aaj ke tasks + progress, habits, study time, exam countdown, pending payments, loan dues, 6-month spending chart, next 7 days
+- **Finance:** income/expense/transfer, accounts + **multiple UPI apps** (GPay, PhonePe, Paytm… har ek ka apna UPI ID aur balance), categories, allocations (kis income se kaunsa kharcha)
+- **Payments:** kisne pay kiya (client direct / staff / other), method, UTR; UPI payment requests with QR + share; invoices with partial payments, status (Draft/Sent/Partial/Paid/Overdue/Cancelled), PDF
+- **Udhaar/Loans:** lent/borrowed, multiple repayments, simple interest, overdue/settled
+- **Group split:** equal / amount / % / item-wise, multiple payers, who-owes-whom, settlements
+- **Savings goals:** contributions & withdrawals, progress
+- **Study:** subjects (Physics/Chemistry/Maths default), chapters (status, revisions, weak, backlog), Pomodoro (sirf real focus time save), study sessions, mock tests (JEE marking, accuracy), exam countdown
+- **Clients:** clients, projects, campaigns (Meta/Google…), client tasks, follow-ups, approvals, client-wise billing
+- **Daily life:** tasks (priority, status, waiting for client), habits + morning/evening routine + streaks, events, notes, shopping list, unified calendar (month/week/day)
+- **Reports:** daily → yearly / custom range, category, account, client, area, study; export **PDF / Excel / CSV**, full JSON backup
+- **AI assistant:** aapke data se jawab; quick answers bina AI ke bhi kaam karte hain
+- **Har record:** detail, edit, copy, edit history, Recycle Bin → restore / delete forever, linked records
+- **Google Sheet sync** (optional), dark + light theme
 
 ## One-time setup (phone se)
 
-### 1. Database banao (sirf ek baar)
-1. GitHub app/browser mein is repo mein `supabase/migrations/0001_phase1.sql` kholo → **Raw** → poora text copy karo.
-2. Supabase → apna project → **SQL Editor** → **New query** → paste → **Run**.
-3. "Success" aana chahiye. (Dobara chalane se kuch nahi bigadta.)
+### 1. Database banao
+`supabase/migrations/` ki files **number ke order mein** chalao (0001 → 0002 → 0003):
+1. GitHub pe file kholo → **Raw** → poora text copy karo.
+2. Supabase → **SQL Editor** → **New query** → paste → **Run** → "Success" aana chahiye.
+3. Agli file ke liye repeat karo. (Dobara chalane se kuch nahi bigadta.)
 
 ### 2. Supabase Auth settings
 1. **Authentication → Sign In / Providers → Email**:
@@ -52,6 +55,12 @@ iOS-style liquid glass design, dark + light theme, multi-user (har user ka data 
 
 Har user apni khud ki Sheet + script connect karta hai, isliye kisi ka data mix nahi hota.
 
+### 5. AI assistant (optional)
+1. Free Gemini API key: aistudio.google.com → Get API key.
+2. Supabase → **Edge Functions** → Deploy new function → **Via Editor** → name `assistant` → `supabase/functions/assistant/index.ts` ka code paste → Deploy.
+3. Edge Functions → **Secrets** → `GEMINI_API_KEY` = aapki key. (Model badalna ho to `GEMINI_MODEL` secret.)
+Key phone/app mein kabhi nahi jaati. Bina setup ke bhi quick questions kaam karte hain.
+
 ---
 
 ## Security notes
@@ -64,6 +73,12 @@ Har user apni khud ki Sheet + script connect karta hai, isliye kisi ka data mix 
 - `src/config.ts` mein sirf **publishable/anon key** hai. Ye public hoti hai. **Secret / service_role key kabhi repo mein mat daalna.**
 - PIN phone pe hash (PBKDF2) karke store hota hai. PIN sirf is phone pe app screen ko protect karta hai, server data aapke password + RLS se protected hai.
 - APK abhi `ci/release.keystore` se sign hoti hai (personal use ke liye theek). Play Store launch se pehle naya private key GitHub secrets (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`) mein daalenge.
+
+## Known limitations
+- Attachments (photo/bill upload) abhi nahi hain.
+- Reminders/notifications abhi nahi hain (calendar mein dues dikhte hain).
+- Fingerprint sirf Android app mein; browser mein PIN hi chalega.
+- Supabase free email sender ki hourly limit hoti hai.
 
 ## Folder structure
 

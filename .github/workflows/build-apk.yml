@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 concurrency:
   group: build-apk
@@ -32,10 +33,14 @@ jobs:
           java-version: 17
 
       - name: Install packages
-        run: npm install --no-audit --no-fund --legacy-peer-deps
+        run: |
+          set -o pipefail
+          npm install --no-audit --no-fund --legacy-peer-deps 2>&1 | tee -a build.log
 
       - name: Build web app
-        run: npm run build
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee -a build.log
 
       - name: Create Android project
         run: |
@@ -44,7 +49,7 @@ jobs:
 
       - name: App icon
         continue-on-error: true
-        run: npx --yes @capacitor/assets@3 generate --android --iconBackgroundColor '#0B1220' --iconBackgroundColorDark '#0B1220' --splashBackgroundColor '#0B1220' --splashBackgroundColorDark '#0B1220'
+        run: npx --yes @capacitor/assets@3 generate --android --iconBackgroundColor '#1E5B45' --iconBackgroundColorDark '#1E5B45' --splashBackgroundColor '#F4F6F5' --splashBackgroundColorDark '#0C1310'
 
       - name: Set version
         run: |
@@ -56,7 +61,8 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          set -o pipefail
+          ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee -a ../build.log
 
       - name: Sign APK
         env:
@@ -84,3 +90,17 @@ jobs:
           body: "Install: download DeepBoost-Life.apk below on your Android phone and open it."
           files: DeepBoost-Life.apk
           make_latest: true
+
+      - name: Report failure as an issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "Build ${{ github.run_number }} failed for commit ${{ github.sha }}."
+            echo
+            echo '```'
+            tail -n 120 build.log 2>/dev/null | grep -v '^\s*$' | tail -n 100 || echo "no log"
+            echo '```'
+          } > report.md
+          gh issue create --title "APK build ${{ github.run_number }} failed" --body-file report.md || true

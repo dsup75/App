@@ -8,6 +8,7 @@ import { friendlyError, saveSettings } from '../lib/db';
 import { biometricAvailable, biometricPrompt, hashPin, verifyPin, LOCK_TIMEOUTS, type LockConfig } from '../lib/lock';
 import { getThemeMode, setThemeMode, type ThemeMode } from '../lib/theme';
 import { isValidScriptUrl, syncAll, testScript } from '../lib/sheets';
+import { isValidUpiId } from '../lib/upi';
 import { formatDateTime } from '../lib/dates';
 import { PinPad } from '../components/PinPad';
 import { Badge, Button, Card, Confirm, FormRow, IconBubble, List, ListRow, Page, SectionTitle, Segmented, Sheet, Toggle } from '../components/ui';
@@ -128,6 +129,8 @@ export function SettingsScreen() {
         rules.
       </p>
 
+      <PaymentsBusiness />
+
       <SheetSync />
 
       <SectionTitle>Account</SectionTitle>
@@ -232,6 +235,70 @@ function PinFlow({ mode, onClose }: { mode: null | 'set' | 'change' | 'remove'; 
         <PinPad key="confirm" length={length} onComplete={onConfirm} error={error} />
       )}
     </Sheet>
+  );
+}
+
+/* ---------------- UPI + business details ---------------- */
+function PaymentsBusiness() {
+  const { user, settings, reloadSettings } = useAuth();
+  const toast = useToast();
+  const [upi, setUpi] = useState('');
+  const [upiName, setUpiName] = useState('');
+  const [biz, setBiz] = useState('');
+  const [details, setDetails] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    setUpi(settings?.upi_id ?? '');
+    setUpiName(settings?.upi_name ?? '');
+    setBiz(settings?.business_name ?? '');
+    setDetails(settings?.business_details ?? '');
+  }, [settings?.upi_id, settings?.upi_name, settings?.business_name, settings?.business_details]);
+
+  const save = async () => {
+    if (!user) return;
+    setErr('');
+    if (upi.trim() && !isValidUpiId(upi)) return setErr('UPI ID looks wrong (example: name@okaxis).');
+    setBusy(true);
+    try {
+      await saveSettings(user.id, {
+        upi_id: upi.trim() || null,
+        upi_name: upiName.trim() || null,
+        business_name: biz.trim() || null,
+        business_details: details.trim() || null,
+      });
+      await reloadSettings();
+      toast('Saved');
+    } catch (e) {
+      toast(friendlyError(e), 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <SectionTitle>Payments & invoices</SectionTitle>
+      <Card className="space-y-3">
+        <FormRow label="Default UPI ID" hint="Used for payment request QR codes when the account has no UPI ID. Add one UPI ID per app in Finance → Accounts.">
+          <input className="field" placeholder="name@okaxis" value={upi} onChange={(e) => setUpi(e.target.value)} />
+        </FormRow>
+        <FormRow label="Name shown in UPI apps">
+          <input className="field" placeholder="e.g. Deependra Shakya" value={upiName} onChange={(e) => setUpiName(e.target.value)} />
+        </FormRow>
+        <FormRow label="Business name (on invoices)">
+          <input className="field" placeholder="e.g. DeepBoost — Digital Growth & Creative Solutions" value={biz} onChange={(e) => setBiz(e.target.value)} />
+        </FormRow>
+        <FormRow label="Business details (address, phone, GSTIN…)">
+          <textarea className="field min-h-[72px]" value={details} onChange={(e) => setDetails(e.target.value)} />
+        </FormRow>
+        {err && <p className="px-0.5 text-[13px] text-danger">{err}</p>}
+        <Button size="sm" variant="primary" loading={busy} onClick={save}>
+          Save
+        </Button>
+      </Card>
+    </>
   );
 }
 
