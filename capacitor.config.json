@@ -1,0 +1,9 @@
+{
+  "appId": "com.deepboost.life",
+  "appName": "DeepBoost Life",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0B1220"
+  }
+}
