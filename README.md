@@ -30,7 +30,7 @@ iOS-style liquid glass design, dark + light theme, multi-user (har user ka data 
 ## One-time setup (phone se)
 
 ### 1. Database banao
-`supabase/migrations/` ki files **number ke order mein** chalao (0001 → 0002 → … → 0006):
+`supabase/migrations/` ki files **number ke order mein** chalao (0001 → 0004, phir date wali files):
 1. GitHub pe file kholo → **Raw** → poora text copy karo.
 2. Supabase → **SQL Editor** → **New query** → paste → **Run** → "Success" aana chahiye.
 3. Agli file ke liye repeat karo. (Dobara chalane se kuch nahi bigadta.)
