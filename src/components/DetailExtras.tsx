@@ -246,12 +246,25 @@ function AllocationSummary({ table, row, reloadKey }: { table: 'incomes' | 'expe
       .is('deleted_at', null)
       .then(({ data }) => setUsed(sumPaise((data as any[]) ?? [])));
   }, [table, row.id, reloadKey]);
-  if (used === null || used === 0) return null;
+  if (used === null) return null;
+  if (table === 'expenses' && used === 0) return null;
+  const left = row.amount_paise - used;
+  const pct = Math.round((used / row.amount_paise) * 100);
   return (
-    <div className="grid grid-cols-2 gap-2">
-      <KV label={table === 'incomes' ? 'Allocated' : 'Funded'} value={formatINR(used)} />
-      <KV label={table === 'incomes' ? 'Unallocated' : 'Still unfunded'} value={formatINR(row.amount_paise - used)} />
-    </div>
+    <Card className="space-y-2.5">
+      <div className="flex items-center justify-between">
+        <p className="text-[14px] font-semibold">{table === 'incomes' ? 'Where this income went' : 'Paid out of income'}</p>
+        <span className="text-[12.5px] text-muted">{pct}% {table === 'incomes' ? 'used' : 'covered'}</span>
+      </div>
+      <ProgressBar pct={pct} color={left === 0 ? 'var(--primary-2)' : undefined} />
+      <div className="grid grid-cols-2 gap-2">
+        <KV label={table === 'incomes' ? 'Used for expenses' : 'From income'} value={formatINR(used)} />
+        <KV label={table === 'incomes' ? 'Still left' : 'Not linked yet'} value={formatINR(left)} tone={table === 'incomes' ? 'income' : undefined} />
+      </div>
+      {table === 'incomes' && used === 0 && (
+        <p className="text-[12px] text-muted">Not used yet. When you add an expense, turn on "Paid out of which income?" and pick this income.</p>
+      )}
+    </Card>
   );
 }
 

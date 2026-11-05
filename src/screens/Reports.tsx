@@ -91,8 +91,10 @@ export function ReportsScreen() {
   const byClient = useMemo(() => groupSum(inc.filter((r) => r.client_id || r.client_name), (r) => (r.client_id ? nameOf(r.client_id) : r.client_name)), [inc, nameOf]);
   const byAccount = useMemo(() => {
     const m = new Map<string, { in: number; out: number }>();
-    inc.forEach((r) => m.set(r.account_id, { in: (m.get(r.account_id)?.in ?? 0) + r.amount_paise, out: m.get(r.account_id)?.out ?? 0 }));
-    exp.forEach((r) => m.set(r.account_id, { in: m.get(r.account_id)?.in ?? 0, out: (m.get(r.account_id)?.out ?? 0) + r.amount_paise }));
+    // split entries (part cash, part GPay…) count against each account they used
+    const parts = (r: Row) => (Array.isArray(r.sources) && r.sources.length ? r.sources.map((x: any) => ({ acc: x.account_id, amt: Number(x.amount_paise) })) : [{ acc: r.account_id, amt: Number(r.amount_paise) }]);
+    inc.forEach((r) => parts(r).forEach(({ acc, amt }) => m.set(acc, { in: (m.get(acc)?.in ?? 0) + amt, out: m.get(acc)?.out ?? 0 })));
+    exp.forEach((r) => parts(r).forEach(({ acc, amt }) => m.set(acc, { in: m.get(acc)?.in ?? 0, out: (m.get(acc)?.out ?? 0) + amt })));
     return [...m.entries()].map(([id, v]) => ({ name: nameOf(id), ...v })).sort((a, b) => b.in + b.out - a.in - a.out);
   }, [inc, exp, nameOf]);
   const byAppOut = useMemo(() => groupSum(exp, (r) => (r.payment_app ? optionLabel(UPI_APPS, r.payment_app) : 'Not set')), [exp]);
@@ -175,6 +177,11 @@ export function ReportsScreen() {
             <KV label="Expenses" value={formatINR(sumPaise(exp))} tone="expense" />
             <KV label="Net" value={formatINR(sumPaise(inc) - sumPaise(exp))} />
           </div>
+          {exp.some((e) => Array.isArray(e.split_with) && e.split_with.length) && (
+            <p className="px-1 text-[12px] text-muted">
+              Your own share after splits: {formatINR(sumPaise(exp) - exp.reduce((t, e) => t + (Array.isArray(e.split_with) ? e.split_with.reduce((a: number, x: any) => a + Number(x.amount_paise), 0) : 0), 0))} (others owe you the rest).
+            </p>
+          )}
           {interestIn > 0 && <p className="px-1 text-[12px] text-muted">Loan interest moved in this period: {formatINR(interestIn)} (tracked separately).</p>}
 
           <div className="grid grid-cols-2 gap-2">

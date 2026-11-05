@@ -10,6 +10,7 @@ import { formatINR } from '../lib/money';
 import { formatDate, relativeDay } from '../lib/dates';
 import { optionLabel, UPI_APPS, TASK_STATUS, CHAPTER_STATUS, PROJECT_STATUS, CAMPAIGN_STATUS, PLATFORMS, CLIENT_STATUS, type TableName } from '../lib/tables';
 import { IconBubble, ListRow, Badge, type Tone } from './ui';
+import { useUsage } from '../lib/useUsage';
 
 export const TABLE_ICON: Record<TableName, { icon: LucideIcon; tone: Tone }> = {
   incomes: { icon: ArrowDownLeft, tone: 'income' },
@@ -48,6 +49,7 @@ export const TABLE_ICON: Record<TableName, { icon: LucideIcon; tone: Tone }> = {
 /** One generic row for any record type */
 export function RecordLine({ table, row, nameOf }: { table: TableName; row: any; nameOf: (id: string) => string }) {
   const nav = useNavigate();
+  const usage = useUsage();
   const { icon: Icon, tone } = TABLE_ICON[table];
   let title: string = row.title ?? row.name ?? row.invoice_no ?? row.person ?? '—';
   let sub = '';
@@ -62,10 +64,24 @@ export function RecordLine({ table, row, nameOf }: { table: TableName; row: any;
     case 'incomes':
       sub = [relativeDay(row.txn_date), row.txn_time && String(row.txn_time).slice(0, 5), row.payment_app ? optionLabel(UPI_APPS, row.payment_app) : nameOf(row.account_id), row.payer_name].filter(Boolean).join(' · ');
       right = money(row.amount_paise, 'in');
+      if (usage?.incomeUsed.get(row.id))
+        right = (
+          <span className="flex flex-col items-end">
+            {right}
+            <span className="text-[11px] font-medium text-muted">{formatINR(usage.incomeLeft.get(row.id) ?? 0)} left</span>
+          </span>
+        );
       break;
     case 'expenses':
       sub = [relativeDay(row.txn_date), row.txn_time && String(row.txn_time).slice(0, 5), row.payment_app ? optionLabel(UPI_APPS, row.payment_app) : nameOf(row.account_id), row.category_id && nameOf(row.category_id)].filter(Boolean).join(' · ');
       right = money(row.amount_paise, 'out');
+      if (usage?.expenseFunded.get(row.id))
+        right = (
+          <span className="flex flex-col items-end">
+            {right}
+            <span className="text-[11px] font-medium text-muted">from income</span>
+          </span>
+        );
       break;
     case 'transfers':
       sub = `${relativeDay(row.txn_date)} · ${nameOf(row.from_account_id)} → ${nameOf(row.to_account_id)}`;

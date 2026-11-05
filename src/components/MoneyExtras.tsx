@@ -109,17 +109,22 @@ export function MoneyExtras({
   const total = parseRupeesToPaise(totalText) ?? 0;
   const active = accounts.filter((a) => !a.deleted_at);
   const [incomes, setIncomes] = useState<{ id: string; title: string; amount_paise: number; txn_date: string }[]>([]);
+  const [left, setLeft] = useState<Map<string, number>>(new Map());
+  // amounts this expense already holds (when editing) count as available again
+  const [own] = useState(() => new Map(ex.allocs.filter((a) => a.id).map((a) => [a.income_id, parseRupeesToPaise(a.amount) ?? 0])));
 
   useEffect(() => {
     if (table !== 'expenses') return;
-    supabase
-      .from('incomes')
-      .select('id,title,amount_paise,txn_date')
-      .is('deleted_at', null)
-      .order('txn_date', { ascending: false })
-      .limit(100)
-      .then(({ data }) => setIncomes((data as any[]) ?? []));
+    Promise.all([
+      supabase.from('incomes').select('id,title,amount_paise,txn_date').is('deleted_at', null).order('txn_date', { ascending: false }).limit(150),
+      supabase.from('income_usage').select('id,left_paise').limit(5000),
+    ]).then(([a, b]) => {
+      setIncomes((a.data as any[]) ?? []);
+      setLeft(new Map(((b.data as any[]) ?? []).map((x) => [x.id, Number(x.left_paise)])));
+    });
   }, [table]);
+
+  const available = (id: string, full: number) => (left.has(id) ? left.get(id)! : full) + (own.get(id) ?? 0);
 
   const sumOf = (rows: { amount: string }[]) => rows.reduce((s, r) => s + (parseRupeesToPaise(r.amount) ?? 0), 0);
 
@@ -164,16 +169,30 @@ export function MoneyExtras({
       {table === 'expenses' && (
         <>
           {/* Funded by income */}
-          <Section icon={<Link2 size={15} />} title="Paid out of which income?" hint="Link one or more incomes (optional)" on={ex.allocs.length > 0} onToggle={(v) => setEx((e) => ({ ...e, allocs: v ? [{ income_id: '', amount: totalText }] : [] }))}>
+          <Section icon={<Link2 size={15} />} title="Paid out of which income?" hint="Link one or more incomes (optional)" on={ex.allocs.length > 0} onToggle={(v) => setEx((e) => ({ ...e, allocs: v ? [{ income_id: '', amount: '' }] : [] }))}>
             {ex.allocs.map((a, i) => (
               <div key={i} className="flex gap-2">
-                <select className="field min-w-0 flex-1" value={a.income_id} onChange={(e) => setEx((x) => ({ ...x, allocs: x.allocs.map((y, j) => (j === i ? { ...y, income_id: e.target.value } : y)) }))}>
+                <select
+                  className="field min-w-0 flex-1"
+                  value={a.income_id}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setEx((x) => {
+                      const otherLinked = x.allocs.reduce((sum, y, j) => (j === i ? sum : sum + (parseRupeesToPaise(y.amount) ?? 0)), 0);
+                      const inc = incomes.find((n) => n.id === id);
+                      const can = inc ? Math.min(available(id, inc.amount_paise), Math.max(0, total - otherLinked)) : 0;
+                      return { ...x, allocs: x.allocs.map((y, j) => (j === i ? { ...y, income_id: id, amount: can ? paiseToInput(can) : y.amount } : y)) };
+                    });
+                  }}
+                >
                   <option value="">Choose income</option>
-                  {incomes.map((inc) => (
-                    <option key={inc.id} value={inc.id}>
-                      {inc.title} · {formatINR(inc.amount_paise)} · {inc.txn_date.slice(5)}
-                    </option>
-                  ))}
+                  {incomes
+                    .filter((inc) => available(inc.id, inc.amount_paise) > 0 || inc.id === a.income_id)
+                    .map((inc) => (
+                      <option key={inc.id} value={inc.id}>
+                        {inc.title} · {formatINR(available(inc.id, inc.amount_paise))} left of {formatINR(inc.amount_paise)}
+                      </option>
+                    ))}
                 </select>
                 <input className="field w-28" inputMode="decimal" placeholder="₹" value={a.amount} onChange={(e) => setEx((x) => ({ ...x, allocs: x.allocs.map((y, j) => (j === i ? { ...y, amount: e.target.value } : y)) }))} />
                 <button aria-label="Remove" className="px-1 text-muted" onClick={() => setEx((x) => ({ ...x, allocs: x.allocs.filter((_, j) => j !== i) }))}>

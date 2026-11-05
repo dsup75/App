@@ -1,6 +1,12 @@
 import { supabase } from './supabase';
 import type { TableName } from './tables';
-import { invalidateLookups } from './useLookups';
+import { invalidateLookups as clearLookups } from './useLookups';
+import { invalidateUsage } from './useUsage';
+
+function invalidateLookups() {
+  clearLookups();
+  invalidateUsage();
+}
 
 export type Row = Record<string, any> & { id: string };
 
