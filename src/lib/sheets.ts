@@ -38,7 +38,7 @@ export async function testScript(url: string, key: string): Promise<string> {
 const SHEETS: { table: string; sheet: string; cols: string[] }[] = [
   { table: 'accounts', sheet: 'Accounts', cols: ['id', 'name', 'type', 'opening_balance_paise', 'notes', 'created_at', 'updated_at'] },
   { table: 'categories', sheet: 'Categories', cols: ['id', 'name', 'kind', 'created_at', 'updated_at'] },
-  { table: 'incomes', sheet: 'Income', cols: ['id', 'txn_date', 'title', 'amount_paise', 'account_id', 'category_id', 'client_name', 'payer_type', 'payer_name', 'payment_method', 'reference', 'payment_app', 'txn_time', 'payment_mode', 'payment_link', 'area', 'notes', 'created_at', 'updated_at'] },
+  { table: 'incomes', sheet: 'Income', cols: ['id', 'txn_date', 'title', 'amount_paise', 'account_id', 'category_id', 'client_name', 'payer_type', 'payer_name', 'payment_method', 'reference', 'payment_app', 'txn_time', 'payment_mode', 'payment_link', 'area', 'line_count', 'notes', 'created_at', 'updated_at'] },
   { table: 'expenses', sheet: 'Expenses', cols: ['id', 'txn_date', 'txn_time', 'title', 'amount_paise', 'account_id', 'category_id', 'payment_method', 'payment_app', 'reference', 'payment_mode', 'payment_link', 'area', 'notes', 'created_at', 'updated_at'] },
   { table: 'transfers', sheet: 'Transfers', cols: ['id', 'txn_date', 'title', 'amount_paise', 'from_account_id', 'to_account_id', 'notes', 'created_at', 'updated_at'] },
   { table: 'savings_goals', sheet: 'Goals', cols: ['id', 'name', 'target_paise', 'target_date', 'notes', 'created_at', 'updated_at'] },
@@ -47,7 +47,8 @@ const SHEETS: { table: string; sheet: string; cols: string[] }[] = [
   { table: 'clients', sheet: 'Clients', cols: ['id', 'name', 'contact_person', 'phone', 'email', 'business_type', 'status', 'start_date', 'notes', 'created_at'] },
   { table: 'client_contacts', sheet: 'Client Staff', cols: ['id', 'client_id', 'name', 'role', 'phone', 'email', 'created_at'] },
   { table: 'invoices', sheet: 'Invoices', cols: ['id', 'invoice_no', 'client_id', 'title', 'period', 'amount_paise', 'issue_date', 'due_date', 'status', 'notes', 'created_at'] },
-  { table: 'allocations', sheet: 'Allocations', cols: ['id', 'income_id', 'expense_id', 'amount_paise', 'notes', 'created_at'] },
+  { table: 'payment_lines', sheet: 'Payment Lines', cols: ['id', 'parent_table', 'parent_id', 'direction', 'txn_date', 'txn_time', 'amount_paise', 'account_id', 'payment_app', 'payment_method', 'reference', 'party_name', 'notes', 'created_at'] },
+  { table: 'allocations', sheet: 'Allocations', cols: ['id', 'income_id', 'expense_id', 'loan_id', 'transfer_id', 'amount_paise', 'notes', 'created_at'] },
   { table: 'loans', sheet: 'Udhaar & Loans', cols: ['id', 'direction', 'person', 'principal_paise', 'account_id', 'start_date', 'due_date', 'interest_type', 'interest_rate_bp', 'notes', 'created_at'] },
   { table: 'loan_repayments', sheet: 'Loan Repayments', cols: ['id', 'loan_id', 'title', 'principal_paise', 'interest_paise', 'account_id', 'txn_date', 'notes', 'created_at'] },
   { table: 'savings_entries', sheet: 'Goal Entries', cols: ['id', 'goal_id', 'title', 'amount_paise', 'txn_date', 'notes', 'created_at'] },

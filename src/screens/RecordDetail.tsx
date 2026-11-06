@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Pencil, Copy, Trash2, RotateCcw, History, Plus } from 'lucide-react';
 import {
-  deleteForever, friendlyError, getHistory, getRecord, restoreRecord, softDelete, type HistoryRow, type Row,
+  deleteForever, friendlyError, getHistory, getRecord, isMoneyTable, restoreRecord, softDelete, type HistoryRow, type Row,
 } from '../lib/db';
+import { PaymentBreakdown } from '../components/PaymentBreakdown';
+import { LINE_FIELDS } from '../components/MoneyForm';
 import { supabase } from '../lib/supabase';
 import { TABLES, displayOf, fieldLabel, isTableName, optionLabel, type Field, type TableName } from '../lib/tables';
 import { CHILDREN, type ChildSpec } from '../lib/children';
@@ -149,11 +151,14 @@ export function RecordDetail() {
         </Card>
       )}
 
+      {isMoneyTable(t) && <PaymentBreakdown table={t} id={row.id} nameOf={nameOf} reloadKey={reloadKey} />}
+
       {t === 'payment_requests' && <RequestPanel row={row} nameOf={nameOf} onChanged={load} />}
 
       <List>
         {def.fields
           .filter((f) => !(showAmount && f === amountField) && f.key !== def.titleField && !f.hidden)
+          .filter((f) => !isMoneyTable(t) || f.key === 'interest_paise' || f.key === amountField?.key || !(LINE_FIELDS[t].includes(f.key) || f.key === 'sources'))
           .filter((f) => f.required || (row[f.key] !== null && row[f.key] !== undefined && row[f.key] !== '' && !(Array.isArray(row[f.key]) && !row[f.key].length)))
           .map((f) => {
             const to = linkTarget(f, row);

@@ -21,6 +21,7 @@ interface Dash {
   incomes: Row[];
   expenses: Row[];
   sixMonths: Row[];
+  transfers: Row[];
   balance: number;
   habits: Row[];
   habitLogs: Row[];
@@ -79,10 +80,12 @@ export function Home() {
         supabase.from('tasks').select('id', { count: 'exact', head: true }).is('deleted_at', null).not('client_id', 'is', null).in('status', ['pending', 'in_progress', 'waiting']).in('task_type', ['follow_up', 'approval']),
         supabase.from('exams').select('*').is('deleted_at', null).gte('exam_date', today).order('exam_date').limit(1),
         fetchBalances(),
+        supabase.from('transfers').select('amount_paise').is('deleted_at', null).gte('txn_date', from).lte('txn_date', to),
       ]);
       for (const r of q.slice(0, 17) as any[]) if (r.error) throw r.error;
       const [open, doneToday, inc, exp, six, habits, logs, study, inv, invTot, reqs, loans, loanTot, events, weekTasks, fu, exams] = q as any[];
       const balances = q[17] as Awaited<ReturnType<typeof fetchBalances>>;
+      const transfers = ((q[18] as any).data ?? []) as Row[];
 
       const rec = new Map<string, number>((invTot.data ?? []).map((x: any) => [x.id, Number(x.received_paise)]));
       const unpaidInv = (inv.data ?? []).filter((x: any) => (rec.get(x.id) ?? 0) < x.amount_paise);
@@ -105,6 +108,7 @@ export function Home() {
         incomes: inc.data ?? [],
         expenses: exp.data ?? [],
         sixMonths: six.data ?? [],
+        transfers,
         balance: balances.reduce((s, b) => s + Number(b.balance_paise), 0),
         habits: habits.data ?? [],
         habitLogs: logs.data ?? [],
@@ -198,6 +202,19 @@ export function Home() {
                 <p className="text-[16px] font-bold">{money(sumPaise(byArea(d.expenses)))}</p>
               </div>
             </div>
+            {d.transfers.length > 0 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  nav('/finance?tab=transactions&type=transfers');
+                }}
+                className="mt-2 flex w-full items-center justify-between rounded-[14px] px-2.5 py-2 text-[12.5px]"
+                style={{ background: 'rgba(255,255,255,.12)' }}
+              >
+                <span className="opacity-85">Moved between accounts ({d.transfers.length})</span>
+                <span className="font-bold">{money(sumPaise(d.transfers))}</span>
+              </button>
+            )}
           </HeroCard>
 
           <Chips value={filter} onChange={setFilter} options={[{ value: 'all', label: 'All' }, ...(AREAS as { value: Filter; label: string }[])]} />

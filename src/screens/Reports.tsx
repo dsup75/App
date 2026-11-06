@@ -24,6 +24,7 @@ function presetRange(p: Preset): { from: string; to: string } {
 }
 
 interface Data {
+  lines: Row[];
   incomes: Row[];
   expenses: Row[];
   transfers: Row[];
@@ -63,7 +64,20 @@ export function ReportsScreen() {
         supabase.from('tasks').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('status', 'completed').gte('completed_at', from).lte('completed_at', to + 'T23:59:59'),
       ]);
       for (const x of r) if (x.error) throw x.error;
+      // payment lines of these entries (one entry can be paid from many accounts / apps)
+      const ids = [...(r[0].data as Row[]), ...(r[1].data as Row[]), ...(r[2].data as Row[])].map((x) => x.id);
+      const lines: Row[] = [];
+      for (let i = 0; i < ids.length; i += 150) {
+        const res = await supabase
+          .from('payment_lines')
+          .select('id,parent_table,parent_id,direction,account_id,amount_paise,payment_app')
+          .is('deleted_at', null)
+          .in('parent_id', ids.slice(i, i + 150));
+        if (res.error) throw res.error;
+        lines.push(...((res.data as Row[]) ?? []));
+      }
       setData({
+        lines,
         incomes: r[0].data as Row[],
         expenses: r[1].data as Row[],
         transfers: r[2].data as Row[],
@@ -89,16 +103,25 @@ export function ReportsScreen() {
   const byCategory = useMemo(() => groupSum(exp, (r) => (r.category_id ? nameOf(r.category_id) : 'Uncategorised')), [exp, nameOf]);
   const incByCategory = useMemo(() => groupSum(inc, (r) => (r.category_id ? nameOf(r.category_id) : 'Uncategorised')), [inc, nameOf]);
   const byClient = useMemo(() => groupSum(inc.filter((r) => r.client_id || r.client_name), (r) => (r.client_id ? nameOf(r.client_id) : r.client_name)), [inc, nameOf]);
+  const shownLines = useMemo(() => {
+    if (!data) return [] as Row[];
+    const keep = new Set([...inc, ...exp, ...(area === 'all' ? data.transfers : [])].map((r) => r.id));
+    return data.lines.filter((l) => keep.has(l.parent_id));
+  }, [data, inc, exp, area]);
   const byAccount = useMemo(() => {
     const m = new Map<string, { in: number; out: number }>();
-    // split entries (part cash, part GPay…) count against each account they used
-    const parts = (r: Row) => (Array.isArray(r.sources) && r.sources.length ? r.sources.map((x: any) => ({ acc: x.account_id, amt: Number(x.amount_paise) })) : [{ acc: r.account_id, amt: Number(r.amount_paise) }]);
-    inc.forEach((r) => parts(r).forEach(({ acc, amt }) => m.set(acc, { in: (m.get(acc)?.in ?? 0) + amt, out: m.get(acc)?.out ?? 0 })));
-    exp.forEach((r) => parts(r).forEach(({ acc, amt }) => m.set(acc, { in: m.get(acc)?.in ?? 0, out: (m.get(acc)?.out ?? 0) + amt })));
+    // every payment line counts against the account it used (part cash, part GPay…)
+    shownLines.forEach((l) => {
+      const v = m.get(l.account_id) ?? { in: 0, out: 0 };
+      if (l.direction === 'in') v.in += Number(l.amount_paise);
+      else v.out += Number(l.amount_paise);
+      m.set(l.account_id, v);
+    });
     return [...m.entries()].map(([id, v]) => ({ name: nameOf(id), ...v })).sort((a, b) => b.in + b.out - a.in - a.out);
-  }, [inc, exp, nameOf]);
-  const byAppOut = useMemo(() => groupSum(exp, (r) => (r.payment_app ? optionLabel(UPI_APPS, r.payment_app) : 'Not set')), [exp]);
-  const byAppIn = useMemo(() => groupSum(inc, (r) => (r.payment_app ? optionLabel(UPI_APPS, r.payment_app) : 'Not set')), [inc]);
+  }, [shownLines, nameOf]);
+  const appLabel = (l: Row) => (l.payment_app ? optionLabel(UPI_APPS, l.payment_app) : 'Not set');
+  const byAppOut = useMemo(() => groupSum(shownLines.filter((l) => l.parent_table === 'expenses'), appLabel), [shownLines]);
+  const byAppIn = useMemo(() => groupSum(shownLines.filter((l) => l.parent_table === 'incomes'), appLabel), [shownLines]);
   const mode = (rows: Row[], m: string) => sumPaise(rows.filter((r) => (r.payment_mode ?? 'personal') === m));
   const interestIn = data ? sumPaise(data.repayments.map((r) => ({ amount_paise: r.interest_paise }))) : 0;
 
@@ -199,7 +222,7 @@ export function ReportsScreen() {
           <SectionTitle>Received on app</SectionTitle>
           <CategoryBreakdown rows={byAppIn} />
 
-          <SectionTitle>By account</SectionTitle>
+          <SectionTitle>By account{area === 'all' ? ' (incl. transfers)' : ''}</SectionTitle>
           <List>
             {byAccount.length === 0 && <ListRow title="No entries" />}
             {byAccount.map((a) => (

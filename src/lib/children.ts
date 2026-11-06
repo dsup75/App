@@ -36,9 +36,6 @@ export const CHILDREN: Partial<Record<TableName, ChildSpec[]>> = {
     { table: 'mock_tests', fk: 'subject_id', title: 'Tests', order: 'test_date', addLabel: 'Test' },
   ],
   chapters: [{ table: 'study_sessions', fk: 'chapter_id', title: 'Study sessions', order: 'session_date', addLabel: 'Session' }],
-  accounts: [
-    { table: 'incomes', fk: 'account_id', title: 'Received', order: 'txn_date', addLabel: 'Income' },
-    { table: 'expenses', fk: 'account_id', title: 'Spent', order: 'txn_date', addLabel: 'Expense' },
-  ],
+  accounts: [],
   categories: [],
 };

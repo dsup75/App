@@ -21,10 +21,11 @@ export function MoneyRow({ kind, row, nameOf }: { kind: MoneyKind; row: any; nam
     ) : (
       <IconBubble tone="violet"><ArrowLeftRight size={18} /></IconBubble>
     );
+  const multi = Number(row.line_count ?? 1) > 1;
   const sub =
     kind === 'transfers'
-      ? `${nameOf(row.from_account_id)} → ${nameOf(row.to_account_id)}`
-      : [row.payment_app ? optionLabel(UPI_APPS, row.payment_app) : nameOf(row.account_id), row.category_id ? nameOf(row.category_id) : null, row.payment_mode === 'business' ? 'Business' : null]
+      ? `${nameOf(row.from_account_id)}${multi ? ' +' : ''} → ${nameOf(row.to_account_id)}`
+      : [multi ? `${row.line_count} payments` : row.payment_app ? optionLabel(UPI_APPS, row.payment_app) : nameOf(row.account_id), row.category_id ? nameOf(row.category_id) : null, row.payment_mode === 'business' ? 'Business' : null]
           .filter(Boolean)
           .join(' · ');
   const amount =

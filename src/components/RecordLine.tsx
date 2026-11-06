@@ -62,7 +62,7 @@ export function RecordLine({ table, row, nameOf }: { table: TableName; row: any;
 
   switch (table) {
     case 'incomes':
-      sub = [relativeDay(row.txn_date), row.txn_time && String(row.txn_time).slice(0, 5), row.payment_app ? optionLabel(UPI_APPS, row.payment_app) : nameOf(row.account_id), row.payer_name].filter(Boolean).join(' · ');
+      sub = [relativeDay(row.txn_date), row.txn_time && String(row.txn_time).slice(0, 5), Number(row.line_count ?? 1) > 1 ? `${row.line_count} payments` : row.payment_app ? optionLabel(UPI_APPS, row.payment_app) : nameOf(row.account_id), row.payer_name].filter(Boolean).join(' · ');
       right = money(row.amount_paise, 'in');
       if (usage?.incomeUsed.get(row.id))
         right = (
@@ -73,7 +73,7 @@ export function RecordLine({ table, row, nameOf }: { table: TableName; row: any;
         );
       break;
     case 'expenses':
-      sub = [relativeDay(row.txn_date), row.txn_time && String(row.txn_time).slice(0, 5), row.payment_app ? optionLabel(UPI_APPS, row.payment_app) : nameOf(row.account_id), row.category_id && nameOf(row.category_id)].filter(Boolean).join(' · ');
+      sub = [relativeDay(row.txn_date), row.txn_time && String(row.txn_time).slice(0, 5), Number(row.line_count ?? 1) > 1 ? `${row.line_count} payments` : row.payment_app ? optionLabel(UPI_APPS, row.payment_app) : nameOf(row.account_id), row.category_id && nameOf(row.category_id)].filter(Boolean).join(' · ');
       right = money(row.amount_paise, 'out');
       if (usage?.expenseFunded.get(row.id))
         right = (

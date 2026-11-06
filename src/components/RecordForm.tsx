@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { TABLES, type Field, type TableName } from '../lib/tables';
 import { parseRupeesToPaise, parseSignedRupeesToPaise, paiseToInput } from '../lib/money';
 import { useLookups } from '../lib/useLookups';
 import { useCustomOptions } from '../lib/options';
 import { supabase } from '../lib/supabase';
-import { MoneyExtras, extrasToDb, initialExtras, type Extras } from './MoneyExtras';
 import { Button, Card, FormRow, Toggle } from './ui';
 
 type Values = Record<string, any>;
@@ -39,12 +38,12 @@ export function initialFormState(table: TableName, row?: Values | null, prefill?
 }
 
 /** Convert form strings → DB values. Returns errors per field. */
-export function toDbValues(table: TableName, form: Record<string, string>): { values: Values; errors: Record<string, string> } {
+export function toDbValues(table: TableName, form: Record<string, string>, omit: string[] = []): { values: Values; errors: Record<string, string> } {
   const def = TABLES[table];
   const values: Values = {};
   const errors: Record<string, string> = {};
   for (const f of def.fields) {
-    if (f.type === 'json') continue; // edited by custom screens only
+    if (f.type === 'json' || omit.includes(f.key)) continue; // edited elsewhere
     const s = (form[f.key] ?? '').trim();
     if (f.type === 'bool') {
       values[f.key] = s === 'true';
@@ -85,22 +84,32 @@ export function RecordForm({
   submitLabel,
   saving,
   onSubmit,
-  extrasInitial,
+  omit = [],
+  extra,
+  onFormChange,
+  validateExtra,
 }: {
   table: TableName;
   initial: Record<string, string>;
   submitLabel: string;
   saving?: boolean;
-  onSubmit: (values: Values, allocs?: { id?: string; income_id: string; amount_paise: number }[]) => void;
-  extrasInitial?: Extras;
+  onSubmit: (values: Values) => void;
+  /** fields handled outside the main card (e.g. by the payment breakdown) */
+  omit?: string[];
+  /** extra sections shown between the card and the submit button */
+  extra?: ReactNode;
+  onFormChange?: (form: Record<string, string>) => void;
+  /** extra validation run on submit; return an error message to block saving */
+  validateExtra?: (values: Values) => string | null;
 }) {
   const def = TABLES[table];
   const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { accounts, categories, refs, loaded } = useLookups();
   const { optionsFor } = useCustomOptions();
-  const money = table === 'incomes' || table === 'expenses';
-  const [ex, setEx] = useState<Extras>(extrasInitial ?? initialExtras(null));
+  useEffect(() => {
+    onFormChange?.(form);
+  }, [form]); // eslint-disable-line react-hooks/exhaustive-deps
   const [contacts, setContacts] = useState<{ id: string; name: string; role: string | null }[]>([]);
   const [typeName, setTypeName] = useState(false);
 
@@ -152,7 +161,7 @@ export function RecordForm({
       const next = { ...f };
       let changed = false;
       def.fields.forEach((fd) => {
-        if (fd.type !== 'account' || !fd.required || next[fd.key]) return;
+        if (fd.type !== 'account' || !fd.required || next[fd.key] || omit.includes(fd.key)) return;
         const pick = fd.key === 'to_account_id' ? active.find((a) => a.id !== next.from_account_id) : active[0];
         if (pick) {
           next[fd.key] = pick.id;
@@ -165,20 +174,12 @@ export function RecordForm({
   }, [accounts, def.fields]);
 
   const submit = () => {
-    const { values, errors: errs } = toDbValues(table, form);
-    if (!Object.values(errs).some(Boolean) && money) {
-      const r = extrasToDb(table as 'incomes' | 'expenses', ex, values.amount_paise ?? 0, accounts);
-      if (typeof r === 'string') errs._form = r;
-      else {
-        values.sources = r.sources;
-        if (r.sources.length) {
-          values.account_id = r.sources[0].account_id;
-          values.payment_app = null;
-        }
-        if (table === 'expenses') values.split_with = r.split_with;
-        setErrors(errs);
-        return onSubmit(values, r.allocs);
-      }
+    const { values, errors: errs } = toDbValues(table, form, omit);
+    // the table-level check may look at fields handled elsewhere; skip it then
+    if (omit.length) delete errs._form;
+    if (!Object.values(errs).some(Boolean) && validateExtra) {
+      const e = validateExtra(values);
+      if (e) errs._form = e;
     }
     setErrors(errs);
     if (!Object.values(errs).some(Boolean)) onSubmit(values);
@@ -308,17 +309,17 @@ export function RecordForm({
     <div className="space-y-3.5">
       <Card className="space-y-3.5">
         {def.fields
-          .filter((f) => !f.hidden && f.type !== 'json')
+          .filter((f) => !f.hidden && f.type !== 'json' && !omit.includes(f.key))
           .filter((f) => !(table === 'loans' && f.key === 'interest_rate_bp' && form.interest_type !== 'simple'))
           .map((f) => (
             <FormRow key={f.key} label={f.label} error={errors[f.key]} hint={f.hint}>
               {renderField(f)}
             </FormRow>
           ))}
-        {!money && errors._form && <p className="px-0.5 text-[13px] text-danger">{errors._form}</p>}
+
       </Card>
-      {money && <MoneyExtras table={table as 'incomes' | 'expenses'} ex={ex} setEx={setEx} totalText={form.amount_paise ?? ''} accounts={accounts} />}
-      {money && errors._form && <p className="px-1 text-[13px] text-danger">{errors._form}</p>}
+      {extra}
+      {errors._form && <p className="px-1 text-[13px] text-danger">{errors._form}</p>}
       <Button variant="primary" size="lg" full loading={saving} onClick={submit}>
         {submitLabel}
       </Button>

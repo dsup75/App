@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ImagePlus, Wand2, X, Check, PencilLine, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { createRecord, friendlyError } from '../lib/db';
+import { friendlyError, saveMoneyEntry, type LineInput } from '../lib/db';
+import { LINE_FIELDS } from '../components/MoneyForm';
 import { compressImage, fromAI, parseText, type Draft } from '../lib/parse';
 import { formatINR, paiseToInput, parseRupeesToPaise } from '../lib/money';
 import { PAYMENT_MODES, UPI_APPS } from '../lib/tables';
@@ -107,7 +108,7 @@ export function SmartAdd() {
       area: draft.payment_mode === 'business' ? 'business' : 'personal',
     };
     if (draft.kind === 'incomes') return { ...common, payer_name: draft.payer_name, payer_type: 'client' };
-    return { ...common, notes: [draft.payer_name ? `Paid to: ${draft.payer_name}` : null, draft.notes].filter(Boolean).join('\n') || null };
+    return { ...common, payer_name: draft.payer_name };
   };
 
   const approve = async () => {
@@ -115,9 +116,24 @@ export function SmartAdd() {
     if (typeof v === 'string') return setErr(v);
     setSaving(true);
     try {
-      const row = await createRecord(draft!.kind, v);
+      const kind = draft!.kind;
+      const line = (direction: 'in' | 'out', account_id: unknown): LineInput => ({
+        direction,
+        account_id: String(account_id),
+        amount_paise: Number(v.amount_paise),
+        payment_app: (v.payment_app as string) || null,
+        payment_method: (v.payment_method as string) || null,
+        txn_date: String(v.txn_date),
+        txn_time: (v.txn_time as string) || null,
+        reference: (v.reference as string) || null,
+        party_name: (v.payer_name as string) || null,
+      });
+      const lines = kind === 'transfers' ? [line('out', v.from_account_id), line('in', v.to_account_id)] : [line(kind === 'incomes' ? 'in' : 'out', v.account_id)];
+      const parent: Record<string, unknown> = { ...v };
+      for (const k of [...LINE_FIELDS[kind], 'payer_name']) delete parent[k];
+      const id = await saveMoneyEntry(kind, null, parent, lines, null);
       toast('Entry saved');
-      nav(`/r/${draft!.kind}/${row.id}`, { replace: true });
+      nav(`/r/${kind}/${id}`, { replace: true });
     } catch (e) {
       setErr(friendlyError(e));
     } finally {

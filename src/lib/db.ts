@@ -169,3 +169,76 @@ export async function saveSettings(userId: string, values: Partial<Settings>): P
     await supabase.from('user_settings').update(values).eq('user_id', userId).select('*').single(),
   ) as Settings;
 }
+
+/* ---------------- Money entries with payment breakdown ---------------- */
+export const MONEY_TABLES = ['incomes', 'expenses', 'loans', 'loan_repayments', 'transfers'] as const;
+export type MoneyTable = (typeof MONEY_TABLES)[number];
+export function isMoneyTable(t: string): t is MoneyTable {
+  return (MONEY_TABLES as readonly string[]).includes(t);
+}
+
+export interface LineInput {
+  id?: string;
+  direction?: 'in' | 'out';
+  account_id: string;
+  amount_paise: number;
+  payment_app?: string | null;
+  payment_method?: string | null;
+  txn_date: string;
+  txn_time?: string | null;
+  reference?: string | null;
+  party_name?: string | null;
+  notes?: string | null;
+}
+
+export interface LinkInput {
+  id?: string;
+  income_id: string;
+  amount_paise: number;
+}
+
+/** Saves the entry, its payment lines and (optionally) its income links in one transaction. */
+export async function saveMoneyEntry(
+  table: MoneyTable,
+  id: string | null,
+  parent: Record<string, unknown>,
+  lines: LineInput[],
+  links: LinkInput[] | null,
+): Promise<string> {
+  invalidateLookups();
+  const { data, error } = await supabase.rpc('save_money_entry', {
+    p_table: table,
+    p_id: id,
+    p_parent: parent,
+    p_lines: lines,
+    p_links: links,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+export interface LineRow extends LineInput {
+  id: string;
+  direction: 'in' | 'out';
+  sort: number;
+}
+
+export async function getLines(table: MoneyTable, id: string): Promise<LineRow[]> {
+  return check(
+    await supabase
+      .from('payment_lines')
+      .select('id,direction,account_id,amount_paise,payment_app,payment_method,txn_date,txn_time,reference,party_name,notes,sort')
+      .eq('parent_table', table)
+      .eq('parent_id', id)
+      .is('deleted_at', null)
+      .order('sort'),
+  ) as LineRow[];
+}
+
+export const LINK_COLUMN: Partial<Record<MoneyTable, string>> = { expenses: 'expense_id', loans: 'loan_id', transfers: 'transfer_id' };
+
+export async function getLinks(table: MoneyTable, id: string): Promise<{ id: string; income_id: string; amount_paise: number }[]> {
+  const col = LINK_COLUMN[table];
+  if (!col) return [];
+  return check(await supabase.from('allocations').select('id,income_id,amount_paise').eq(col, id).is('deleted_at', null)) as any[];
+}

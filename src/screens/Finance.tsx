@@ -133,15 +133,19 @@ function Overview({ month }: { month: string }) {
       <HeroCard>
         <p className="text-[13px] opacity-80">Total balance</p>
         <p className="mt-1 text-[30px] font-bold tracking-tight">{formatINR(total)}</p>
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-3 grid grid-cols-3 gap-2">
           <div className="rounded-[14px] p-2.5" style={{ background: 'rgba(255,255,255,.12)' }}>
             <p className="text-[11.5px] opacity-80">Income</p>
-            <p className="text-[16px] font-bold">{formatINR(inc)}</p>
+            <p className="text-[15px] font-bold">{formatINR(inc)}</p>
           </div>
           <div className="rounded-[14px] p-2.5" style={{ background: 'rgba(255,255,255,.12)' }}>
             <p className="text-[11.5px] opacity-80">Expenses</p>
-            <p className="text-[16px] font-bold">{formatINR(exp)}</p>
+            <p className="text-[15px] font-bold">{formatINR(exp)}</p>
           </div>
+          <button className="rounded-[14px] p-2.5 text-left" style={{ background: 'rgba(255,255,255,.12)' }} onClick={() => nav('/finance?tab=transactions&type=transfers')}>
+            <p className="text-[11.5px] opacity-80">Transfers ({data.transfers.length})</p>
+            <p className="text-[15px] font-bold">{formatINR(sumPaise(data.transfers))}</p>
+          </button>
         </div>
         <div className="mt-3 grid grid-cols-3 gap-2">
           <Button size="sm" onClick={() => nav('/r/incomes/new')}>+ Income</Button>
@@ -235,7 +239,8 @@ function AccountList({ rows }: { rows: Balance[] }) {
 function Transactions({ month }: { month: string }) {
   const { data, error, reload } = useMonthData(month);
   const { nameOf } = useLookups();
-  const [type, setType] = useState<'all' | MoneyKind>('all');
+  const [params] = useSearchParams();
+  const [type, setType] = useState<'all' | MoneyKind>(() => (params.get('type') as MoneyKind) || 'all');
 
   const rows = useMemo(() => {
     if (!data) return [];
