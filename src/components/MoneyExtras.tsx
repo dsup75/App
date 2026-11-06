@@ -2,12 +2,14 @@
 //  • which income(s) paid for this (expenses, udhaar given, transfers)
 //  • split an expense with other people
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Plus, X, Link2, Users } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatINR, paiseToInput, parseRupeesToPaise } from '../lib/money';
 import { splitEqual } from '../lib/split';
 import type { LinkInput } from '../lib/db';
-import { Toggle, cx } from './ui';
+import { Sheet, Toggle, cx } from './ui';
+import { useLookups } from '../lib/useLookups';
 
 export interface LinkRow {
   id?: string;
@@ -69,49 +71,54 @@ export function LinksSection({
   setLinks: (fn: (l: LinkRow[]) => LinkRow[]) => void;
   total: number;
 }) {
-  const [incomes, setIncomes] = useState<{ id: string; title: string; amount_paise: number; txn_date: string }[]>([]);
+  const { nameOf } = useLookups();
+  const [incomes, setIncomes] = useState<{ id: string; title: string; amount_paise: number; txn_date: string; account_id: string | null }[]>([]);
   const [left, setLeft] = useState<Map<string, number>>(new Map());
+  const [accs, setAccs] = useState<Map<string, string[]>>(new Map());
+  const [picking, setPicking] = useState<number | null>(null);
   // amounts this entry already holds (when editing) are available again
   const [own] = useState(() => new Map(links.filter((a) => a.id).map((a) => [a.income_id, parseRupeesToPaise(a.amount) ?? 0])));
 
   useEffect(() => {
     Promise.all([
-      supabase.from('incomes').select('id,title,amount_paise,txn_date').is('deleted_at', null).order('txn_date', { ascending: false }).limit(200),
+      supabase.from('incomes').select('id,title,amount_paise,txn_date,account_id').is('deleted_at', null).order('txn_date', { ascending: false }).limit(5000),
       supabase.from('income_usage').select('id,left_paise').limit(5000),
-    ]).then(([a, b]) => {
+      supabase.from('payment_lines').select('parent_id,account_id').eq('parent_table', 'incomes').is('deleted_at', null).limit(10000),
+    ]).then(([a, b, c]) => {
       setIncomes((a.data as any[]) ?? []);
       setLeft(new Map(((b.data as any[]) ?? []).map((x) => [x.id, Number(x.left_paise)])));
+      // every account an income was received in (one income can be split over several)
+      const m = new Map<string, string[]>();
+      ((c.data as any[]) ?? []).forEach((l) => {
+        const list = m.get(l.parent_id) ?? [];
+        if (!list.includes(l.account_id)) list.push(l.account_id);
+        m.set(l.parent_id, list);
+      });
+      setAccs(m);
     });
   }, []);
 
   const available = (id: string, full: number) => (left.has(id) ? left.get(id)! : full) + (own.get(id) ?? 0);
 
+  const pick = (i: number, id: string) =>
+    setLinks((x) => {
+      const otherLinked = x.reduce((s, y, j) => (j === i ? s : s + (parseRupeesToPaise(y.amount) ?? 0)), 0);
+      const inc = incomes.find((n) => n.id === id);
+      const can = inc ? Math.min(available(id, inc.amount_paise), Math.max(0, total - otherLinked)) : 0;
+      return x.map((y, j) => (j === i ? { ...y, income_id: id, amount: can ? paiseToInput(can) : y.amount } : y));
+    });
+
   return (
     <Section icon={<Link2 size={15} />} title={title} hint={hint} on={links.length > 0} onToggle={(v) => setLinks(() => (v ? [{ income_id: '', amount: '' }] : []))}>
       {links.map((a, i) => (
         <div key={i} className="flex gap-2">
-          <select
-            className="field min-w-0 flex-1"
-            value={a.income_id}
-            onChange={(e) => {
-              const id = e.target.value;
-              setLinks((x) => {
-                const otherLinked = x.reduce((s, y, j) => (j === i ? s : s + (parseRupeesToPaise(y.amount) ?? 0)), 0);
-                const inc = incomes.find((n) => n.id === id);
-                const can = inc ? Math.min(available(id, inc.amount_paise), Math.max(0, total - otherLinked)) : 0;
-                return x.map((y, j) => (j === i ? { ...y, income_id: id, amount: can ? paiseToInput(can) : y.amount } : y));
-              });
-            }}
+          <button
+            type="button"
+            className={cx('field min-w-0 flex-1 truncate text-left', !a.income_id && 'text-muted')}
+            onClick={() => setPicking(i)}
           >
-            <option value="">Choose income</option>
-            {incomes
-              .filter((inc) => available(inc.id, inc.amount_paise) > 0 || inc.id === a.income_id)
-              .map((inc) => (
-                <option key={inc.id} value={inc.id}>
-                  {inc.title} · {formatINR(available(inc.id, inc.amount_paise))} left of {formatINR(inc.amount_paise)}
-                </option>
-              ))}
-          </select>
+            {a.income_id ? incomes.find((n) => n.id === a.income_id)?.title ?? 'Income' : 'Choose income'}
+          </button>
           <input className="field w-28" inputMode="decimal" placeholder="₹" value={a.amount} onChange={(e) => setLinks((x) => x.map((y, j) => (j === i ? { ...y, amount: e.target.value } : y)))} />
           <button aria-label="Remove" className="px-1 text-muted" onClick={() => setLinks((x) => x.filter((_, j) => j !== i))}>
             <X size={16} />
@@ -125,6 +132,53 @@ export function LinksSection({
         </button>
         {total > 0 && <span className={cx('text-[12px]', sumOf(links) > total ? 'text-danger' : 'text-muted')}>{formatINR(sumOf(links))} of {formatINR(total)} linked</span>}
       </div>
+      {createPortal(
+      <Sheet open={picking !== null} onClose={() => setPicking(null)} title="Choose income">
+        {(() => {
+          const i = picking ?? 0;
+          const current = links[i]?.income_id;
+          const list = incomes.filter((inc) => available(inc.id, inc.amount_paise) > 0 || inc.id === current);
+          if (!list.length) return <p className="py-6 text-center text-[13.5px] text-muted">No income with money left.</p>;
+          return (
+            <div className="glass list-in divide-y divide-[var(--hairline)] overflow-hidden rounded-[18px]" role="radiogroup">
+              {list.map((inc) => {
+                const on = inc.id === current;
+                const acc = (accs.get(inc.id) ?? (inc.account_id ? [inc.account_id] : [])).map((x) => nameOf(x)).join(' + ') || '—';
+                return (
+                  <button
+                    key={inc.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    className={cx('flex w-full items-center gap-3 px-3.5 py-3 text-left', on && 'bg-[var(--primary-soft)]')}
+                    onClick={() => {
+                      pick(i, inc.id);
+                      setPicking(null);
+                    }}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[15px] font-semibold">{inc.title}</span>
+                      <span className="block text-[13.5px]">
+                        <span className="font-semibold text-income">{formatINR(available(inc.id, inc.amount_paise))}</span>
+                        <span className="text-muted"> remaining of {formatINR(inc.amount_paise)}</span>
+                      </span>
+                      <span className="block truncate text-[12.5px] text-muted">Account: {acc}</span>
+                    </span>
+                    <span
+                      className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full"
+                      style={{ boxShadow: `inset 0 0 0 2px ${on ? 'var(--primary-2)' : 'var(--muted)'}` }}
+                    >
+                      {on && <span className="h-[11px] w-[11px] rounded-full bg-[var(--primary-2)]" />}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })()}
+      </Sheet>,
+      document.body,
+      )}
     </Section>
   );
 }
