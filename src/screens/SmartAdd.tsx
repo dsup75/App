@@ -4,6 +4,8 @@ import { ImagePlus, Wand2, X, Check, PencilLine, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { friendlyError, saveMoneyEntry, type LineInput } from '../lib/db';
 import { LINE_FIELDS } from '../components/MoneyForm';
+import { uploadAttachment } from '../components/Attachments';
+import { useAuth } from '../context/AuthContext';
 import { compressImage, fromAI, parseText, type Draft } from '../lib/parse';
 import { formatINR, paiseToInput, parseRupeesToPaise } from '../lib/money';
 import { PAYMENT_MODES, UPI_APPS } from '../lib/tables';
@@ -17,6 +19,7 @@ export function SmartAdd() {
   const nav = useNavigate();
   const toast = useToast();
   const { accounts } = useLookups();
+  const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState('');
   const [image, setImage] = useState<{ base64: string; mime: string; preview: string } | null>(null);
@@ -132,6 +135,13 @@ export function SmartAdd() {
       const parent: Record<string, unknown> = { ...v };
       for (const k of [...LINE_FIELDS[kind], 'payer_name']) delete parent[k];
       const id = await saveMoneyEntry(kind, null, parent, lines, null);
+      if (image && user) {
+        try {
+          await uploadAttachment(user.id, kind, id, { base64: image.base64, mime: image.mime });
+        } catch {
+          toast('Entry saved, but the screenshot could not be attached', 'error');
+        }
+      }
       toast('Entry saved');
       nav(`/r/${kind}/${id}`, { replace: true });
     } catch (e) {

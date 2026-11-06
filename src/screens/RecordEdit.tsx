@@ -10,6 +10,7 @@ import { RecordForm, initialFormState } from '../components/RecordForm';
 import { linksFromDb, splitFromDb, type LinkRow, type SplitRow } from '../components/MoneyExtras';
 import { MoneyForm, blankLine, linesFromDb, type LineState } from '../components/MoneyForm';
 import { formatINR } from '../lib/money';
+import { advanceRule } from '../lib/recurring';
 import { Button, Empty, ErrorBox, Page, Sheet, Spinner } from '../components/ui';
 import { formatValue } from './RecordDetail';
 
@@ -159,6 +160,11 @@ export function RecordEdit() {
     setSaving(true);
     try {
       const newId = await saveMoneyEntry(t as MoneyTable, editing ? id! : null, p.parent, p.lines, p.links);
+      const ruleId = params.get('from_rule');
+      if (ruleId && !editing) {
+        const rule = await getRecord('recurring_rules', ruleId).catch(() => null);
+        if (rule) await advanceRule(rule).catch(() => {});
+      }
       toast(editing ? 'Changes saved' : `${def.label} added`);
       nav(`/r/${t}/${newId}`, { replace: true });
     } catch (e) {

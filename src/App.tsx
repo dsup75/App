@@ -28,6 +28,8 @@ import { ReportsScreen } from './screens/Reports';
 import { AssistantScreen } from './screens/Assistant';
 import { SmartAdd } from './screens/SmartAdd';
 import { ListsScreen } from './screens/Lists';
+import { BudgetsScreen, RecurringScreen } from './screens/Planning';
+import { onReminderTap, scheduleReminders } from './lib/reminders';
 import { syncAll } from './lib/sheets';
 import { saveSettings } from './lib/db';
 import { useRef } from 'react';
@@ -77,6 +79,25 @@ function AutoSync() {
   return null;
 }
 
+function ReminderSync() {
+  const { user } = useAuth();
+  const nav = useNavigate();
+  useEffect(() => {
+    if (!user) return;
+    const run = () => scheduleReminders(user.id).catch(() => {});
+    const t = setTimeout(run, 4000);
+    const off = onReminderTap((url) => nav(url));
+    let sub: { remove: () => void } | null = null;
+    CapApp.addListener('resume', run).then((h) => (sub = h)).catch(() => {});
+    return () => {
+      clearTimeout(t);
+      off();
+      sub?.remove();
+    };
+  }, [user, nav]);
+  return null;
+}
+
 function Gate() {
   const { session, loading } = useAuth();
   const { ready, locked } = useLock();
@@ -94,6 +115,7 @@ function Gate() {
     <>
       <BackButton />
       <AutoSync />
+      <ReminderSync />
       <Shell>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -115,6 +137,8 @@ function Gate() {
           <Route path="/goals" element={<SavingsScreen />} />
           <Route path="/savings" element={<Navigate to="/goals" replace />} />
           <Route path="/smart" element={<SmartAdd />} />
+          <Route path="/budgets" element={<BudgetsScreen />} />
+          <Route path="/recurring" element={<RecurringScreen />} />
           <Route path="/lists" element={<ListsScreen />} />
           <Route path="/groups" element={<GroupsScreen />} />
           <Route path="/groups/:id" element={<GroupDetail />} />

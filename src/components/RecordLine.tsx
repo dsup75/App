@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowDownLeft, ArrowUpRight, ArrowLeftRight, ListTodo, FileText, Briefcase, Megaphone, Link2, HandCoins,
   PiggyBank, BookOpen, Timer, ClipboardCheck, CalendarDays, StickyNote, ShoppingCart, Users, Repeat, QrCode,
-  Landmark, Tag, GraduationCap, Flame,
+  Landmark, Tag, GraduationCap, Flame, Gauge, CalendarClock,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { formatINR } from '../lib/money';
 import { formatDate, relativeDay } from '../lib/dates';
-import { optionLabel, UPI_APPS, TASK_STATUS, CHAPTER_STATUS, PROJECT_STATUS, CAMPAIGN_STATUS, PLATFORMS, CLIENT_STATUS, type TableName } from '../lib/tables';
+import { optionLabel, UPI_APPS, TASK_STATUS, CHAPTER_STATUS, PROJECT_STATUS, CAMPAIGN_STATUS, PLATFORMS, CLIENT_STATUS, FREQUENCIES, type TableName } from '../lib/tables';
 import { IconBubble, ListRow, Badge, type Tone } from './ui';
 import { useUsage } from '../lib/useUsage';
 
@@ -44,6 +44,8 @@ export const TABLE_ICON: Record<TableName, { icon: LucideIcon; tone: Tone }> = {
   exams: { icon: GraduationCap, tone: 'expense' },
   client_contacts: { icon: Users, tone: 'teal' },
   custom_options: { icon: Tag, tone: 'muted' },
+  budgets: { icon: Gauge, tone: 'amber' },
+  recurring_rules: { icon: CalendarClock, tone: 'teal' },
 };
 
 /** One generic row for any record type */
@@ -151,6 +153,15 @@ export function RecordLine({ table, row, nameOf }: { table: TableName; row: any;
       title = `${row.direction === 'lent' ? 'Lent to' : 'Borrowed from'} ${row.person}`;
       sub = row.due_date ? `Due ${formatDate(row.due_date)}` : formatDate(row.start_date);
       right = money(row.principal_paise);
+      break;
+    case 'recurring_rules':
+      sub = [optionLabel(FREQUENCIES, row.frequency), row.active ? `next ${relativeDay(row.next_date)}` : 'Paused', nameOf(row.account_id)].join(' · ');
+      right = money(row.amount_paise, row.kind === 'incomes' ? 'in' : 'out');
+      break;
+    case 'budgets':
+      title = row.category_id ? nameOf(row.category_id) : 'All spending';
+      sub = [row.month ?? 'Every month', row.area].filter(Boolean).join(' · ');
+      right = money(row.amount_paise);
       break;
     case 'payment_requests':
       sub = [row.client_name, row.status].filter(Boolean).join(' · ');

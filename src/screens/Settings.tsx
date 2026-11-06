@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
-import { Lock, Fingerprint, Timer, LogOut, FileSpreadsheet, User, Moon, KeyRound } from 'lucide-react';
+import { Lock, Fingerprint, Timer, LogOut, FileSpreadsheet, User, Moon, KeyRound, Bell } from 'lucide-react';
+import { askPermission, getReminderConfig, remindersSupported, saveReminderConfig, scheduleReminders, DEFAULT_REMINDERS, type ReminderConfig } from '../lib/reminders';
 import { useAuth } from '../context/AuthContext';
 import { useLock } from '../context/LockContext';
 import { useToast } from '../context/ToastContext';
@@ -142,6 +143,8 @@ export function SettingsScreen() {
         />
       </List>
 
+      <Reminders />
+
       <PaymentsBusiness />
 
       <SheetSync />
@@ -252,6 +255,69 @@ function PinFlow({ mode, onClose }: { mode: null | 'set' | 'change' | 'remove'; 
 }
 
 /* ---------------- UPI + business details ---------------- */
+const REMINDER_KINDS: { key: keyof ReminderConfig; label: string }[] = [
+  { key: 'daily', label: 'Morning plan (tasks due today)' },
+  { key: 'udhaar', label: 'Udhaar due dates' },
+  { key: 'payments', label: 'Invoice & payment request due' },
+  { key: 'exams', label: 'Exams (7 days & 1 day before)' },
+  { key: 'recurring', label: 'Recurring entries due' },
+  { key: 'budget', label: 'Budget crossed' },
+];
+
+function Reminders() {
+  const { user } = useAuth();
+  const toast = useToast();
+  const [cfg, setCfg] = useState<ReminderConfig>(DEFAULT_REMINDERS);
+  const ok = remindersSupported();
+  useEffect(() => {
+    if (user) getReminderConfig(user.id).then(setCfg);
+  }, [user]);
+
+  const update = async (next: ReminderConfig) => {
+    if (!user) return;
+    if (next.on && !cfg.on) {
+      const allowed = await askPermission();
+      if (!allowed) {
+        toast('Allow notifications for DeepBoost Life in phone settings', 'error');
+        return;
+      }
+    }
+    setCfg(next);
+    await saveReminderConfig(user.id, next);
+    const n = await scheduleReminders(user.id).catch(() => 0);
+    if (next.on && !cfg.on) toast(n ? `Reminders on · ${n} scheduled` : 'Reminders on');
+  };
+
+  return (
+    <>
+      <SectionTitle>Reminders</SectionTitle>
+      <List>
+        <ListRow
+          icon={<IconBubble tone="amber"><Bell size={18} /></IconBubble>}
+          title="Phone reminders"
+          subtitle={ok ? (cfg.on ? `Every day at ${cfg.time}` : 'Off') : 'Available in the Android app'}
+          right={<Toggle checked={cfg.on} disabled={!ok} onChange={(v) => update({ ...cfg, on: v })} />}
+        />
+        {ok && cfg.on && (
+          <>
+            <div className="flex items-center gap-3 px-4 py-2.5">
+              <span className="flex-1 text-[14.5px] font-medium">Reminder time</span>
+              <input type="time" className="field w-auto py-2 text-[14px]" value={cfg.time} onChange={(e) => e.target.value && update({ ...cfg, time: e.target.value })} />
+            </div>
+            {REMINDER_KINDS.map((k) => (
+              <div key={k.key} className="flex items-center gap-3 px-4 py-2.5">
+                <span className="flex-1 text-[14px]">{k.label}</span>
+                <Toggle checked={!!cfg[k.key]} onChange={(v) => update({ ...cfg, [k.key]: v })} />
+              </div>
+            ))}
+          </>
+        )}
+      </List>
+      {ok && cfg.on && <p className="px-1 text-[12px] text-muted">Reminders are planned for the next 30 days each time you open the app.</p>}
+    </>
+  );
+}
+
 function PaymentsBusiness() {
   const { user, settings, reloadSettings } = useAuth();
   const toast = useToast();

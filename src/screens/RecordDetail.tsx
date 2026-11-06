@@ -5,6 +5,8 @@ import {
   deleteForever, friendlyError, getHistory, getRecord, isMoneyTable, restoreRecord, softDelete, type HistoryRow, type Row,
 } from '../lib/db';
 import { PaymentBreakdown } from '../components/PaymentBreakdown';
+import { Attachments } from '../components/Attachments';
+import { nextDate } from '../lib/recurring';
 import { LINE_FIELDS } from '../components/MoneyForm';
 import { supabase } from '../lib/supabase';
 import { TABLES, displayOf, fieldLabel, isTableName, optionLabel, type Field, type TableName } from '../lib/tables';
@@ -209,10 +211,27 @@ export function RecordDetail() {
         </div>
       )}
 
+      {!deleted && (t === 'incomes' || t === 'expenses') && (
+        <button
+          className="w-full text-center text-[13px] font-semibold text-primary"
+          onClick={() => {
+            const q = new URLSearchParams({ kind: t, title: row.title, amount_paise: paiseToInput(row.amount_paise), account_id: row.account_id, payment_mode: row.payment_mode ?? 'personal', area: row.area ?? 'personal', next_date: nextDate(row.txn_date, 'monthly') });
+            if (row.category_id) q.set('category_id', row.category_id);
+            if (row.client_id) q.set('client_id', row.client_id);
+            if (row.payment_app) q.set('payment_app', row.payment_app);
+            nav(`/r/recurring_rules/new?${q.toString()}`);
+          }}
+        >
+          Repeat this every month →
+        </button>
+      )}
+
       {!deleted &&
         (CHILDREN[t] ?? []).map((c) => (
           <ChildSection key={c.table + c.fk} spec={c} parent={row} parentTable={t} nameOf={nameOf} reloadKey={reloadKey} />
         ))}
+
+      {!deleted && !['custom_options', 'categories', 'group_members'].includes(t) && <Attachments table={t} id={row.id} />}
 
       <SectionTitle>
         <span className="inline-flex items-center gap-1.5">

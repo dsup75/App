@@ -6,7 +6,7 @@ export type TableName =
   | 'clients' | 'projects' | 'campaigns' | 'invoices' | 'allocations' | 'loans' | 'loan_repayments'
   | 'savings_goals' | 'savings_entries' | 'groups' | 'group_members' | 'group_expenses' | 'group_settlements'
   | 'habits' | 'events' | 'notes' | 'shopping_items' | 'subjects' | 'chapters' | 'study_sessions' | 'mock_tests' | 'exams'
-  | 'client_contacts' | 'custom_options';
+  | 'client_contacts' | 'custom_options' | 'budgets' | 'recurring_rules';
 
 export type FieldType =
   | 'text' | 'textarea' | 'money' | 'signed_money' | 'date' | 'time' | 'select'
@@ -56,6 +56,8 @@ export const TASK_STATUS = o([['pending', 'Pending'], ['in_progress', 'In Progre
 export const TASK_TYPES = o([['task', 'Task'], ['follow_up', 'Follow-up'], ['approval', 'Pending approval'], ['creative', 'Creative requirement'], ['meeting', 'Meeting / call']]);
 export const ACCOUNT_TYPES = o([['cash', 'Cash'], ['bank', 'Bank'], ['upi', 'UPI app'], ['wallet', 'Wallet'], ['custom', 'Custom']]);
 export const UPI_APPS = o([['gpay', 'Google Pay'], ['phonepe', 'PhonePe'], ['paytm', 'Paytm'], ['bhim', 'BHIM'], ['amazonpay', 'Amazon Pay'], ['cred', 'CRED'], ['bank_app', 'Bank app'], ['netbanking', 'Net banking'], ['card', 'Card'], ['cash', 'Cash'], ['other', 'Other']]);
+export const FREQUENCIES = o([['weekly', 'Every week'], ['monthly', 'Every month'], ['yearly', 'Every year']]);
+export const RECUR_KINDS = o([['expenses', 'Expense (money out)'], ['incomes', 'Income (money in)']]);
 export const PAYMENT_MODES = o([['personal', 'Personal'], ['business', 'Business']]);
 const nowTime = () => {
   const d = new Date();
@@ -306,6 +308,35 @@ export const TABLES: Record<TableName, TableDef> = {
       notes,
     ],
   },
+  budgets: {
+    table: 'budgets', label: 'Budget', plural: 'Budgets', titleField: 'month', financial: false,
+    fields: [
+      { key: 'category_id', label: 'Category', type: 'category', categoryKind: 'expense', hint: 'Leave empty for a limit on all spending' },
+      { key: 'amount_paise', label: 'Monthly limit (₹)', type: 'money', required: true },
+      { key: 'month', label: 'Only for month', type: 'text', placeholder: 'YYYY-MM (empty = every month)' },
+      { key: 'area', label: 'Area', type: 'select', options: AREAS, hint: 'Empty = all areas' },
+      notes,
+    ],
+    validate: (v) => (v.month && !/^\d{4}-\d{2}$/.test(v.month) ? 'Month must look like 2026-11.' : null),
+  },
+  recurring_rules: {
+    table: 'recurring_rules', label: 'Recurring entry', plural: 'Recurring entries', titleField: 'title', financial: false,
+    fields: [
+      { key: 'kind', label: 'Type', type: 'select', options: RECUR_KINDS, required: true, default: () => 'expenses' },
+      { key: 'title', label: 'Title', type: 'text', required: true, placeholder: 'e.g. Rent, Netflix, Arvia retainer' },
+      { key: 'amount_paise', label: 'Amount (₹)', type: 'money', required: true },
+      { key: 'account_id', label: 'Account', type: 'account', required: true },
+      { key: 'payment_app', label: 'App', type: 'select', options: UPI_APPS, listKey: 'payment_app' },
+      { key: 'category_id', label: 'Category', type: 'category' },
+      { ...clientRef(), label: 'Client (optional)' },
+      { key: 'payment_mode', label: 'Payment mode', type: 'select', options: PAYMENT_MODES, default: () => 'personal' },
+      area,
+      { key: 'frequency', label: 'Repeats', type: 'select', options: FREQUENCIES, required: true, default: () => 'monthly' },
+      { key: 'next_date', label: 'Next due date', type: 'date', required: true, default: todayISO },
+      { key: 'active', label: 'Active', type: 'bool', default: () => true },
+      notes,
+    ],
+  },
   habits: {
     table: 'habits', label: 'Habit', plural: 'Habits', titleField: 'name', financial: false,
     fields: [
@@ -483,6 +514,7 @@ export function displayOf(table: TableName, row: Record<string, any>): string {
   if (table === 'invoices') return `${row.invoice_no} · ${row.title ?? ''}`;
   if (table === 'allocations') return `Allocation ${formatINR(row.amount_paise)}`;
   if (table === 'incomes' || table === 'expenses') return row.amount_paise !== undefined ? `${row.title} · ${formatINR(row.amount_paise)}` : String(row.title);
+  if (table === 'budgets') return `${row.month ?? 'Monthly'} budget · ${formatINR(row.amount_paise)}`;
   if (table === 'loans') return `${row.direction === 'lent' ? 'Lent to' : 'Borrowed from'} ${row.person}`;
   return String(row[d.titleField] ?? '—');
 }

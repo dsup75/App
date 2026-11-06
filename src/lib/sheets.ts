@@ -48,6 +48,8 @@ const SHEETS: { table: string; sheet: string; cols: string[] }[] = [
   { table: 'client_contacts', sheet: 'Client Staff', cols: ['id', 'client_id', 'name', 'role', 'phone', 'email', 'created_at'] },
   { table: 'invoices', sheet: 'Invoices', cols: ['id', 'invoice_no', 'client_id', 'title', 'period', 'amount_paise', 'issue_date', 'due_date', 'status', 'notes', 'created_at'] },
   { table: 'payment_lines', sheet: 'Payment Lines', cols: ['id', 'parent_table', 'parent_id', 'direction', 'txn_date', 'txn_time', 'amount_paise', 'account_id', 'payment_app', 'payment_method', 'reference', 'party_name', 'notes', 'created_at'] },
+  { table: 'budgets', sheet: 'Budgets', cols: ['id', 'category_id', 'month', 'area', 'amount_paise', 'notes', 'created_at'] },
+  { table: 'recurring_rules', sheet: 'Recurring', cols: ['id', 'kind', 'title', 'amount_paise', 'account_id', 'category_id', 'payment_app', 'frequency', 'next_date', 'active', 'notes', 'created_at'] },
   { table: 'allocations', sheet: 'Allocations', cols: ['id', 'income_id', 'expense_id', 'loan_id', 'transfer_id', 'amount_paise', 'notes', 'created_at'] },
   { table: 'loans', sheet: 'Udhaar & Loans', cols: ['id', 'direction', 'person', 'principal_paise', 'account_id', 'start_date', 'due_date', 'interest_type', 'interest_rate_bp', 'notes', 'created_at'] },
   { table: 'loan_repayments', sheet: 'Loan Repayments', cols: ['id', 'loan_id', 'title', 'principal_paise', 'interest_paise', 'account_id', 'txn_date', 'notes', 'created_at'] },

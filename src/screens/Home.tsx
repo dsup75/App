@@ -1,3 +1,4 @@
+import { RecurringDrafts, BudgetWarnings } from './Planning';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, Circle, Settings as Gear, Eye, EyeOff, ArrowDownLeft, ArrowUpRight, Timer, Flame, CalendarClock } from 'lucide-react';
@@ -249,6 +250,9 @@ export function Home() {
               <p className="mt-0.5 text-[17px] font-bold text-expense">{money(sumPaise(byArea(d.expenses).filter((r) => r.txn_date === today)))}</p>
             </Card>
           </div>
+
+          <RecurringDrafts onChanged={load} />
+          <BudgetWarnings />
 
           <SectionTitle right={<SeeAll onClick={() => nav('/tasks')} />}>Today</SectionTitle>
           {todayTasks.length === 0 ? (
