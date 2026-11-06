@@ -36,7 +36,7 @@ export async function testScript(url: string, key: string): Promise<string> {
 }
 
 const SHEETS: { table: string; sheet: string; cols: string[] }[] = [
-  { table: 'accounts', sheet: 'Accounts', cols: ['id', 'name', 'type', 'opening_balance_paise', 'notes', 'created_at', 'updated_at'] },
+  { table: 'accounts', sheet: 'Accounts', cols: ['id', 'name', 'type', 'upi_app', 'upi_id', 'opening_balance_paise', 'opening_date', 'notes', 'created_at', 'updated_at'] },
   { table: 'categories', sheet: 'Categories', cols: ['id', 'name', 'kind', 'created_at', 'updated_at'] },
   { table: 'incomes', sheet: 'Income', cols: ['id', 'txn_date', 'title', 'amount_paise', 'account_id', 'category_id', 'client_name', 'payer_type', 'payer_name', 'payment_method', 'reference', 'payment_app', 'txn_time', 'payment_mode', 'payment_link', 'area', 'line_count', 'notes', 'created_at', 'updated_at'] },
   { table: 'expenses', sheet: 'Expenses', cols: ['id', 'txn_date', 'txn_time', 'title', 'amount_paise', 'account_id', 'category_id', 'payment_method', 'payment_app', 'reference', 'payment_mode', 'payment_link', 'area', 'notes', 'created_at', 'updated_at'] },
@@ -48,8 +48,8 @@ const SHEETS: { table: string; sheet: string; cols: string[] }[] = [
   { table: 'client_contacts', sheet: 'Client Staff', cols: ['id', 'client_id', 'name', 'role', 'phone', 'email', 'created_at'] },
   { table: 'invoices', sheet: 'Invoices', cols: ['id', 'invoice_no', 'client_id', 'title', 'period', 'amount_paise', 'issue_date', 'due_date', 'status', 'notes', 'created_at'] },
   { table: 'payment_lines', sheet: 'Payment Lines', cols: ['id', 'parent_table', 'parent_id', 'direction', 'txn_date', 'txn_time', 'amount_paise', 'account_id', 'payment_app', 'payment_method', 'reference', 'party_name', 'notes', 'created_at'] },
-  { table: 'budgets', sheet: 'Budgets', cols: ['id', 'category_id', 'month', 'area', 'amount_paise', 'notes', 'created_at'] },
-  { table: 'recurring_rules', sheet: 'Recurring', cols: ['id', 'kind', 'title', 'amount_paise', 'account_id', 'category_id', 'payment_app', 'frequency', 'next_date', 'active', 'notes', 'created_at'] },
+  { table: 'budgets', sheet: 'Budgets', cols: ['id', 'category_id', 'account_id', 'month', 'start_date', 'end_date', 'area', 'amount_paise', 'notes', 'created_at'] },
+  { table: 'recurring_rules', sheet: 'Subscriptions', cols: ['id', 'is_subscription', 'kind', 'title', 'amount_paise', 'frequency', 'next_date', 'status', 'end_date', 'remind_days', 'account_id', 'category_id', 'payment_app', 'notes', 'created_at'] },
   { table: 'allocations', sheet: 'Allocations', cols: ['id', 'income_id', 'expense_id', 'loan_id', 'transfer_id', 'amount_paise', 'notes', 'created_at'] },
   { table: 'loans', sheet: 'Udhaar & Loans', cols: ['id', 'direction', 'person', 'principal_paise', 'account_id', 'start_date', 'due_date', 'interest_type', 'interest_rate_bp', 'notes', 'created_at'] },
   { table: 'loan_repayments', sheet: 'Loan Repayments', cols: ['id', 'loan_id', 'title', 'principal_paise', 'interest_paise', 'account_id', 'txn_date', 'notes', 'created_at'] },

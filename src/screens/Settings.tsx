@@ -1,26 +1,25 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
-import { Lock, Fingerprint, Timer, LogOut, FileSpreadsheet, User, Moon, KeyRound, Bell } from 'lucide-react';
+import { Lock, Fingerprint, Timer, LogOut, FileSpreadsheet, User, KeyRound, Bell } from 'lucide-react';
 import { askPermission, getReminderConfig, remindersSupported, saveReminderConfig, scheduleReminders, DEFAULT_REMINDERS, type ReminderConfig } from '../lib/reminders';
 import { useAuth } from '../context/AuthContext';
 import { useLock } from '../context/LockContext';
 import { useToast } from '../context/ToastContext';
 import { friendlyError, saveSettings } from '../lib/db';
 import { biometricAvailable, biometricPrompt, hashPin, verifyPin, LOCK_TIMEOUTS, type LockConfig } from '../lib/lock';
-import { getThemeMode, setThemeMode, type ThemeMode } from '../lib/theme';
+import { ACCENTS, STYLES, TEXT_SIZES, getThemePrefs, setThemePrefs, type ThemePrefs } from '../lib/theme';
 import { isValidScriptUrl, syncAll, testScript } from '../lib/sheets';
 import { isValidUpiId } from '../lib/upi';
 import { formatDateTime } from '../lib/dates';
 import { PinPad } from '../components/PinPad';
-import { Badge, Button, Card, Confirm, FormRow, IconBubble, List, ListRow, Page, SectionTitle, Segmented, Sheet, Toggle } from '../components/ui';
+import { Badge, Button, Card, Confirm, FormRow, IconBubble, List, ListRow, Page, SectionTitle, Segmented, Sheet, Toggle, cx } from '../components/ui';
 
 export function SettingsScreen() {
   const { user, settings, reloadSettings, signOut } = useAuth();
   const nav = useNavigate();
   const { config, updateConfig, lockNow, suppressBriefly } = useLock();
   const toast = useToast();
-  const [theme, setTheme] = useState<ThemeMode>(getThemeMode());
   const [name, setName] = useState(settings?.full_name ?? '');
   const [savingName, setSavingName] = useState(false);
   const [pinFlow, setPinFlow] = useState<null | 'set' | 'change' | 'remove'>(null);
@@ -71,25 +70,7 @@ export function SettingsScreen() {
         </Button>
       </Card>
 
-      <SectionTitle>Appearance</SectionTitle>
-      <Card>
-        <div className="mb-3 flex items-center gap-3">
-          <IconBubble tone="violet"><Moon size={18} /></IconBubble>
-          <span className="font-medium">Theme</span>
-        </div>
-        <Segmented
-          value={theme}
-          onChange={(m) => {
-            setTheme(m);
-            setThemeMode(m);
-          }}
-          options={[
-            { value: 'system', label: 'Auto' },
-            { value: 'light', label: 'Light' },
-            { value: 'dark', label: 'Dark' },
-          ]}
-        />
-      </Card>
+      <Appearance />
 
       <SectionTitle>Security</SectionTitle>
       <List>
@@ -255,6 +236,99 @@ function PinFlow({ mode, onClose }: { mode: null | 'set' | 'change' | 'remove'; 
 }
 
 /* ---------------- UPI + business details ---------------- */
+function Appearance() {
+  const [p, setP] = useState<ThemePrefs>(getThemePrefs());
+  const set = (patch: Partial<ThemePrefs>) => {
+    setThemePrefs(patch);
+    setP(getThemePrefs());
+  };
+  return (
+    <>
+      <SectionTitle>Appearance</SectionTitle>
+      <Card className="space-y-4">
+        <div className="space-y-2">
+          <p className="text-[13px] font-semibold text-muted">Style</p>
+          <div className="grid grid-cols-3 gap-2">
+            {STYLES.map((st) => (
+              <button
+                key={st.value}
+                onClick={() => set({ style: st.value })}
+                className={cx('press rounded-[14px] p-2.5 text-left', p.style === st.value ? 'ring-2 ring-[var(--primary-2)]' : '')}
+                style={{ background: 'var(--card-2)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+              >
+                <span
+                  className="mb-1.5 block h-8 rounded-[9px]"
+                  style={{
+                    background:
+                      st.value === 'midnight'
+                        ? 'linear-gradient(135deg,#000,#1a1a1d)'
+                        : st.value === 'clean'
+                          ? 'linear-gradient(135deg,#fff,#eceff0)'
+                          : 'linear-gradient(135deg,rgba(var(--acc),.35),rgba(255,255,255,.5))',
+                    boxShadow: 'inset 0 0 0 1px var(--hairline)',
+                  }}
+                />
+                <span className="block text-[12.5px] font-semibold">{st.label}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-[12px] text-muted">{STYLES.find((x) => x.value === p.style)?.hint}</p>
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-[13px] font-semibold text-muted">Accent colour</p>
+          <div className="flex flex-wrap gap-2.5">
+            {ACCENTS.map((a) => (
+              <button
+                key={a.value}
+                aria-label={a.label}
+                onClick={() => set({ accent: a.value })}
+                className="press flex flex-col items-center gap-1"
+              >
+                <span
+                  className="block h-9 w-9 rounded-full"
+                  style={{ background: a.color, boxShadow: p.accent === a.value ? `0 0 0 2px var(--bg), 0 0 0 4px ${a.color}` : 'inset 0 0 0 1px rgba(0,0,0,.1)' }}
+                />
+                <span className="text-[11px] text-muted">{a.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-[13px] font-semibold text-muted">Light / dark</p>
+          {p.style === 'midnight' ? (
+            <p className="text-[12.5px] text-muted">Midnight is always dark.</p>
+          ) : (
+            <Segmented
+              value={p.mode}
+              onChange={(m) => set({ mode: m })}
+              options={[
+                { value: 'system', label: 'Auto' },
+                { value: 'light', label: 'Light' },
+                { value: 'dark', label: 'Dark' },
+              ]}
+            />
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-[13px] font-semibold text-muted">Text size</p>
+          <Segmented value={p.text} onChange={(t) => set({ text: t })} options={TEXT_SIZES.map((t) => ({ value: t.value, label: t.label === 'Extra large' ? 'XL' : t.label }))} />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[14.5px] font-medium">Reduce effects</p>
+            <p className="text-[12px] text-muted">Less blur and animation — smoother on older phones, saves battery</p>
+          </div>
+          <Toggle checked={p.reduceEffects} onChange={(v) => set({ reduceEffects: v })} />
+        </div>
+      </Card>
+    </>
+  );
+}
+
 const REMINDER_KINDS: { key: keyof ReminderConfig; label: string }[] = [
   { key: 'daily', label: 'Morning plan (tasks due today)' },
   { key: 'udhaar', label: 'Udhaar due dates' },

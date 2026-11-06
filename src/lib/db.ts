@@ -15,6 +15,8 @@ export function friendlyError(e: unknown): string {
   const msg = err?.message ?? String(e);
   if (msg.includes('LINKED_DELETED:')) return msg.split('LINKED_DELETED:')[1].trim();
   if (msg.includes('APP_ERROR:')) return msg.split('APP_ERROR:')[1].trim();
+  if (err?.code === '23505' && /recurring_once/.test(msg)) return 'This payment is already added for this date.';
+  if (err?.code === '23505' && /recurring_rules_unique_title/.test(msg)) return 'A subscription / recurring entry with this name already exists.';
   if (err?.code === '23505') return 'This already exists.';
   if (err?.code === '23503')
     return 'This record is still used by other entries. Delete or move those entries first.';

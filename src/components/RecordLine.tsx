@@ -155,7 +155,7 @@ export function RecordLine({ table, row, nameOf }: { table: TableName; row: any;
       right = money(row.principal_paise);
       break;
     case 'recurring_rules':
-      sub = [optionLabel(FREQUENCIES, row.frequency), row.active ? `next ${relativeDay(row.next_date)}` : 'Paused', nameOf(row.account_id)].join(' · ');
+      sub = [optionLabel(FREQUENCIES, row.frequency), row.status === 'active' ? `next ${relativeDay(row.next_date)}` : row.status === 'paused' ? 'Paused' : 'Cancelled', nameOf(row.account_id)].join(' · ');
       right = money(row.amount_paise, row.kind === 'incomes' ? 'in' : 'out');
       break;
     case 'budgets':

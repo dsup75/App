@@ -129,7 +129,7 @@ export function RecordDetail() {
 
   const deleted = !!row.deleted_at;
   const title = displayOf(t, row);
-  const showsHero = ['invoices', 'loans', 'savings_goals', 'mock_tests', 'accounts'].includes(t);
+  const showsHero = ['invoices', 'loans', 'savings_goals', 'mock_tests', 'accounts', 'recurring_rules'].includes(t);
   const amountField = def.fields.find((f) => f.type === 'money' && f.required);
   const showAmount = !!amountField && !showsHero;
 
@@ -222,7 +222,7 @@ export function RecordDetail() {
             nav(`/r/recurring_rules/new?${q.toString()}`);
           }}
         >
-          Repeat this every month →
+          Make this a subscription / repeat monthly →
         </button>
       )}
 
@@ -251,7 +251,30 @@ export function RecordDetail() {
         confirmLabel="Move to Recycle Bin"
         danger
         loading={busy}
-        onConfirm={() => act(() => softDelete(t, row.id), 'Moved to Recycle Bin', () => nav(-1))}
+        onConfirm={async () => {
+          setBusy(true);
+          try {
+            await softDelete(t, row.id);
+            reloadLookups();
+            setConfirm(null);
+            toast('Moved to Recycle Bin', 'success', {
+              label: 'Undo',
+              run: () =>
+                restoreRecord(t, row.id)
+                  .then(() => {
+                    reloadLookups();
+                    toast('Restored');
+                    nav(`/r/${t}/${row.id}`);
+                  })
+                  .catch((e) => toast(friendlyError(e), 'error')),
+            });
+            nav(-1);
+          } catch (e) {
+            toast(friendlyError(e), 'error');
+          } finally {
+            setBusy(false);
+          }
+        }}
         onClose={() => setConfirm(null)}
       />
       <Confirm

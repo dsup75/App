@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { pdfMoney, saveFile } from '../lib/exporter';
 import { copyText } from '../lib/upi';
+import { monthlyCost, subState, yearlyCost, SUB_STATE_LABEL } from '../lib/recurring';
 import type { Row } from '../lib/db';
 import { Badge, Button, Card, HeroCard, KV, List, ListRow, ProgressBar, SectionTitle, Spinner } from './ui';
 
@@ -59,6 +60,8 @@ export function DetailExtras({ table, row, nameOf, reloadKey }: { table: TableNa
       return <ClientSummary row={row} reloadKey={reloadKey} />;
     case 'accounts':
       return <AccountSummary row={row} reloadKey={reloadKey} />;
+    case 'recurring_rules':
+      return <SubscriptionSummary row={row} reloadKey={reloadKey} />;
     default:
       return null;
   }
@@ -473,6 +476,7 @@ function AccountSummary({ row, reloadKey }: { row: Row; reloadKey: number }) {
       .from('account_movements')
       .select('id,parent_table,parent_id,direction,amount_paise,signed_paise,payment_app,txn_date,txn_time,reference,party_name,title,created_at')
       .eq('account_id', row.id)
+      .gte('txn_date', row.opening_date ?? '1900-01-01')
       .order('txn_date', { ascending: false })
       .order('txn_time', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
@@ -500,7 +504,8 @@ function AccountSummary({ row, reloadKey }: { row: Row; reloadKey: number }) {
         <p className="text-[13px] opacity-80">{row.upi_app ? optionLabel(UPI_APPS, row.upi_app) : 'Current balance'}</p>
         <p className="mt-1 text-[28px] font-bold tracking-tight">{bal === null ? '—' : formatINR(bal)}</p>
         <p className="mt-1 text-[12px] opacity-80">
-          Opening {formatINR(row.opening_balance_paise)} · In {formatINR(totIn)} · Out {formatINR(totOut)}
+          Opening {formatINR(row.opening_balance_paise)}
+          {row.opening_date ? ` on ${formatDate(row.opening_date)}` : ''} · In {formatINR(totIn)} · Out {formatINR(totOut)}
         </p>
         {row.upi_id && (
           <button
@@ -512,6 +517,7 @@ function AccountSummary({ row, reloadKey }: { row: Row; reloadKey: number }) {
         )}
       </HeroCard>
       <SectionTitle right={<span className="text-[12.5px] text-muted">{moves?.length ?? 0} entries</span>}>Statement</SectionTitle>
+      {row.opening_date && <p className="-mt-1 px-1 text-[12px] text-muted">Entries before {formatDate(row.opening_date)} are not counted (opening balance date). Change it in Edit.</p>}
       {moves === null ? (
         <Spinner />
       ) : !rows.length ? (
@@ -542,6 +548,75 @@ function AccountSummary({ row, reloadKey }: { row: Row; reloadKey: number }) {
           Show more
         </Button>
       )}
+    </>
+  );
+}
+
+function SubscriptionSummary({ row, reloadKey }: { row: Row; reloadKey: number }) {
+  const nav = useNavigate();
+  const toast = useToast();
+  const [paid, setPaid] = useState<Row[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<string>(row.status);
+  useEffect(() => {
+    setStatus(row.status);
+    supabase
+      .from(row.kind)
+      .select('id,title,amount_paise,txn_date,due_for')
+      .eq('recurring_rule_id', row.id)
+      .is('deleted_at', null)
+      .order('txn_date', { ascending: false })
+      .then(({ data }) => setPaid((data as Row[]) ?? []));
+  }, [row.id, row.kind, row.status, reloadKey]);
+  const st = subState({ ...row, status });
+  const setTo = async (next: 'active' | 'paused' | 'cancelled') => {
+    setBusy(true);
+    const { error } = await supabase.from('recurring_rules').update({ status: next }).eq('id', row.id);
+    setBusy(false);
+    if (error) return toast(error.message, 'error');
+    setStatus(next);
+    toast(next === 'active' ? 'Resumed' : next === 'paused' ? 'Paused' : 'Cancelled — no more reminders');
+  };
+  const total = sumPaise(paid ?? []);
+  return (
+    <>
+      <HeroCard>
+        <p className="text-[13px] opacity-80">{SUB_STATE_LABEL[st]} · {row.frequency === 'weekly' ? 'every week' : row.frequency === 'yearly' ? 'every year' : 'every month'}</p>
+        <p className="mt-1 text-[28px] font-bold tracking-tight">{formatINR(row.amount_paise)}</p>
+        <p className="text-[12.5px] opacity-80">
+          {formatINR(monthlyCost(row))}/month · {formatINR(yearlyCost(row))}/year
+          {st === 'active' ? ` · next ${formatDate(row.next_date)}` : ''}
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {status !== 'active' ? (
+            <Button size="sm" loading={busy} onClick={() => setTo('active')}>Resume</Button>
+          ) : (
+            <Button size="sm" loading={busy} onClick={() => setTo('paused')}>Pause</Button>
+          )}
+          {status !== 'cancelled' && (
+            <Button size="sm" loading={busy} onClick={() => setTo('cancelled')}>Cancel subscription</Button>
+          )}
+        </div>
+      </HeroCard>
+      <Card className="space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-[14px] font-semibold">Payment history</p>
+          <span className="text-[12.5px] text-muted">{paid?.length ?? 0} · {formatINR(total)}</span>
+        </div>
+        {paid === null ? null : !paid.length ? (
+          <p className="text-[13px] text-muted">No payments added yet. When it is due, tap Add on Home.</p>
+        ) : (
+          paid.map((p) => (
+            <button key={p.id} onClick={() => nav(`/r/${row.kind}/${p.id}`)} className="flex w-full items-center justify-between text-left text-[13.5px]">
+              <span>
+                {formatDate(p.txn_date)}
+                {p.due_for && p.due_for !== p.txn_date ? <span className="text-muted"> · for {formatDate(p.due_for)}</span> : null}
+              </span>
+              <span className="font-semibold">{formatINR(p.amount_paise)}</span>
+            </button>
+          ))
+        )}
+      </Card>
     </>
   );
 }

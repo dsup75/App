@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import {
   ListTodo, Receipt, HandCoins, Users, PiggyBank, TrendingUp, Bot, Settings, Trash2, CalendarDays, QrCode, Flame, StickyNote,
-  ShoppingCart, CalendarCheck, Link2, Timer, Megaphone, FolderKanban, Target, Wand2, Gauge, CalendarClock,
+  ShoppingCart, CalendarCheck, Link2, Timer, Megaphone, FolderKanban, Target, Wand2, Gauge, CalendarClock, Search, Sparkles,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { IconBubble, Page, SectionTitle, type Tone } from '../components/ui';
@@ -35,7 +35,7 @@ const SECTIONS: { title: string; items: Item[] }[] = [
       { label: 'Split', to: '/groups', icon: Users, tone: 'violet' },
       { label: 'Goals', to: '/goals', icon: Target, tone: 'pink' },
       { label: 'Budgets', to: '/budgets', icon: Gauge, tone: 'amber' },
-      { label: 'Recurring', to: '/recurring', icon: CalendarClock, tone: 'teal' },
+      { label: 'Subscriptions', to: '/recurring', icon: CalendarClock, tone: 'teal' },
       { label: 'Allocate', to: '/allocations', icon: Link2, tone: 'blue' },
     ],
   },
@@ -52,6 +52,8 @@ const SECTIONS: { title: string; items: Item[] }[] = [
     items: [
       { label: 'Reports', to: '/reports', icon: TrendingUp, tone: 'primary' },
       { label: 'Assistant', to: '/assistant', icon: Bot, tone: 'violet' },
+      { label: 'Search', to: '/search', icon: Search, tone: 'blue' },
+      { label: 'Setup guide', to: '/setup', icon: Sparkles, tone: 'primary' },
       { label: 'Manage lists', to: '/lists', icon: ListTodo, tone: 'teal' },
       { label: 'Recycle Bin', to: '/recycle', icon: Trash2, tone: 'expense' },
       { label: 'Settings', to: '/settings', icon: Settings, tone: 'muted' },

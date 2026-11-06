@@ -70,7 +70,8 @@ export async function scheduleReminders(uid: string): Promise<number> {
   if (!remindersSupported()) return 0;
   const cfg = await getReminderConfig(uid);
   const pending = await LocalNotifications.getPending();
-  if (pending.notifications.length) await LocalNotifications.cancel({ notifications: pending.notifications.map((n) => ({ id: n.id })) });
+  const ours = pending.notifications.filter((n) => n.id >= 1000); // 900 = focus timer, leave it
+  if (ours.length) await LocalNotifications.cancel({ notifications: ours.map((n) => ({ id: n.id })) });
   if (!cfg.on) return 0;
   const perm = await LocalNotifications.checkPermissions();
   if (perm.display !== 'granted') return 0;
@@ -85,7 +86,7 @@ export async function scheduleReminders(uid: string): Promise<number> {
     cfg.payments ? supabase.from('invoice_totals').select('id,received_paise') : null,
     cfg.payments ? supabase.from('payment_requests').select('id,title,amount_paise,due_date').is('deleted_at', null).eq('status', 'pending').not('due_date', 'is', null).lte('due_date', until) : null,
     cfg.exams ? supabase.from('exams').select('id,name,exam_date').is('deleted_at', null).gte('exam_date', today).lte('exam_date', addDays(today, 37)) : null,
-    cfg.recurring ? supabase.from('recurring_rules').select('id,title,amount_paise,next_date').is('deleted_at', null).eq('active', true).lte('next_date', until) : null,
+    cfg.recurring ? supabase.from('recurring_rules').select('id,title,amount_paise,next_date,end_date,remind_days,is_subscription').is('deleted_at', null).eq('status', 'active').lte('next_date', until) : null,
     cfg.daily ? supabase.from('tasks').select('id,due_date').is('deleted_at', null).in('status', ['pending', 'in_progress', 'waiting']).not('due_date', 'is', null).lte('due_date', until) : null,
   ]);
   const data = (i: number) => ((q[i] as any)?.data ?? []) as any[];
@@ -119,7 +120,15 @@ export async function scheduleReminders(uid: string): Promise<number> {
     }
   }
   for (const r of data(6)) {
-    list.push({ title: `Recurring due: ${r.title}`, body: `${formatINR(r.amount_paise)} — open the app to add or skip`, when: at(r.next_date < today ? today : r.next_date, cfg.time), url: '/' });
+    if (r.end_date && r.next_date > r.end_date) continue; // expired
+    const due = r.next_date < today ? today : r.next_date;
+    const before = Math.max(0, Number(r.remind_days ?? 1));
+    const what = r.is_subscription ? 'renews' : 'is due';
+    if (before > 0) {
+      const early = addDays(r.next_date, -before);
+      if (early >= today) list.push({ title: `${r.title} ${what} in ${before} day${before > 1 ? 's' : ''}`, body: `${formatINR(r.amount_paise)} on ${r.next_date.split('-').reverse().join('-')}`, when: at(early, cfg.time), url: '/recurring' });
+    }
+    list.push({ title: `${r.title} ${what} today`, body: `${formatINR(r.amount_paise)} — open the app to add or skip`, when: at(due, cfg.time), url: '/' });
   }
   if (cfg.daily) {
     const byDay = new Map<string, number>();

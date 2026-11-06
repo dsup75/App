@@ -20,7 +20,8 @@ import { SettingsScreen } from './screens/Settings';
 import { More } from './screens/More';
 import { Requests } from './screens/Requests';
 import { ClientsHub } from './screens/Clients';
-import { StudyHub, Pomodoro, TestsScreen, ExamsScreen, SessionsScreen } from './screens/Study';
+import { StudyHub, TestsScreen, ExamsScreen, SessionsScreen } from './screens/Study';
+import { Pomodoro } from './screens/Pomodoro';
 import { GroupsScreen, GroupDetail } from './screens/Groups';
 import { HabitsScreen } from './screens/Habits';
 import { CalendarScreen } from './screens/Calendar';
@@ -29,6 +30,8 @@ import { AssistantScreen } from './screens/Assistant';
 import { SmartAdd } from './screens/SmartAdd';
 import { ListsScreen } from './screens/Lists';
 import { BudgetsScreen, RecurringScreen } from './screens/Planning';
+import { SearchScreen } from './screens/Search';
+import { SetupScreen } from './screens/Setup';
 import { onReminderTap, scheduleReminders } from './lib/reminders';
 import { syncAll } from './lib/sheets';
 import { saveSettings } from './lib/db';
@@ -138,6 +141,8 @@ function Gate() {
           <Route path="/savings" element={<Navigate to="/goals" replace />} />
           <Route path="/smart" element={<SmartAdd />} />
           <Route path="/budgets" element={<BudgetsScreen />} />
+          <Route path="/search" element={<SearchScreen />} />
+          <Route path="/setup" element={<SetupScreen />} />
           <Route path="/recurring" element={<RecurringScreen />} />
           <Route path="/lists" element={<ListsScreen />} />
           <Route path="/groups" element={<GroupsScreen />} />

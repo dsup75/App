@@ -17,16 +17,38 @@ export function nextDate(iso: string, frequency: string): string {
   return toISODate(d);
 }
 
+export type SubState = 'active' | 'paused' | 'cancelled' | 'expired';
+
+/** Expired = the next payment would fall after the end date */
+export function subState(r: Row): SubState {
+  if (r.status === 'cancelled') return 'cancelled';
+  if (r.end_date && r.next_date > r.end_date) return 'expired';
+  if (r.status === 'paused') return 'paused';
+  return 'active';
+}
+
+export const SUB_STATE_LABEL: Record<SubState, string> = { active: 'Active', paused: 'Paused', cancelled: 'Cancelled', expired: 'Expired' };
+
+/** Cost of one rule per month / per year */
+export function monthlyCost(r: Row): number {
+  const a = Number(r.amount_paise) || 0;
+  return r.frequency === 'weekly' ? Math.round((a * 52) / 12) : r.frequency === 'yearly' ? Math.round(a / 12) : a;
+}
+export function yearlyCost(r: Row): number {
+  const a = Number(r.amount_paise) || 0;
+  return r.frequency === 'weekly' ? a * 52 : r.frequency === 'yearly' ? a : a * 12;
+}
+
 export async function dueRules(): Promise<Row[]> {
   const { data, error } = await supabase
     .from('recurring_rules')
     .select('*')
     .is('deleted_at', null)
-    .eq('active', true)
+    .eq('status', 'active')
     .lte('next_date', todayISO())
     .order('next_date');
   if (error) throw error;
-  return (data as Row[]) ?? [];
+  return ((data as Row[]) ?? []).filter((r) => subState(r) === 'active');
 }
 
 /** Moves the rule to its next date after the current one */
@@ -51,6 +73,8 @@ export async function approveRule(rule: Row): Promise<string> {
     payment_mode: rule.payment_mode,
     area: rule.area,
     notes: rule.notes,
+    recurring_rule_id: rule.id,
+    due_for: rule.next_date,
   };
   if (rule.kind === 'incomes') parent.payer_type = rule.client_id ? 'client' : 'other';
   const id = await saveMoneyEntry(

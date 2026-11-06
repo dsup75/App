@@ -154,7 +154,8 @@ export function MoneyForm({
       ls.map((l, i) => {
         if (l.account_id) return l;
         const other = ls.find((x) => x.account_id && x.direction !== l.direction)?.account_id;
-        const pick = active.find((a) => a.id !== other) ?? active[i % active.length];
+        const byApp = l.payment_app ? active.find((a) => a.upi_app === l.payment_app) ?? (l.payment_app === 'cash' ? active.find((a) => a.type === 'cash') : undefined) : undefined;
+        const pick = byApp ?? active.find((a) => a.id !== other) ?? active[i % active.length];
         return { ...l, account_id: pick.id, payment_app: l.payment_app || pick.upi_app || (pick.type === 'cash' ? 'cash' : '') };
       }),
     );

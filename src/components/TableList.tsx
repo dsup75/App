@@ -6,7 +6,7 @@ import { friendlyError, type Row } from '../lib/db';
 import { TABLES, type TableName } from '../lib/tables';
 import { useLookups } from '../lib/useLookups';
 import { RecordLine } from './RecordLine';
-import { Chips, Empty, ErrorBox, IconButton, List, Page, Spinner } from './ui';
+import { Chips, Empty, ErrorBox, IconButton, List, Page, Skeleton } from './ui';
 
 export interface ListFilter {
   value: string;
@@ -90,7 +90,7 @@ export function TableList({
       {error ? (
         <ErrorBox message={error} onRetry={load} />
       ) : !rows ? (
-        <Spinner />
+        <Skeleton rows={6} />
       ) : list.length === 0 ? (
         <Empty title={`No ${def.plural.toLowerCase()} here`} text="Tap + to add one." />
       ) : renderRows ? (

@@ -1,7 +1,7 @@
 import { RecurringDrafts, BudgetWarnings } from './Planning';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Circle, Settings as Gear, Eye, EyeOff, ArrowDownLeft, ArrowUpRight, Timer, Flame, CalendarClock } from 'lucide-react';
+import { Check, Circle, Settings as Gear, Eye, EyeOff, ArrowDownLeft, ArrowUpRight, Timer, Flame, CalendarClock, LayoutGrid, ChevronUp, ChevronDown, Search } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { supabase } from '../lib/supabase';
@@ -12,7 +12,7 @@ import { AREAS, optionLabel, PRIORITIES } from '../lib/tables';
 import { useLookups } from '../lib/useLookups';
 import { RecordLine } from '../components/RecordLine';
 import {
-  Badge, BarChart, Card, Chips, Empty, ErrorBox, HeroCard, IconBubble, IconButton, List, ListRow, Page, SectionTitle, SeeAll, Spinner, cx,
+  Badge, BarChart, Button, Card, Chips, Empty, ErrorBox, HeroCard, IconBubble, IconButton, List, ListRow, Page, SectionTitle, SeeAll, Sheet, Skeleton, Toggle, cx,
 } from '../components/ui';
 
 type Filter = 'all' | 'personal' | 'study' | 'business';
@@ -51,6 +51,26 @@ export function Home() {
     }
   });
   const today = todayISO();
+  const { accounts, loaded: lookupsLoaded } = useLookups();
+  const setupNeeded = lookupsLoaded && !accounts.some((a) => !a.deleted_at);
+  const [layout, setLayoutState] = useState(loadLayout);
+  const [customize, setCustomize] = useState(false);
+  const setLayout = (l: typeof DEFAULT_LAYOUT) => {
+    setLayoutState(l);
+    try {
+      localStorage.setItem('home-layout', JSON.stringify(l));
+    } catch {
+      /* ignore */
+    }
+  };
+  const move = (id: HomeSection, dir: -1 | 1) => {
+    const o = [...layout.order];
+    const i = o.indexOf(id);
+    const j = i + dir;
+    if (j < 0 || j >= o.length) return;
+    [o[i], o[j]] = [o[j], o[i]];
+    setLayout({ ...layout, order: o });
+  };
 
   const load = useCallback(async () => {
     setError('');
@@ -62,7 +82,8 @@ export function Home() {
       const week = toISODate(in7);
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
-      const q = await Promise.all([
+      const raw = await loadDashboard({ today, from, to, sixFrom, week, dayStart: startOfDay.toISOString() }, async () => {
+        const q = await Promise.all([
         supabase.from('tasks').select('*').is('deleted_at', null).in('status', ['pending', 'in_progress', 'waiting']).or(`due_date.lte.${today},due_date.is.null`).order('due_date', { ascending: true, nullsFirst: false }).limit(200),
         supabase.from('tasks').select('*').is('deleted_at', null).eq('status', 'completed').gte('completed_at', startOfDay.toISOString()).limit(200),
         supabase.from('incomes').select('*').is('deleted_at', null).gte('txn_date', from).lte('txn_date', to).order('txn_date', { ascending: false }),
@@ -88,6 +109,9 @@ export function Home() {
       const balances = q[17] as Awaited<ReturnType<typeof fetchBalances>>;
       const transfers = ((q[18] as any).data ?? []) as Row[];
 
+        return { open, doneToday, inc, exp, six, habits, logs, study, inv, invTot, reqs, loans, loanTot, events, weekTasks, fu, exams, balances, transfers };
+      });
+      const { open, doneToday, inc, exp, six, habits, logs, study, inv, invTot, reqs, loans, loanTot, events, weekTasks, fu, exams, balances, transfers } = raw;
       const rec = new Map<string, number>((invTot.data ?? []).map((x: any) => [x.id, Number(x.received_paise)]));
       const unpaidInv = (inv.data ?? []).filter((x: any) => (rec.get(x.id) ?? 0) < x.amount_paise);
       const toReceive =
@@ -110,7 +134,7 @@ export function Home() {
         expenses: exp.data ?? [],
         sixMonths: six.data ?? [],
         transfers,
-        balance: balances.reduce((s, b) => s + Number(b.balance_paise), 0),
+        balance: balances.reduce((s: number, b: any) => s + Number(b.balance_paise), 0),
         habits: habits.data ?? [],
         habitLogs: logs.data ?? [],
         studyMinutes: (study.data ?? []).reduce((s: number, x: any) => s + x.minutes, 0),
@@ -164,18 +188,165 @@ export function Home() {
   };
   const money = (p: number) => (hide ? '₹ • • • •' : formatINR(p));
 
+  const sections: Record<HomeSection, ReactNode> = d
+    ? {
+        summary: (
+          <>
+          <Card className="flex items-center gap-4">
+            <Ring pct={pct} />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <p className="text-[15px] font-bold">
+                {done}/{todayTasks.length} tasks done
+              </p>
+              <button onClick={() => nav('/habits')} className="flex items-center gap-1.5 text-[12.5px] text-muted">
+                <Flame size={14} className="text-amber-500" /> Habits {d.habitLogs.length}/{d.habits.length} today
+              </button>
+              <button onClick={() => nav('/study')} className="flex items-center gap-1.5 text-[12.5px] text-muted">
+                <Timer size={14} className="text-primary" /> Studied {Math.floor(d.studyMinutes / 60)}h {d.studyMinutes % 60}m today
+              </button>
+              {d.nextExam && (
+                <p className="flex items-center gap-1.5 text-[12.5px] text-muted">
+                  <CalendarClock size={14} className="text-danger" /> {d.nextExam.name} in {daysUntil(d.nextExam.exam_date)} days
+                </p>
+              )}
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <Card onClick={() => nav('/finance?tab=transactions')} className="!p-3.5">
+              <p className="text-[12px] text-muted">Today's income</p>
+              <p className="mt-0.5 text-[17px] font-bold text-income">{money(sumPaise(byArea(d.incomes).filter((r) => r.txn_date === today)))}</p>
+            </Card>
+            <Card onClick={() => nav('/finance?tab=transactions')} className="!p-3.5">
+              <p className="text-[12px] text-muted">Today's expenses</p>
+              <p className="mt-0.5 text-[17px] font-bold text-expense">{money(sumPaise(byArea(d.expenses).filter((r) => r.txn_date === today)))}</p>
+            </Card>
+          </div>
+          </>
+        ),
+        drafts: (
+          <>
+          <RecurringDrafts onChanged={load} />
+          </>
+        ),
+        budget: (
+          <>
+          <BudgetWarnings />
+          </>
+        ),
+        today: (
+          <>
+          <SectionTitle right={<SeeAll onClick={() => nav('/tasks')} />}>Today</SectionTitle>
+          {todayTasks.length === 0 ? (
+            <Empty title="Nothing due today" text="Tap + to add a task." />
+          ) : (
+            <div className="glass divide-y divide-[var(--hairline)] overflow-hidden rounded-[18px]">
+              {todayTasks.slice(0, 7).map((t) => (
+                <TaskLine key={t.id} task={t} today={today} onToggle={() => toggle(t)} onOpen={() => nav(`/r/tasks/${t.id}`)} extra={t.client_id ? nameOf(t.client_id) : undefined} />
+              ))}
+            </div>
+          )}
+          </>
+        ),
+        attention: (
+          <>
+          {(d.toReceive > 0 || d.dueLoans.length > 0 || d.followUps > 0) && (
+            <>
+              <SectionTitle>Needs attention</SectionTitle>
+              <List>
+                {d.toReceive > 0 && (
+                  <ListRow
+                    icon={<IconBubble tone="teal"><ArrowDownLeft size={17} /></IconBubble>}
+                    title="To receive from clients"
+                    subtitle={`${d.invoiceCount} pending invoices / requests`}
+                    right={<span className="text-[14px] font-semibold">{money(d.toReceive)}</span>}
+                    onClick={() => nav('/invoices')}
+                    chevron
+                  />
+                )}
+                {d.followUps > 0 && (
+                  <ListRow
+                    icon={<IconBubble tone="blue"><CalendarClock size={17} /></IconBubble>}
+                    title="Client follow-ups & approvals"
+                    right={<Badge tone="blue">{d.followUps}</Badge>}
+                    onClick={() => nav('/clients?tab=tasks')}
+                    chevron
+                  />
+                )}
+                {d.dueLoans.map((l: any) => (
+                  <ListRow
+                    key={l.id}
+                    icon={<IconBubble tone="amber"><CalendarClock size={17} /></IconBubble>}
+                    title={l.direction === 'lent' ? `${l.person} owes you` : `Pay ${l.person}`}
+                    subtitle={`${l.due_date < today ? 'Overdue · ' : 'Due '}${relativeDay(l.due_date)}`}
+                    right={<span className={cx('text-[14px] font-semibold', l.direction === 'lent' ? 'text-income' : 'text-expense')}>{money(l.remaining)}</span>}
+                    onClick={() => nav(`/r/loans/${l.id}`)}
+                  />
+                ))}
+              </List>
+            </>
+          )}
+          </>
+        ),
+        spending: (
+          <>
+          <SectionTitle right={<SeeAll onClick={() => nav('/reports')} label="Reports" />}>Spending overview</SectionTitle>
+          <Card>
+            <BarChart data={sixMonthBars(byArea(d.sixMonths))} format={(v) => formatINR(v)} />
+          </Card>
+          </>
+        ),
+        upcoming: (
+          <>
+          {d.upcoming.length > 0 && (
+            <>
+              <SectionTitle right={<SeeAll onClick={() => nav('/calendar')} label="Calendar" />}>Next 7 days</SectionTitle>
+              <List>
+                {d.upcoming.slice(0, 6).map((u, i) => (
+                  <ListRow key={i} title={u.title} subtitle={`${u.kind} · ${relativeDay(u.date)}`} onClick={() => nav(u.to)} chevron />
+                ))}
+              </List>
+            </>
+          )}
+          </>
+        ),
+        recent: (
+          <>
+          <SectionTitle right={<SeeAll onClick={() => nav('/finance?tab=transactions')} />}>Recent transactions</SectionTitle>
+          {d.incomes.length + d.expenses.length === 0 ? (
+            <Empty title="No transactions this month" />
+          ) : (
+            <List>
+              {[...byArea(d.incomes).map((r) => ({ t: 'incomes' as const, r })), ...byArea(d.expenses).map((r) => ({ t: 'expenses' as const, r }))]
+                .sort((a, b) => (b.r.txn_date + b.r.created_at).localeCompare(a.r.txn_date + a.r.created_at))
+                .slice(0, 5)
+                .map(({ t, r }) => (
+                  <RecordLine key={t + r.id} table={t} row={r} nameOf={nameOf} />
+                ))}
+            </List>
+          )}
+          </>
+        ),
+      }
+    : ({} as Record<HomeSection, ReactNode>);
+
   return (
     <Page
       title={`${greeting()}${name ? `, ${name}` : ''}`}
       subtitle={dateLabel}
       right={
-        <IconButton label="Settings" onClick={() => nav('/settings')}>
-          <Gear size={18} />
-        </IconButton>
+        <>
+          <IconButton label="Search everything" onClick={() => nav('/search')}>
+            <Search size={18} />
+          </IconButton>
+          <IconButton label="Settings" onClick={() => nav('/settings')}>
+            <Gear size={18} />
+          </IconButton>
+        </>
       }
     >
       {!d ? (
-        <Spinner />
+        <Skeleton rows={5} />
       ) : (
         <>
           <HeroCard onClick={() => nav('/finance')}>
@@ -220,121 +391,119 @@ export function Home() {
 
           <Chips value={filter} onChange={setFilter} options={[{ value: 'all', label: 'All' }, ...(AREAS as { value: Filter; label: string }[])]} />
 
-          <Card className="flex items-center gap-4">
-            <Ring pct={pct} />
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <p className="text-[15px] font-bold">
-                {done}/{todayTasks.length} tasks done
-              </p>
-              <button onClick={() => nav('/habits')} className="flex items-center gap-1.5 text-[12.5px] text-muted">
-                <Flame size={14} className="text-amber-500" /> Habits {d.habitLogs.length}/{d.habits.length} today
-              </button>
-              <button onClick={() => nav('/study')} className="flex items-center gap-1.5 text-[12.5px] text-muted">
-                <Timer size={14} className="text-primary" /> Studied {Math.floor(d.studyMinutes / 60)}h {d.studyMinutes % 60}m today
-              </button>
-              {d.nextExam && (
-                <p className="flex items-center gap-1.5 text-[12.5px] text-muted">
-                  <CalendarClock size={14} className="text-danger" /> {d.nextExam.name} in {daysUntil(d.nextExam.exam_date)} days
-                </p>
-              )}
-            </div>
-          </Card>
+          {setupNeeded && (
+            <Card className="space-y-2">
+              <p className="text-[15px] font-semibold">Let's set up your app</p>
+              <p className="text-[13px] text-muted">Add your accounts (bank, UPI apps, cash) with opening balance, pick categories and add clients. Takes 2 minutes.</p>
+              <Button variant="primary" size="sm" onClick={() => nav('/setup')}>Start setup</Button>
+            </Card>
+          )}
 
-          <div className="grid grid-cols-2 gap-2.5">
-            <Card onClick={() => nav('/finance?tab=transactions')} className="!p-3.5">
-              <p className="text-[12px] text-muted">Today's income</p>
-              <p className="mt-0.5 text-[17px] font-bold text-income">{money(sumPaise(byArea(d.incomes).filter((r) => r.txn_date === today)))}</p>
-            </Card>
-            <Card onClick={() => nav('/finance?tab=transactions')} className="!p-3.5">
-              <p className="text-[12px] text-muted">Today's expenses</p>
-              <p className="mt-0.5 text-[17px] font-bold text-expense">{money(sumPaise(byArea(d.expenses).filter((r) => r.txn_date === today)))}</p>
-            </Card>
+          <div className="land-2 space-y-3.5">
+            {layout.order
+              .filter((id) => !layout.hidden.includes(id))
+              .map((id) => (
+                <section key={id} className="space-y-3.5">
+                  {sections[id]}
+                </section>
+              ))}
           </div>
 
-          <RecurringDrafts onChanged={load} />
-          <BudgetWarnings />
-
-          <SectionTitle right={<SeeAll onClick={() => nav('/tasks')} />}>Today</SectionTitle>
-          {todayTasks.length === 0 ? (
-            <Empty title="Nothing due today" text="Tap + to add a task." />
-          ) : (
-            <div className="glass divide-y divide-[var(--hairline)] overflow-hidden rounded-[18px]">
-              {todayTasks.slice(0, 7).map((t) => (
-                <TaskLine key={t.id} task={t} today={today} onToggle={() => toggle(t)} onOpen={() => nav(`/r/tasks/${t.id}`)} extra={t.client_id ? nameOf(t.client_id) : undefined} />
-              ))}
-            </div>
-          )}
-
-          {(d.toReceive > 0 || d.dueLoans.length > 0 || d.followUps > 0) && (
-            <>
-              <SectionTitle>Needs attention</SectionTitle>
-              <List>
-                {d.toReceive > 0 && (
-                  <ListRow
-                    icon={<IconBubble tone="teal"><ArrowDownLeft size={17} /></IconBubble>}
-                    title="To receive from clients"
-                    subtitle={`${d.invoiceCount} pending invoices / requests`}
-                    right={<span className="text-[14px] font-semibold">{money(d.toReceive)}</span>}
-                    onClick={() => nav('/invoices')}
-                    chevron
-                  />
-                )}
-                {d.followUps > 0 && (
-                  <ListRow
-                    icon={<IconBubble tone="blue"><CalendarClock size={17} /></IconBubble>}
-                    title="Client follow-ups & approvals"
-                    right={<Badge tone="blue">{d.followUps}</Badge>}
-                    onClick={() => nav('/clients?tab=tasks')}
-                    chevron
-                  />
-                )}
-                {d.dueLoans.map((l: any) => (
-                  <ListRow
-                    key={l.id}
-                    icon={<IconBubble tone="amber"><CalendarClock size={17} /></IconBubble>}
-                    title={l.direction === 'lent' ? `${l.person} owes you` : `Pay ${l.person}`}
-                    subtitle={`${l.due_date < today ? 'Overdue · ' : 'Due '}${relativeDay(l.due_date)}`}
-                    right={<span className={cx('text-[14px] font-semibold', l.direction === 'lent' ? 'text-income' : 'text-expense')}>{money(l.remaining)}</span>}
-                    onClick={() => nav(`/r/loans/${l.id}`)}
-                  />
-                ))}
-              </List>
-            </>
-          )}
-
-          <SectionTitle right={<SeeAll onClick={() => nav('/reports')} label="Reports" />}>Spending overview</SectionTitle>
-          <Card>
-            <BarChart data={sixMonthBars(byArea(d.sixMonths))} format={(v) => formatINR(v)} />
-          </Card>
-
-          {d.upcoming.length > 0 && (
-            <>
-              <SectionTitle right={<SeeAll onClick={() => nav('/calendar')} label="Calendar" />}>Next 7 days</SectionTitle>
-              <List>
-                {d.upcoming.slice(0, 6).map((u, i) => (
-                  <ListRow key={i} title={u.title} subtitle={`${u.kind} · ${relativeDay(u.date)}`} onClick={() => nav(u.to)} chevron />
-                ))}
-              </List>
-            </>
-          )}
-
-          <SectionTitle right={<SeeAll onClick={() => nav('/finance?tab=transactions')} />}>Recent transactions</SectionTitle>
-          {d.incomes.length + d.expenses.length === 0 ? (
-            <Empty title="No transactions this month" />
-          ) : (
-            <List>
-              {[...byArea(d.incomes).map((r) => ({ t: 'incomes' as const, r })), ...byArea(d.expenses).map((r) => ({ t: 'expenses' as const, r }))]
-                .sort((a, b) => (b.r.txn_date + b.r.created_at).localeCompare(a.r.txn_date + a.r.created_at))
-                .slice(0, 5)
-                .map(({ t, r }) => (
-                  <RecordLine key={t + r.id} table={t} row={r} nameOf={nameOf} />
-                ))}
-            </List>
-          )}
+          <button onClick={() => setCustomize(true)} className="mx-auto flex items-center gap-1.5 py-2 text-[13px] font-semibold text-primary">
+            <LayoutGrid size={14} /> Customise Home
+          </button>
         </>
       )}
+
+      <Sheet open={customize} onClose={() => setCustomize(false)} title="Customise Home">
+        <List>
+          {layout.order.map((id, i) => (
+            <div key={id} className="flex items-center gap-2 px-3.5 py-2.5">
+              <Toggle
+                checked={!layout.hidden.includes(id)}
+                onChange={(v) => setLayout({ ...layout, hidden: v ? layout.hidden.filter((x) => x !== id) : [...layout.hidden, id] })}
+              />
+              <span className="min-w-0 flex-1 text-[14px]">{SECTION_LABELS[id]}</span>
+              <button aria-label="Move up" disabled={i === 0} onClick={() => move(id, -1)} className="p-1.5 text-muted disabled:opacity-30">
+                <ChevronUp size={17} />
+              </button>
+              <button aria-label="Move down" disabled={i === layout.order.length - 1} onClick={() => move(id, 1)} className="p-1.5 text-muted disabled:opacity-30">
+                <ChevronDown size={17} />
+              </button>
+            </div>
+          ))}
+        </List>
+        <Button full className="mt-3" onClick={() => setLayout(DEFAULT_LAYOUT)}>Reset to default</Button>
+      </Sheet>
     </Page>
   );
+}
+
+/** One server call for the whole Home screen; falls back to separate queries if the server function is missing */
+async function loadDashboard(
+  p: { today: string; from: string; to: string; sixFrom: string; week: string; dayStart: string },
+  legacy: () => Promise<any>,
+): Promise<any> {
+  const { data, error } = await supabase.rpc('home_dashboard', {
+    p_today: p.today,
+    p_from: p.from,
+    p_to: p.to,
+    p_six_from: p.sixFrom,
+    p_week: p.week,
+    p_day_start: p.dayStart,
+  });
+  if (error || !data) return legacy();
+  const x = data as any;
+  const wrap = (v: any) => ({ data: v ?? [] });
+  return {
+    open: wrap(x.open),
+    doneToday: wrap(x.done_today),
+    inc: wrap(x.incomes),
+    exp: wrap(x.expenses),
+    six: wrap(x.six),
+    habits: wrap(x.habits),
+    logs: wrap(x.habit_logs),
+    study: wrap([{ minutes: Number(x.study_minutes) || 0 }]),
+    inv: wrap(x.invoices),
+    invTot: wrap((x.invoices ?? []).map((i: any) => ({ id: i.id, received_paise: i.received_paise }))),
+    reqs: wrap(x.requests),
+    loans: wrap(x.loans),
+    loanTot: wrap((x.loans ?? []).map((l: any) => ({ id: l.id, principal_repaid_paise: l.principal_repaid_paise }))),
+    events: wrap(x.events),
+    weekTasks: wrap(x.week_tasks),
+    fu: { count: Number(x.follow_ups) || 0 },
+    exams: wrap(x.next_exam ? [x.next_exam] : []),
+    balances: [{ balance_paise: Number(x.balance) || 0 }],
+    transfers: x.transfers ?? [],
+  };
+}
+
+type HomeSection = 'summary' | 'drafts' | 'budget' | 'today' | 'attention' | 'spending' | 'upcoming' | 'recent';
+const SECTION_LABELS: Record<HomeSection, string> = {
+  summary: 'Today summary (tasks, habits, study)',
+  drafts: 'Due subscriptions & bills',
+  budget: 'Budget alerts',
+  today: "Today's tasks",
+  attention: 'Needs attention',
+  spending: 'Spending overview',
+  upcoming: 'Next 7 days',
+  recent: 'Recent transactions',
+};
+const DEFAULT_LAYOUT: { order: HomeSection[]; hidden: HomeSection[] } = {
+  order: ['summary', 'drafts', 'budget', 'today', 'attention', 'spending', 'upcoming', 'recent'],
+  hidden: [],
+};
+function loadLayout() {
+  try {
+    const v = JSON.parse(localStorage.getItem('home-layout') || 'null');
+    if (v?.order) {
+      const order = [...v.order.filter((k: HomeSection) => k in SECTION_LABELS), ...DEFAULT_LAYOUT.order.filter((k) => !v.order.includes(k))];
+      return { order, hidden: (v.hidden ?? []).filter((k: HomeSection) => k in SECTION_LABELS) } as typeof DEFAULT_LAYOUT;
+    }
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_LAYOUT;
 }
 
 function daysUntil(iso: string) {

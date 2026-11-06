@@ -57,6 +57,7 @@ export const TASK_TYPES = o([['task', 'Task'], ['follow_up', 'Follow-up'], ['app
 export const ACCOUNT_TYPES = o([['cash', 'Cash'], ['bank', 'Bank'], ['upi', 'UPI app'], ['wallet', 'Wallet'], ['custom', 'Custom']]);
 export const UPI_APPS = o([['gpay', 'Google Pay'], ['phonepe', 'PhonePe'], ['paytm', 'Paytm'], ['bhim', 'BHIM'], ['amazonpay', 'Amazon Pay'], ['cred', 'CRED'], ['bank_app', 'Bank app'], ['netbanking', 'Net banking'], ['card', 'Card'], ['cash', 'Cash'], ['other', 'Other']]);
 export const FREQUENCIES = o([['weekly', 'Every week'], ['monthly', 'Every month'], ['yearly', 'Every year']]);
+export const SUB_STATUS = o([['active', 'Active'], ['paused', 'Paused'], ['cancelled', 'Cancelled']]);
 export const RECUR_KINDS = o([['expenses', 'Expense (money out)'], ['incomes', 'Income (money in)']]);
 export const PAYMENT_MODES = o([['personal', 'Personal'], ['business', 'Business']]);
 const nowTime = () => {
@@ -156,6 +157,7 @@ export const TABLES: Record<TableName, TableDef> = {
       { key: 'upi_app', label: 'UPI app (if any)', type: 'select', options: UPI_APPS, listKey: 'payment_app' },
       { key: 'upi_id', label: 'UPI ID (to receive payments)', type: 'text', placeholder: 'e.g. name@okaxis' },
       { key: 'opening_balance_paise', label: 'Opening balance (₹)', type: 'signed_money', default: () => 0 },
+      { key: 'opening_date', label: 'Opening balance as on (date)', type: 'date', hint: 'Only entries from this date count. Leave empty to count all entries.' },
       notes,
     ],
     validate: (v) => (v.upi_id && !/^[\w.\-]{2,256}@[a-zA-Z][\w.\-]{1,64}$/.test(v.upi_id) ? 'UPI ID looks wrong (example: name@okaxis).' : null),
@@ -311,31 +313,52 @@ export const TABLES: Record<TableName, TableDef> = {
   budgets: {
     table: 'budgets', label: 'Budget', plural: 'Budgets', titleField: 'month', financial: false,
     fields: [
-      { key: 'category_id', label: 'Category', type: 'category', categoryKind: 'expense', hint: 'Leave empty for a limit on all spending' },
-      { key: 'amount_paise', label: 'Monthly limit (₹)', type: 'money', required: true },
-      { key: 'month', label: 'Only for month', type: 'text', placeholder: 'YYYY-MM (empty = every month)' },
+      { key: 'amount_paise', label: 'Budget limit (₹)', type: 'money', required: true },
+      { key: 'category_id', label: 'Category', type: 'category', categoryKind: 'expense', hint: 'Empty = all categories' },
+      { key: 'account_id', label: 'Spent from account', type: 'account', hint: 'Empty = all accounts' },
       { key: 'area', label: 'Area', type: 'select', options: AREAS, hint: 'Empty = all areas' },
+      { key: 'month', label: 'Only for month', type: 'text', placeholder: 'YYYY-MM (empty = every month)' },
+      { key: 'start_date', label: 'Or custom period: from', type: 'date' },
+      { key: 'end_date', label: 'to', type: 'date' },
       notes,
     ],
-    validate: (v) => (v.month && !/^\d{4}-\d{2}$/.test(v.month) ? 'Month must look like 2026-11.' : null),
+    validate: (v) =>
+      v.month && !/^\d{4}-\d{2}$/.test(v.month)
+        ? 'Month must look like 2026-11.'
+        : !!v.start_date !== !!v.end_date
+          ? 'Give both the start and end date of the period.'
+          : v.start_date && v.end_date < v.start_date
+            ? 'End date is before the start date.'
+            : v.start_date && v.month
+              ? 'Use either a month or a custom period, not both.'
+              : null,
   },
   recurring_rules: {
-    table: 'recurring_rules', label: 'Recurring entry', plural: 'Recurring entries', titleField: 'title', financial: false,
+    table: 'recurring_rules', label: 'Subscription / recurring', plural: 'Subscriptions & recurring', titleField: 'title', financial: false,
     fields: [
+      { key: 'is_subscription', label: 'This is a subscription (Netflix, software, gym…)', type: 'bool', default: () => true },
       { key: 'kind', label: 'Type', type: 'select', options: RECUR_KINDS, required: true, default: () => 'expenses' },
-      { key: 'title', label: 'Title', type: 'text', required: true, placeholder: 'e.g. Rent, Netflix, Arvia retainer' },
+      { key: 'title', label: 'Name', type: 'text', required: true, placeholder: 'e.g. Netflix, Canva Pro, Rent, Arvia retainer' },
       { key: 'amount_paise', label: 'Amount (₹)', type: 'money', required: true },
-      { key: 'account_id', label: 'Account', type: 'account', required: true },
+      { key: 'frequency', label: 'Billing cycle', type: 'select', options: FREQUENCIES, required: true, default: () => 'monthly' },
+      { key: 'next_date', label: 'Next payment date', type: 'date', required: true, default: todayISO },
+      { key: 'account_id', label: 'Paid from / received in', type: 'account', required: true },
       { key: 'payment_app', label: 'App', type: 'select', options: UPI_APPS, listKey: 'payment_app' },
       { key: 'category_id', label: 'Category', type: 'category' },
       { ...clientRef(), label: 'Client (optional)' },
+      { key: 'status', label: 'Status', type: 'select', options: SUB_STATUS, required: true, default: () => 'active' },
+      { key: 'end_date', label: 'Ends on (optional)', type: 'date', hint: 'After this date it shows as Expired' },
+      { key: 'remind_days', label: 'Remind me (days before)', type: 'int', default: () => 1 },
       { key: 'payment_mode', label: 'Payment mode', type: 'select', options: PAYMENT_MODES, default: () => 'personal' },
       area,
-      { key: 'frequency', label: 'Repeats', type: 'select', options: FREQUENCIES, required: true, default: () => 'monthly' },
-      { key: 'next_date', label: 'Next due date', type: 'date', required: true, default: todayISO },
-      { key: 'active', label: 'Active', type: 'bool', default: () => true },
       notes,
     ],
+    validate: (v) =>
+      v.remind_days < 0 || v.remind_days > 30
+        ? 'Reminder must be 0–30 days before.'
+        : v.end_date && v.next_date && v.end_date < v.next_date && v.status === 'active'
+          ? 'End date is before the next payment date.'
+          : null,
   },
   habits: {
     table: 'habits', label: 'Habit', plural: 'Habits', titleField: 'name', financial: false,

@@ -19,6 +19,33 @@ const MONEY_KEYS = [
   'invoice_id', 'income_id', 'expense_id', 'principal_paise', 'interest_paise', 'loan_id', 'direction', 'target_paise', 'goal_id',
 ];
 
+/** Remember the last account / app / mode used for each kind of entry (this phone only) */
+function lastUsed(t: string): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(`last-used:${t}`) || '{}');
+  } catch {
+    return {};
+  }
+}
+function rememberLast(t: string, parent: Record<string, unknown>, lines: LineInput[]) {
+  try {
+    const first = lines[0];
+    const v: Record<string, string> = {};
+    if (first?.account_id) v.account_id = first.account_id;
+    if (first?.payment_app) v.payment_app = first.payment_app;
+    const out = lines.find((l) => l.direction === 'out');
+    const inn = lines.find((l) => l.direction === 'in');
+    if (t === 'transfers' && out && inn) {
+      v.from_account_id = out.account_id;
+      v.to_account_id = inn.account_id;
+    }
+    for (const k of ['payment_mode', 'area']) if (typeof parent[k] === 'string') v[k] = parent[k] as string;
+    localStorage.setItem(`last-used:${t}`, JSON.stringify(v));
+  } catch {
+    /* ignore */
+  }
+}
+
 function totalOf(t: MoneyTable, r: Row): number {
   if (t === 'loans') return Number(r.principal_paise ?? 0);
   if (t === 'loan_repayments') return Number(r.principal_paise ?? 0) + Number(r.interest_paise ?? 0);
@@ -122,7 +149,13 @@ export function RecordEdit() {
         raw[key] = value;
         if (TABLES[t].fields.some((f) => f.key === key)) prefill[key] = value;
       });
-      if (isMoneyTable(t)) setMInit({ lines: prefillLines(t, raw), links: [], split: [] });
+      if (isMoneyTable(t)) {
+        const last = lastUsed(t);
+        const withLast = { ...last, ...raw };
+        if (raw.payment_app && !raw.account_id) delete withLast.account_id; // app chosen → MoneyForm picks its account
+        setMInit({ lines: prefillLines(t, withLast), links: [], split: [] });
+        for (const k of ['payment_mode', 'area']) if (!prefill[k] && last[k] && TABLES[t].fields.some((f) => f.key === k)) prefill[k] = last[k];
+      }
       setInitial(initialFormState(t, null, prefill));
       return;
     }
@@ -160,6 +193,7 @@ export function RecordEdit() {
     setSaving(true);
     try {
       const newId = await saveMoneyEntry(t as MoneyTable, editing ? id! : null, p.parent, p.lines, p.links);
+      if (!editing) rememberLast(t, p.parent, p.lines);
       const ruleId = params.get('from_rule');
       if (ruleId && !editing) {
         const rule = await getRecord('recurring_rules', ruleId).catch(() => null);
@@ -176,6 +210,11 @@ export function RecordEdit() {
   };
 
   const onMoneySubmit = (parent: Record<string, unknown>, lines: LineInput[], links: LinkInput[] | null) => {
+    const ruleId = params.get('from_rule');
+    if (ruleId && !editing) {
+      parent.recurring_rule_id = ruleId;
+      parent.due_for = params.get('due_for') || null;
+    }
     if (dupId || fromRequest) {
       delete parent.payment_request_id;
       if (fromRequest) parent.payment_request_id = fromRequest;

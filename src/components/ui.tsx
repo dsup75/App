@@ -22,7 +22,7 @@ export function Page({
 }) {
   const nav = useNavigate();
   return (
-    <div className="page-in relative z-10 mx-auto max-w-xl px-4 pb-32 pt-safe">
+    <div className="page-in page-wrap relative z-10 mx-auto pb-32 pt-safe">
       <div className="flex h-11 items-center justify-between">
         {back ? (
           <button onClick={() => nav(-1)} className="-ml-1.5 flex items-center gap-0.5 rounded-full py-1 pr-2 text-primary active:opacity-60">
@@ -108,7 +108,7 @@ export function Button({ variant = 'glass', loading, full, size = 'md', classNam
 
 export function IconButton({ children, onClick, label, className }: { children: ReactNode; onClick?: () => void; label: string; className?: string }) {
   return (
-    <button aria-label={label} onClick={onClick} className={cx('liquid flex h-9 w-9 items-center justify-center rounded-full', className)}>
+    <button aria-label={label} onClick={onClick} className={cx('liquid flex h-10 w-10 items-center justify-center rounded-full', className)}>
       {children}
     </button>
   );
@@ -201,7 +201,7 @@ export function Toggle({ checked, onChange, disabled }: { checked: boolean; onCh
 
 /* ---------- Grouped list ---------- */
 export function List({ children }: { children: ReactNode }) {
-  return <div className="glass divide-y divide-[var(--hairline)] overflow-hidden rounded-[18px]">{children}</div>;
+  return <div className="glass list-in divide-y divide-[var(--hairline)] overflow-hidden rounded-[18px]">{children}</div>;
 }
 
 export function ListRow({
@@ -241,7 +241,7 @@ export function ListRow({
 export type Tone = 'primary' | 'income' | 'expense' | 'muted' | 'blue' | 'violet' | 'amber' | 'pink' | 'teal';
 
 export const TONES: Record<Tone, { bg: string; fg: string; solid: string }> = {
-  primary: { bg: 'rgba(30,158,97,.13)', fg: '#1E9E61', solid: '#1E9E61' },
+  primary: { bg: 'var(--primary-soft)', fg: 'var(--primary-2)', solid: 'var(--primary-2)' },
   income: { bg: 'rgba(30,158,97,.13)', fg: '#1E9E61', solid: '#1E9E61' },
   expense: { bg: 'rgba(229,72,77,.12)', fg: '#E5484D', solid: '#E5484D' },
   muted: { bg: 'rgba(107,124,116,.14)', fg: '#6B7C74', solid: '#6B7C74' },
@@ -344,7 +344,7 @@ export function Donut({ parts, size = 132, center }: { parts: { value: number; c
   );
 }
 
-export const CHART_COLORS = ['#1E9E61', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6', '#E5484D', '#6B7C74'];
+export const CHART_COLORS = ['var(--primary-2)', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6', '#E5484D', '#6B7C74'];
 
 /* ---------- Bottom sheet ---------- */
 export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title?: string; children: ReactNode }) {
@@ -359,8 +359,8 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div className="fade-in absolute inset-0 bg-black/30" onClick={onClose} />
       <div
-        className="sheet-in relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-t-[26px] px-4 pb-8 pt-2.5 pb-safe"
-        style={{ background: 'var(--sheet)', WebkitBackdropFilter: 'blur(28px) saturate(180%)', backdropFilter: 'blur(28px) saturate(180%)', borderTop: '1px solid var(--edge)' }}
+        className="sheet-in sheet-panel relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-t-[26px] px-4 pb-8 pt-2.5 pb-safe"
+        style={{ background: 'var(--sheet)', WebkitBackdropFilter: 'blur(calc(var(--blur) + 6px)) saturate(180%)', backdropFilter: 'blur(calc(var(--blur) + 6px)) saturate(180%)', borderTop: '1px solid var(--edge)' }}
       >
         <div className="mx-auto mb-2.5 h-1 w-9 rounded-full bg-[var(--hairline)]" />
         {title && <h3 className="mb-3.5 text-center text-[16px] font-semibold">{title}</h3>}
@@ -408,9 +408,20 @@ export function Confirm({
 /* ---------- States ---------- */
 export function Spinner({ label }: { label?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted">
+    <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted" role="status" aria-label={label ?? 'Loading'}>
       <Loader2 className="animate-spin" size={20} />
       {label && <span className="text-[13px]">{label}</span>}
+    </div>
+  );
+}
+
+/** Placeholder rows while a list loads */
+export function Skeleton({ rows = 4 }: { rows?: number }) {
+  return (
+    <div className="space-y-2" aria-label="Loading">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="skeleton h-[58px]" />
+      ))}
     </div>
   );
 }
@@ -431,8 +442,10 @@ export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () =
 
 export function Empty({ title, text, action }: { title: string; text?: string; action?: ReactNode }) {
   return (
-    <Card className="py-7 text-center">
-      <Inbox className="mx-auto mb-2 text-muted" size={20} />
+    <Card className="py-8 text-center">
+      <span className="mx-auto mb-2.5 flex h-11 w-11 items-center justify-center rounded-[14px] bg-[var(--primary-soft)] text-primary">
+        <Inbox size={20} />
+      </span>
       <p className="text-[14.5px] font-semibold">{title}</p>
       {text && <p className="mt-1 text-[13px] text-muted">{text}</p>}
       {action && <div className="mt-3.5">{action}</div>}
@@ -443,7 +456,7 @@ export function Empty({ title, text, action }: { title: string; text?: string; a
 export function Badge({ children, tone = 'muted' }: { children: ReactNode; tone?: 'muted' | 'primary' | 'danger' | 'amber' | 'blue' }) {
   const map = {
     muted: { background: 'var(--hairline)', color: 'var(--muted)' },
-    primary: { background: 'rgba(30,158,97,.13)', color: 'var(--income)' },
+    primary: { background: 'var(--primary-soft)', color: 'var(--primary-2)' },
     danger: { background: 'rgba(229,72,77,.12)', color: 'var(--danger)' },
     amber: { background: 'rgba(245,158,11,.15)', color: '#D97706' },
     blue: { background: 'rgba(59,130,246,.13)', color: '#3B82F6' },
