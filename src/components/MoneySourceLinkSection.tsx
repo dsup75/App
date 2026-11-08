@@ -20,6 +20,7 @@ interface Candidate {
   title: string;
   amount_paise: number;
   txn_date: string | null;
+  details: string | null;
 }
 
 const TABLES: MoneySourceTable[] = ['incomes', 'expenses', 'transfers', 'loans', 'loan_repayments'];
@@ -73,9 +74,28 @@ export function MoneySourceLinkSection({
         else setError(probe.error.message);
         return;
       }
-      const results = await Promise.all(TABLES.map((table) =>
-        supabase.from(table).select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(100),
-      ));
+      const [results, accountRes, allocationRes] = await Promise.all([
+        Promise.all(TABLES.map((table) =>
+          supabase.from(table).select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(100),
+        )),
+        supabase.from('accounts').select('id,name').is('deleted_at', null),
+        supabase.from('allocations').select('id,income_id,transfer_id,amount_paise').is('deleted_at', null).not('transfer_id', 'is', null),
+      ]);
+      const accountNames = new Map((accountRes.data ?? []).map((account: any) => [account.id, account.name]));
+      const incomeRows = (results[TABLES.indexOf('incomes')].data ?? []) as Record<string, any>[];
+      const incomeById = new Map(incomeRows.map((income) => [income.id, income]));
+      const fundingByTransfer = new Map<string, { title: string; amount_paise: number; account: string }[]>();
+      (allocationRes.data ?? []).forEach((allocation: any) => {
+        const income = incomeById.get(allocation.income_id);
+        if (!income || !allocation.transfer_id) return;
+        const items = fundingByTransfer.get(allocation.transfer_id) ?? [];
+        items.push({
+          title: income.title || 'Income',
+          amount_paise: Number(allocation.amount_paise ?? 0),
+          account: accountNames.get(income.account_id) ?? 'Income account',
+        });
+        fundingByTransfer.set(allocation.transfer_id, items);
+      });
       const rows: Candidate[] = [];
       results.forEach((result, index) => {
         if (result.error) return;
@@ -90,6 +110,16 @@ export function MoneySourceLinkSection({
             title: candidateTitle(table, raw),
             amount_paise: amountPaise,
             txn_date: raw.txn_date ?? raw.start_date ?? null,
+            details: table === 'transfers'
+              ? [
+                  `${accountNames.get(raw.from_account_id) ?? 'Source account'} → ${accountNames.get(raw.to_account_id) ?? 'Destination account'}`,
+                  ...(fundingByTransfer.get(raw.id) ?? []).map((funding) =>
+                    `From income: ${funding.title} · ${formatINR(funding.amount_paise)} · ${funding.account}`,
+                  ),
+                ].join('  |  ')
+              : table === 'incomes'
+                ? `Received in: ${accountNames.get(raw.account_id) ?? 'Account not set'}`
+                : null,
           });
         });
       });
@@ -163,6 +193,7 @@ export function MoneySourceLinkSection({
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13px] font-semibold">{candidate?.title ?? TABLE_LABEL[link.source_table]}</p>
                       <p className="text-[11px] text-muted">{TABLE_LABEL[link.source_table]} · {candidate?.txn_date ?? 'Saved source'}</p>
+                      {candidate?.details && <p className="mt-0.5 text-[11px] text-muted">{candidate.details}</p>}
                     </div>
                     <span className="text-[12px] font-semibold">{formatINR(link.amount_paise)}</span>
                     <button type="button" aria-label="Remove source link" className="p-1 text-muted" onClick={() => setLinks((current) => current.filter((x) => x !== link && x.id !== link.id))}>
@@ -178,7 +209,7 @@ export function MoneySourceLinkSection({
               <option value="">Choose a source transaction</option>
               {candidates.map((candidate) => (
                 <option key={candidate.table + ':' + candidate.id} value={candidate.table + ':' + candidate.id}>
-                  {TABLE_LABEL[candidate.table]} · {candidate.title} · {formatINR(candidate.amount_paise)}{candidate.txn_date ? ' · ' + candidate.txn_date : ''}
+                  {TABLE_LABEL[candidate.table]} · {candidate.title} · {formatINR(candidate.amount_paise)}{candidate.txn_date ? ' · ' + candidate.txn_date : ''}{candidate.details ? ' · ' + candidate.details : ''}
                 </option>
               ))}
             </select>
