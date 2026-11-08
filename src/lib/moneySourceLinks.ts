@@ -184,3 +184,39 @@ export async function getMoneySourceJourney(
 
   return journey;
 }
+
+export interface MoneySourceLinkDesired {
+  id?: string;
+  source_table: MoneySourceTable;
+  source_id: string;
+  amount_paise: number;
+  relation_type?: string;
+  note?: string | null;
+}
+
+/** Reconciles only lineage metadata for one saved target record. */
+export async function syncMoneySourceLinksForTarget(
+  targetTable: MoneySourceTable,
+  targetId: string,
+  desired: MoneySourceLinkDesired[],
+): Promise<void> {
+  const current = await getMoneySourceLinksForTarget(targetTable, targetId);
+  const retainedIds = new Set(desired.map((link) => link.id).filter((id): id is string => !!id));
+
+  for (const link of current) {
+    if (!retainedIds.has(link.id)) await softDeleteMoneySourceLink(link.id);
+  }
+
+  for (const link of desired) {
+    if (link.id) continue;
+    await createMoneySourceLink({
+      source_table: link.source_table,
+      source_id: link.source_id,
+      target_table: targetTable,
+      target_id: targetId,
+      relation_type: link.relation_type ?? 'derived_from',
+      amount_paise: link.amount_paise,
+      note: link.note ?? null,
+    });
+  }
+}
