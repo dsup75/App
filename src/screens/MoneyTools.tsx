@@ -4,11 +4,12 @@ import { ArrowRightLeft, BadgeDollarSign, CircleDollarSign, Link2, ShieldCheck, 
 import { supabase } from '../lib/supabase';
 import { getMoneyJourney, getUnallocatedSummary, type MoneyJourneyNode as LegacyMoneyJourneyNode, type UnallocatedSummary } from '../lib/moneyTools';
 import { fetchBalances, type Balance } from '../lib/db';
-import { getMoneySourceJourney, type MoneyJourneyNode as SourceMoneyJourneyNode } from '../lib/moneySourceLinks';
+import { getMoneySourceJourney, type MoneyJourneyNode as SourceMoneyJourneyNode, type MoneySourceTable } from '../lib/moneySourceLinks';
 import { formatINR, parseRupeesToPaise } from '../lib/money';
 import { Card, Empty, Page, SectionTitle, Spinner } from '../components/ui';
 
 interface AuditEntry { id: string; field: string; table_name: string; record_id: string; old_value: unknown; new_value: unknown; changed_at: string; }
+interface JourneyTarget { id: string; table: MoneySourceTable; title: string; amount_paise: number; txn_date: string | null; }
 interface ReconciliationRow {
   id: string;
   account_id: string;
@@ -24,6 +25,9 @@ export function MoneyTools() {
   const nav = useNavigate();
   const [summary, setSummary] = useState<UnallocatedSummary | null>(null);
   const [journey, setJourney] = useState<(LegacyMoneyJourneyNode | SourceMoneyJourneyNode)[]>([]);
+  const [journeyTargets, setJourneyTargets] = useState<JourneyTarget[]>([]);
+  const [selectedJourneyKey, setSelectedJourneyKey] = useState('');
+  const [journeyLoading, setJourneyLoading] = useState(false);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [recons, setRecons] = useState<ReconciliationRow[]>([]);
   const [balances, setBalances] = useState<Balance[]>([]);
@@ -39,29 +43,28 @@ export function MoneyTools() {
       getUnallocatedSummary(),
       supabase.from('edit_history').select('id,field,table_name,record_id,old_value,new_value,changed_at').order('changed_at', { ascending: false }).limit(20),
       supabase.from('reconciliations').select('*').order('created_at', { ascending: false }).limit(20),
-      supabase.from('incomes').select('id,title,amount_paise,txn_date,account_id').is('deleted_at', null).order('txn_date', { ascending: false }).limit(20),
+      supabase.from('incomes').select('id,title,amount_paise,txn_date').is('deleted_at', null).order('txn_date', { ascending: false }).limit(100),
+      supabase.from('expenses').select('id,title,amount_paise,txn_date').is('deleted_at', null).order('txn_date', { ascending: false }).limit(100),
+      supabase.from('transfers').select('id,title,amount_paise,txn_date').is('deleted_at', null).order('txn_date', { ascending: false }).limit(100),
+      supabase.from('loans').select('id,person,principal_paise,start_date').is('deleted_at', null).order('start_date', { ascending: false }).limit(100),
       fetchBalances(),
     ])
-      .then(([summaryData, auditRes, reconRes, incomeRes, balanceRows]) => {
+      .then(([summaryData, auditRes, reconRes, incomeRes, expenseRes, transferRes, loanRes, balanceRows]) => {
         setSummary(summaryData);
         setAudit((auditRes.data as AuditEntry[]) ?? []);
         setRecons((reconRes.data as ReconciliationRow[]) ?? []);
         setBalances(balanceRows);
         setSelectedAccount((current) => current || balanceRows[0]?.id || '');
 
-        const firstIncome = (incomeRes.data as any[] | undefined)?.[0];
-        if (firstIncome) {
-          Promise.all([
-            getMoneyJourney('incomes', firstIncome.id).catch(() => []),
-            getMoneySourceJourney('incomes', firstIncome.id).catch(() => []),
-          ]).then(([legacy, universal]) => {
-            const unique = new Map<string, LegacyMoneyJourneyNode | SourceMoneyJourneyNode>();
-            [...legacy, ...universal].forEach((node) => unique.set(`${node.table}:${node.id}`, node));
-            setJourney([...unique.values()]);
-          });
-        } else {
-          setJourney([]);
-        }
+        const targets: JourneyTarget[] = [
+          ...((incomeRes.data as any[]) ?? []).map((row) => ({ id: row.id, table: 'incomes' as const, title: row.title, amount_paise: Number(row.amount_paise), txn_date: row.txn_date })),
+          ...((expenseRes.data as any[]) ?? []).map((row) => ({ id: row.id, table: 'expenses' as const, title: row.title, amount_paise: Number(row.amount_paise), txn_date: row.txn_date })),
+          ...((transferRes.data as any[]) ?? []).map((row) => ({ id: row.id, table: 'transfers' as const, title: row.title || 'Transfer', amount_paise: Number(row.amount_paise), txn_date: row.txn_date })),
+          ...((loanRes.data as any[]) ?? []).map((row) => ({ id: row.id, table: 'loans' as const, title: row.person || 'Loan', amount_paise: Number(row.principal_paise), txn_date: row.start_date })),
+        ].sort((a, b) => (b.txn_date ?? '').localeCompare(a.txn_date ?? ''));
+        setJourneyTargets(targets);
+        setSelectedJourneyKey((current) => current || (targets[0] ? `${targets[0].table}:${targets[0].id}` : ''));
+
       })
       .catch(() => {
         setSummary({ received_paise: 0, allocated_paise: 0, transferred_paise: 0, remaining_paise: 0 });
@@ -72,7 +75,28 @@ export function MoneyTools() {
       .finally(() => setLoading(false));
   }, []);
 
-  const journeyRows = useMemo(() => journey.slice(0, 6), [journey]);
+  useEffect(() => {
+    if (!selectedJourneyKey) {
+      setJourney([]);
+      return;
+    }
+    const [table, id] = selectedJourneyKey.split(':');
+    if (!id) return;
+    let live = true;
+    setJourneyLoading(true);
+    Promise.all([
+      getMoneyJourney(table, id).catch(() => []),
+      getMoneySourceJourney(table as MoneySourceTable, id).catch(() => []),
+    ]).then(([legacy, universal]) => {
+      if (!live) return;
+      const unique = new Map<string, LegacyMoneyJourneyNode | SourceMoneyJourneyNode>();
+      [...legacy, ...universal].forEach((node) => unique.set(`${node.table}:${node.id}`, node));
+      setJourney([...unique.values()]);
+    }).finally(() => live && setJourneyLoading(false));
+    return () => { live = false; };
+  }, [selectedJourneyKey]);
+
+  const journeyRows = useMemo(() => journey.slice(0, 20), [journey]);
   const selectedBalance = balances.find((account) => account.id === selectedAccount);
   const actualPaise = parseRupeesToPaise(actualBalance);
   const reconciliationDifference = selectedBalance && actualPaise !== null
@@ -135,7 +159,15 @@ export function MoneyTools() {
           </div>
 
           <SectionTitle>Money journey</SectionTitle>
-          {journeyRows.length === 0 ? (
+          <select className="field" value={selectedJourneyKey} onChange={(event) => setSelectedJourneyKey(event.target.value)}>
+            <option value="">Choose a money record</option>
+            {journeyTargets.map((target) => (
+              <option key={target.table + ':' + target.id} value={target.table + ':' + target.id}>
+                {target.table} · {target.title} · {formatINR(target.amount_paise)}{target.txn_date ? ' · ' + target.txn_date : ''}
+              </option>
+            ))}
+          </select>
+          {journeyLoading ? <Spinner label="Loading money journey" /> : journeyRows.length === 0 ? (
             <Empty title="No source trail yet" text="Link an expense or transfer to a source to see the journey here." />
           ) : (
             <div className="space-y-2">
