@@ -14,6 +14,7 @@ import type { Account, LineInput, LinkInput, MoneyTable } from '../lib/db';
 import { RecordForm } from './RecordForm';
 import { LinksSection, SplitSection, linksToDb, splitToDb, type LinkRow, type SplitRow } from './MoneyExtras';
 import { FormRow, cx } from './ui';
+import { MoneySourceLinkSection, type MoneySourceLinkDraft } from './MoneySourceLinkSection';
 
 /** Fields that live in the payment lines instead of the purpose card */
 export const LINE_FIELDS: Record<MoneyTable, string[]> = {
@@ -99,6 +100,8 @@ export function MoneyForm({
   initialLines,
   initialLinks,
   initialSplit,
+  initialSourceLinks,
+  targetId,
   submitLabel,
   saving,
   onSubmit,
@@ -108,15 +111,18 @@ export function MoneyForm({
   initialLines: LineState[];
   initialLinks: LinkRow[];
   initialSplit: SplitRow[];
+  initialSourceLinks: MoneySourceLinkDraft[];
+  targetId?: string;
   submitLabel: string;
   saving?: boolean;
-  onSubmit: (parent: Record<string, unknown>, lines: LineInput[], links: LinkInput[] | null) => void;
+  onSubmit: (parent: Record<string, unknown>, lines: LineInput[], links: LinkInput[] | null, sourceLinks: MoneySourceLinkDraft[]) => void;
 }) {
   const { accounts, refs } = useLookups();
   const [form, setForm] = useState(initial);
   const [lines, setLines] = useState<LineState[]>(initialLines);
   const [links, setLinks] = useState<LinkRow[]>(initialLinks);
   const [split, setSplit] = useState<SplitRow[]>(initialSplit);
+  const [sourceLinks, setSourceLinks] = useState<MoneySourceLinkDraft[]>(initialSourceLinks);
   const [splitOn, setSplitOn] = useState(initialSplit.length > 0);
   const [contacts, setContacts] = useState<{ id: string; name: string; role: string | null }[]>([]);
 
@@ -185,6 +191,8 @@ export function MoneyForm({
       const lk = linksToDb(links, total);
       if (typeof lk === 'string') return lk;
     }
+    const sourceTotal = sourceLinks.reduce((sum, link) => sum + link.amount_paise, 0);
+    if (sourceTotal > total) return 'Linked money sources cannot exceed this transaction amount.';
     if (table === 'expenses') {
       const sp = splitToDb(split, splitOn, total);
       if (typeof sp === 'string') return sp;
@@ -197,7 +205,7 @@ export function MoneyForm({
     const lk = linkable ? (linksToDb(links, total) as LinkInput[]) : null;
     const parent = { ...values };
     if (table === 'expenses') parent.split_with = splitToDb(split, splitOn, total);
-    onSubmit(parent, ls, lk);
+    onSubmit(parent, ls, lk, sourceLinks);
   };
 
   const groups: { direction: 'in' | 'out'; title: string }[] =
@@ -270,6 +278,7 @@ export function MoneyForm({
               total={total}
             />
           )}
+          <MoneySourceLinkSection targetTable={table} targetId={targetId} total={total} links={sourceLinks} setLinks={setSourceLinks} />
           {table === 'expenses' && <SplitSection on={splitOn} setOn={setSplitOn} split={split} setSplit={setSplit} total={total} />}
         </>
       }
