@@ -175,7 +175,14 @@ export function MoneyTools() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <div className="truncate text-[14px] font-semibold">{node.title}</div>
-                      <div className="text-[12px] text-muted">{node.table} · {node.txn_date ?? 'No date'}</div>
+                      <div className="text-[12px] text-muted">
+                        {node.table} · {node.txn_date ?? 'No date'}
+                        {node.table === 'transfers'
+                          ? ` · ${balances.find((account) => account.id === node.from_account_id)?.name ?? 'Source'} → ${balances.find((account) => account.id === node.to_account_id)?.name ?? 'Destination'}`
+                          : node.account_id
+                            ? ` · ${balances.find((account) => account.id === node.account_id)?.name ?? 'Account'}`
+                            : ''}
+                      </div>
                     </div>
                     <div className="text-[13px] font-semibold">{formatINR(node.amount_paise)}</div>
                   </div>
