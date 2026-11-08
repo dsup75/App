@@ -49,12 +49,14 @@ export function MoneySourceLinkSection({
   total,
   links,
   setLinks,
+  targetAccountIds = [],
 }: {
   targetTable: MoneySourceTable;
   targetId?: string;
   total: number;
   links: MoneySourceLinkDraft[];
   setLinks: Dispatch<SetStateAction<MoneySourceLinkDraft[]>>;
+  targetAccountIds?: string[];
 }) {
   const [ready, setReady] = useState(false);
   const [missing, setMissing] = useState(false);
@@ -80,7 +82,7 @@ export function MoneySourceLinkSection({
           supabase.from(table).select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(100),
         )),
         supabase.from('accounts').select('id,name').is('deleted_at', null),
-        supabase.from('allocations').select('id,income_id,transfer_id,amount_paise').is('deleted_at', null).not('transfer_id', 'is', null),
+        supabase.from('allocations').select('income_id,amount_paise').is('deleted_at', null),
         supabase.from('money_source_links').select('source_table,source_id,target_id,amount_paise').is('deleted_at', null),
       ]);
       const accountNames = new Map((accountRes.data ?? []).map((account: any) => [account.id, account.name]));
@@ -98,6 +100,11 @@ export function MoneySourceLinkSection({
         });
         fundingByTransfer.set(allocation.transfer_id, items);
       });
+      const allocatedByIncome = new Map<string, number>();
+      (allocationRes.data ?? []).forEach((allocation: any) => {
+        if (!allocation.income_id) return;
+        allocatedByIncome.set(allocation.income_id, (allocatedByIncome.get(allocation.income_id) ?? 0) + Number(allocation.amount_paise ?? 0));
+      });
       const alreadyLinked = new Map<string, number>();
       (linkedRes.data ?? []).forEach((link: any) => {
         if (targetId && link.target_id === targetId) return;
@@ -110,6 +117,14 @@ export function MoneySourceLinkSection({
         const table = TABLES[index];
         (result.data ?? []).forEach((raw: Record<string, any>) => {
           if (targetId && table === targetTable && raw.id === targetId) return;
+          // Only offer funds that are already in the account used for this target.
+          // A transfer is represented by its destination account, never its old source account.
+          if (targetAccountIds.length) {
+            const accountMatches = table === 'transfers'
+              ? targetAccountIds.includes(raw.to_account_id)
+              : raw.account_id ? targetAccountIds.includes(raw.account_id) : false;
+            if (!accountMatches) return;
+          }
           const amountPaise = candidateAmount(raw);
           if (!Number.isSafeInteger(amountPaise) || amountPaise <= 0) return;
           rows.push({
@@ -117,7 +132,9 @@ export function MoneySourceLinkSection({
             table,
             title: candidateTitle(table, raw),
             amount_paise: amountPaise,
-            available_paise: Math.max(0, amountPaise - (alreadyLinked.get(table + ':' + raw.id) ?? 0)),
+            available_paise: Math.max(0, amountPaise
+              - (alreadyLinked.get(table + ':' + raw.id) ?? 0)
+              - (table === 'incomes' ? (allocatedByIncome.get(raw.id) ?? 0) : 0)),
             txn_date: raw.txn_date ?? raw.start_date ?? null,
             details: table === 'transfers'
               ? [
@@ -184,7 +201,7 @@ export function MoneySourceLinkSection({
         <Link2 size={16} className="text-primary" />
         <div className="min-w-0 flex-1">
           <p className="text-[14.5px] font-semibold">Money source links</p>
-          <p className="text-[12px] text-muted">Optional trail across income, expenses, transfers and loans. Does not change account balances.</p>
+          <p className="text-[12px] text-muted">Choose money already present in this payment account. Transfers appear in their destination account; the original income is traceable in the journey.</p>
         </div>
       </div>
 
