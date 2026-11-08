@@ -38,7 +38,7 @@ function candidateTitle(table: MoneySourceTable, row: Record<string, any>): stri
 }
 
 function candidateAmount(row: Record<string, any>): number {
-  return Number(row.amount_paise ?? (Number(row.principal_paise ?? 0) + Number(row.interest_paise ?? 0)) ?? 0);
+  return Number(row.amount_paise ?? (Number(row.principal_paise ?? 0) + Number(row.interest_paise ?? 0)));
 }
 
 export function MoneySourceLinkSection({
