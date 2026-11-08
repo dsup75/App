@@ -61,7 +61,6 @@ export function MoneySourceLinkSection({
   const [selected, setSelected] = useState('');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -75,7 +74,7 @@ export function MoneySourceLinkSection({
         return;
       }
       const results = await Promise.all(TABLES.map((table) =>
-        supabase.from(table).select('*').is('deleted_at', null).limit(100),
+        supabase.from(table).select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(100),
       ));
       const rows: Candidate[] = [];
       results.forEach((result, index) => {
@@ -187,7 +186,7 @@ export function MoneySourceLinkSection({
               <input className="field" inputMode="decimal" placeholder="Linked amount (₹)" value={amount} onChange={(e) => setAmount(e.target.value)} />
               <input className="field" placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
-            <button type="button" className="liquid flex h-9 w-full items-center justify-center gap-1.5 rounded-full text-[13px] font-semibold disabled:opacity-50" onClick={add} disabled={!selected || !amount.trim() || busy}>
+            <button type="button" className="liquid flex h-9 w-full items-center justify-center gap-1.5 rounded-full text-[13px] font-semibold disabled:opacity-50" onClick={add} disabled={!selected || !amount.trim()}>
               <Plus size={15} /> Add source link
             </button>
           </div>
