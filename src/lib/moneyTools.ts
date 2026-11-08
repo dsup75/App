@@ -82,16 +82,19 @@ export async function getMoneyJourney(targetTable: string, targetId: string): Pr
 }
 
 export async function getUnallocatedSummary(): Promise<UnallocatedSummary> {
-  const [incomeRes, transferRes, allocationsRes, linkRes] = await Promise.all([
+  const [incomeRes, transferRes, allocationsRes] = await Promise.all([
     supabase.from('incomes').select('amount_paise').is('deleted_at', null),
     supabase.from('transfers').select('amount_paise').is('deleted_at', null),
-    supabase.from('allocations').select('amount_paise').is('deleted_at', null),
-    supabase.from('money_links').select('amount_paise').is('deleted_at', null),
+    supabase.from('allocations').select('amount_paise,expense_id,loan_id,transfer_id').is('deleted_at', null),
   ]);
 
   const received = (incomeRes.data ?? []).reduce((sum, row: any) => sum + Number(row.amount_paise ?? 0), 0);
   const transferred = (transferRes.data ?? []).reduce((sum, row: any) => sum + Number(row.amount_paise ?? 0), 0);
-  const allocated = (allocationsRes.data ?? []).reduce((sum, row: any) => sum + Number(row.amount_paise ?? 0), 0) + (linkRes.data ?? []).reduce((sum, row: any) => sum + Number(row.amount_paise ?? 0), 0);
+  // Transfers are counted separately below. Excluding transfer allocations here
+  // prevents a transfer linked to an income from being deducted twice.
+  const allocated = (allocationsRes.data ?? [])
+    .filter((row: any) => !!row.expense_id || !!row.loan_id)
+    .reduce((sum, row: any) => sum + Number(row.amount_paise ?? 0), 0);
 
   return {
     received_paise: received,
