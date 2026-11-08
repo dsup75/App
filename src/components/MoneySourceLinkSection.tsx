@@ -58,6 +58,7 @@ export function MoneySourceLinkSection({
   setLinks: Dispatch<SetStateAction<MoneySourceLinkDraft[]>>;
   targetAccountIds?: string[];
 }) {
+  const targetAccountIdsKey = [...targetAccountIds].sort().join('|');
   const [ready, setReady] = useState(false);
   const [missing, setMissing] = useState(false);
   const [error, setError] = useState('');
@@ -77,6 +78,7 @@ export function MoneySourceLinkSection({
         else setError(probe.error.message);
         return;
       }
+      const targetAccounts = new Set(targetAccountIdsKey.split('|').filter(Boolean));
       const [results, accountRes, allocationRes, linkedRes] = await Promise.all([
         Promise.all(TABLES.map((table) =>
           supabase.from(table).select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(100),
@@ -119,10 +121,10 @@ export function MoneySourceLinkSection({
           if (targetId && table === targetTable && raw.id === targetId) return;
           // Only offer funds that are already in the account used for this target.
           // A transfer is represented by its destination account, never its old source account.
-          if (targetAccountIds.length) {
+          if (targetAccounts.size) {
             const accountMatches = table === 'transfers'
-              ? targetAccountIds.includes(raw.to_account_id)
-              : raw.account_id ? targetAccountIds.includes(raw.account_id) : false;
+              ? targetAccounts.has(raw.to_account_id)
+              : raw.account_id ? targetAccounts.has(raw.account_id) : false;
             if (!accountMatches) return;
           }
           const amountPaise = candidateAmount(raw);
@@ -157,7 +159,7 @@ export function MoneySourceLinkSection({
     };
     load().catch((e) => live && setError(e instanceof Error ? e.message : String(e)));
     return () => { live = false; };
-  }, [targetTable, targetId]);
+  }, [targetTable, targetId, targetAccountIdsKey]);
 
   const candidateByKey = useMemo(() => new Map(candidates.map((c) => [c.table + ':' + c.id, c])), [candidates]);
   const linkedTotal = links.reduce((sum, link) => sum + link.amount_paise, 0);
