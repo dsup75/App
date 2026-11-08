@@ -19,6 +19,7 @@ interface Candidate {
   table: MoneySourceTable;
   title: string;
   amount_paise: number;
+  available_paise: number;
   txn_date: string | null;
   details: string | null;
 }
@@ -74,12 +75,13 @@ export function MoneySourceLinkSection({
         else setError(probe.error.message);
         return;
       }
-      const [results, accountRes, allocationRes] = await Promise.all([
+      const [results, accountRes, allocationRes, linkedRes] = await Promise.all([
         Promise.all(TABLES.map((table) =>
           supabase.from(table).select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(100),
         )),
         supabase.from('accounts').select('id,name').is('deleted_at', null),
         supabase.from('allocations').select('id,income_id,transfer_id,amount_paise').is('deleted_at', null).not('transfer_id', 'is', null),
+        supabase.from('money_source_links').select('source_table,source_id,target_id,amount_paise').is('deleted_at', null),
       ]);
       const accountNames = new Map((accountRes.data ?? []).map((account: any) => [account.id, account.name]));
       const incomeRows = (results[TABLES.indexOf('incomes')].data ?? []) as Record<string, any>[];
@@ -96,6 +98,12 @@ export function MoneySourceLinkSection({
         });
         fundingByTransfer.set(allocation.transfer_id, items);
       });
+      const alreadyLinked = new Map<string, number>();
+      (linkedRes.data ?? []).forEach((link: any) => {
+        if (targetId && link.target_id === targetId) return;
+        const key = link.source_table + ':' + link.source_id;
+        alreadyLinked.set(key, (alreadyLinked.get(key) ?? 0) + Number(link.amount_paise ?? 0));
+      });
       const rows: Candidate[] = [];
       results.forEach((result, index) => {
         if (result.error) return;
@@ -109,6 +117,7 @@ export function MoneySourceLinkSection({
             table,
             title: candidateTitle(table, raw),
             amount_paise: amountPaise,
+            available_paise: Math.max(0, amountPaise - (alreadyLinked.get(table + ':' + raw.id) ?? 0)),
             txn_date: raw.txn_date ?? raw.start_date ?? null,
             details: table === 'transfers'
               ? [
@@ -135,6 +144,7 @@ export function MoneySourceLinkSection({
 
   const candidateByKey = useMemo(() => new Map(candidates.map((c) => [c.table + ':' + c.id, c])), [candidates]);
   const linkedTotal = links.reduce((sum, link) => sum + link.amount_paise, 0);
+  const selectedCandidate = candidateByKey.get(selected);
 
   const add = () => {
     const candidate = candidateByKey.get(selected);
@@ -143,8 +153,8 @@ export function MoneySourceLinkSection({
       setError('Choose a source and enter a valid amount.');
       return;
     }
-    if (paise > candidate.amount_paise) {
-      setError('Linked amount cannot exceed the source transaction amount.');
+    if (paise > candidate.available_paise) {
+      setError(`Only ${formatINR(candidate.available_paise)} is still available from this source.`);
       return;
     }
     if (linkedTotal + paise > total) {
@@ -213,6 +223,21 @@ export function MoneySourceLinkSection({
                 </option>
               ))}
             </select>
+            {selectedCandidate && (
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--card-2)] p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold">{selectedCandidate.title}</p>
+                    <p className="mt-0.5 text-[11px] text-muted">{TABLE_LABEL[selectedCandidate.table]} · {selectedCandidate.txn_date ?? 'No date'}</p>
+                    {selectedCandidate.details && <p className="mt-1 text-[11px] text-muted">{selectedCandidate.details}</p>}
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-[13px] font-bold">{formatINR(selectedCandidate.amount_paise)}</p>
+                    <p className="text-[10px] text-muted">{formatINR(selectedCandidate.available_paise)} available</p>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <input className="field" inputMode="decimal" placeholder="Linked amount (₹)" value={amount} onChange={(e) => setAmount(e.target.value)} />
               <input className="field" placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
