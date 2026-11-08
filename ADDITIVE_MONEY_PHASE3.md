@@ -8,7 +8,7 @@
 - Multiple source links can be attached to one saved target record with a partial amount and optional note.
 - The UI validates positive amounts, prevents linking a record to itself, prevents duplicate sources on the same target, and keeps the sum of source links within the target transaction amount and each source transaction amount.
 - Existing source links load when editing a money record. Removing a saved link soft-deletes only the lineage row.
-- The Money Tools journey now traverses both incoming and outgoing links, with a visited set and node limit to avoid cycles.
+- The Money Tools journey now combines the existing legacy journey with the new universal journey. The new graph traverses both incoming and outgoing links, with a visited set and node limit to avoid cycles.
 - Full JSON backup includes source-link rows when the optional table exists, and safely skips that one table while its migration is not installed.
 
 ## Safety and compatibility
