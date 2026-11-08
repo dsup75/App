@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowRightLeft, BadgeDollarSign, CircleDollarSign, Link2, ShieldCheck, Undo2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { getUnallocatedSummary, type UnallocatedSummary } from '../lib/moneyTools';
-import { getMoneySourceJourney, type MoneyJourneyNode, type MoneySourceTable } from '../lib/moneySourceLinks';
+import { getMoneyJourney, getUnallocatedSummary, type MoneyJourneyNode as LegacyMoneyJourneyNode, type UnallocatedSummary } from '../lib/moneyTools';
+import { getMoneySourceJourney, type MoneyJourneyNode as SourceMoneyJourneyNode } from '../lib/moneySourceLinks';
 import { formatINR } from '../lib/money';
 import { Card, Empty, Page, SectionTitle, Spinner } from '../components/ui';
 
@@ -20,7 +20,7 @@ interface ReconciliationRow {
 
 export function MoneyTools() {
   const [summary, setSummary] = useState<UnallocatedSummary | null>(null);
-  const [journey, setJourney] = useState<MoneyJourneyNode[]>([]);
+  const [journey, setJourney] = useState<(LegacyMoneyJourneyNode | SourceMoneyJourneyNode)[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [recons, setRecons] = useState<ReconciliationRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,7 +39,14 @@ export function MoneyTools() {
 
         const firstIncome = (incomeRes.data as any[] | undefined)?.[0];
         if (firstIncome) {
-          getMoneySourceJourney('incomes' as MoneySourceTable, firstIncome.id).then(setJourney).catch(() => setJourney([]));
+          Promise.all([
+            getMoneyJourney('incomes', firstIncome.id).catch(() => []),
+            getMoneySourceJourney('incomes', firstIncome.id).catch(() => []),
+          ]).then(([legacy, universal]) => {
+            const unique = new Map<string, LegacyMoneyJourneyNode | SourceMoneyJourneyNode>();
+            [...legacy, ...universal].forEach((node) => unique.set(`${node.table}:${node.id}`, node));
+            setJourney([...unique.values()]);
+          });
         } else {
           setJourney([]);
         }
