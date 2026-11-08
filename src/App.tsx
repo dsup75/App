@@ -12,6 +12,7 @@ import { AuthScreen, Logo } from './screens/Auth';
 import { LockScreen } from './screens/LockScreen';
 import { Home } from './screens/Home';
 import { Finance } from './screens/Finance';
+import { MoneyTools } from './screens/MoneyTools';
 import { Tasks } from './screens/Tasks';
 import { RecordDetail } from './screens/RecordDetail';
 import { RecordEdit } from './screens/RecordEdit';
@@ -124,6 +125,7 @@ function Gate() {
           <Route path="/" element={<Home />} />
           <Route path="/study" element={<StudyHub />} />
           <Route path="/finance" element={<Finance />} />
+          <Route path="/money-tools" element={<MoneyTools />} />
           <Route path="/clients" element={<ClientsHub />} />
           <Route path="/more" element={<More />} />
 
