@@ -38,6 +38,8 @@ export interface MoneyJourneyNode {
   title: string;
   amount_paise: number;
   account_id: string | null;
+  from_account_id?: string | null;
+  to_account_id?: string | null;
   txn_date: string | null;
   sourceRelation?: string;
 }
@@ -185,6 +187,8 @@ export async function getMoneySourceJourney(
       title: getRecordTitle(current.table, record),
       amount_paise: amount,
       account_id: record.account_id ?? record.from_account_id ?? record.to_account_id ?? null,
+      from_account_id: record.from_account_id ?? null,
+      to_account_id: record.to_account_id ?? null,
       txn_date: record.txn_date ?? record.start_date ?? null,
       sourceRelation: current.relation,
     });
@@ -206,6 +210,44 @@ export async function getMoneySourceJourney(
         id: link.target_id,
         relation: link.relation_type,
       });
+    }
+
+    // Legacy income allocations are the authoritative record that says which
+    // income funded a transfer. Follow them so a later IPPB expense can trace
+    // back through the transfer to its original SBI income.
+    if (current.table === 'transfers') {
+      const { data: funding, error: fundingError } = await supabase
+        .from('allocations')
+        .select('income_id,amount_paise')
+        .eq('transfer_id', current.id)
+        .is('deleted_at', null);
+      if (!fundingError) {
+        for (const allocation of funding ?? []) {
+          queue.push({
+            table: 'incomes',
+            id: allocation.income_id,
+            relation: `funded transfer · ₹${(Number(allocation.amount_paise) / 100).toFixed(2)}`,
+          });
+        }
+      }
+    }
+    if (current.table === 'incomes') {
+      const { data: moved, error: movedError } = await supabase
+        .from('allocations')
+        .select('transfer_id,amount_paise')
+        .eq('income_id', current.id)
+        .not('transfer_id', 'is', null)
+        .is('deleted_at', null);
+      if (!movedError) {
+        for (const allocation of moved ?? []) {
+          if (!allocation.transfer_id) continue;
+          queue.push({
+            table: 'transfers',
+            id: allocation.transfer_id,
+            relation: `transferred · ₹${(Number(allocation.amount_paise) / 100).toFixed(2)}`,
+          });
+        }
+      }
     }
   }
 
