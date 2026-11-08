@@ -103,6 +103,23 @@ export async function getMoneySourceLinksForTarget(
   return (data ?? []) as MoneySourceLink[];
 }
 
+export async function getMoneySourceLinksForSource(
+  sourceTable: MoneySourceTable,
+  sourceId: string,
+): Promise<MoneySourceLink[]> {
+  assertMoneySourceTable(sourceTable);
+  const { data, error } = await supabase
+    .from('money_source_links')
+    .select('id,source_table,source_id,target_table,target_id,relation_type,amount_paise,note,created_at')
+    .eq('source_table', sourceTable)
+    .eq('source_id', sourceId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []) as MoneySourceLink[];
+}
+
 export async function softDeleteMoneySourceLink(linkId: string): Promise<void> {
   const { data, error } = await supabase
     .from('money_source_links')
@@ -134,7 +151,7 @@ function getRecordTitle(table: MoneySourceTable, row: Record<string, any>): stri
 }
 
 /**
- * Follows incoming source links from a selected record. This is lineage-only:
+ * Follows connected source and target links from a selected record. This is lineage-only:
  * it never creates or modifies a payment line or account balance.
  */
 export async function getMoneySourceJourney(
@@ -161,7 +178,7 @@ export async function getMoneySourceJourney(
     const record = await fetchMoneyRecord(current.table, current.id);
     if (!record) continue;
 
-    const amount = Number(record.amount_paise ?? record.principal_paise ?? 0);
+    const amount = Number(record.amount_paise ?? (Number(record.principal_paise ?? 0) + Number(record.interest_paise ?? 0)));
     journey.push({
       id: current.id,
       table: current.table,
@@ -172,11 +189,21 @@ export async function getMoneySourceJourney(
       sourceRelation: current.relation,
     });
 
-    const links = await getMoneySourceLinksForTarget(current.table, current.id);
-    for (const link of links) {
+    const [incoming, outgoing] = await Promise.all([
+      getMoneySourceLinksForTarget(current.table, current.id),
+      getMoneySourceLinksForSource(current.table, current.id),
+    ]);
+    for (const link of incoming) {
       queue.push({
         table: link.source_table,
         id: link.source_id,
+        relation: link.relation_type,
+      });
+    }
+    for (const link of outgoing) {
+      queue.push({
+        table: link.target_table,
+        id: link.target_id,
         relation: link.relation_type,
       });
     }
