@@ -38,8 +38,11 @@ export function formatINR(paise: number | null | undefined, opts: { sign?: boole
   return `${sign}₹${rs}${p ? '.' + String(p).padStart(2, '0') : ''}`;
 }
 
-export function sumPaise(rows: { amount_paise: number }[]): number {
+export function sumPaise(rows: readonly unknown[]): number {
   let total = 0;
-  for (const r of rows) total += Number(r.amount_paise);
+  for (const row of rows) {
+    const amount = (row as { amount_paise?: unknown } | null)?.amount_paise;
+    total += Number(amount ?? 0);
+  }
   return total;
 }
