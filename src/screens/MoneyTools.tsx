@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowRightLeft, BadgeDollarSign, CircleDollarSign, Link2, ShieldCheck, Undo2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { getMoneyJourney, getUnallocatedSummary, type MoneyJourneyNode, type UnallocatedSummary } from '../lib/moneyTools';
+import { getUnallocatedSummary, type UnallocatedSummary } from '../lib/moneyTools';
+import { getMoneySourceJourney, type MoneyJourneyNode, type MoneySourceTable } from '../lib/moneySourceLinks';
 import { formatINR } from '../lib/money';
 import { Card, Empty, Page, SectionTitle, Spinner } from '../components/ui';
 
@@ -38,7 +39,7 @@ export function MoneyTools() {
 
         const firstIncome = (incomeRes.data as any[] | undefined)?.[0];
         if (firstIncome) {
-          getMoneyJourney('incomes', firstIncome.id).then(setJourney).catch(() => setJourney([]));
+          getMoneySourceJourney('incomes' as MoneySourceTable, firstIncome.id).then(setJourney).catch(() => setJourney([]));
         } else {
           setJourney([]);
         }
