@@ -14,10 +14,10 @@ interface ReconciliationRow {
   id: string;
   account_id: string;
   actual_balance_paise: number;
-  calculated_balance_paise: number;
+  app_balance_paise: number;
   difference_paise: number;
-  explanation: string | null;
-  status: string;
+  notes: string | null;
+  as_of_date: string;
   created_at: string;
 }
 
@@ -116,10 +116,9 @@ export function MoneyTools() {
       const { data, error } = await supabase.from('reconciliations').insert({
         account_id: selectedBalance.id,
         actual_balance_paise: actualPaise,
-        calculated_balance_paise: calculated,
-        difference_paise: difference,
-        explanation: reconciliationNote.trim() || null,
-        status: difference === 0 ? 'reviewed' : 'needs_review',
+        app_balance_paise: calculated,
+        notes: reconciliationNote.trim() || null,
+        as_of_date: new Date().toISOString().slice(0, 10),
       }).select('*').single();
       if (error) throw error;
       setRecons((current) => [data as ReconciliationRow, ...current].slice(0, 20));
@@ -216,12 +215,12 @@ export function MoneyTools() {
                     <div className="min-w-0">
                       <div className="truncate text-[14px] font-semibold">{balances.find((account) => account.id === row.account_id)?.name ?? 'Account'} · {formatINR(row.difference_paise)}</div>
                     </div>
-                    <span className="shrink-0 text-[11px] text-muted">{row.status}</span>
+                    <span className="shrink-0 text-[11px] text-muted">{Number(row.difference_paise) === 0 ? 'Matched' : 'Review needed'}</span>
                   </div>
                   <div className="mt-2 text-[12px] text-muted">
-                    Actual: {formatINR(row.actual_balance_paise)} · Calculated: {formatINR(row.calculated_balance_paise)}
+                    Actual: {formatINR(row.actual_balance_paise)} · App balance: {formatINR(row.app_balance_paise)} · {row.as_of_date}
                   </div>
-                  {row.explanation && <div className="mt-2 text-[12px] text-muted">{row.explanation}</div>}
+                  {row.notes && <div className="mt-2 text-[12px] text-muted">{row.notes}</div>}
                 </Card>
               ))}
             </div>
