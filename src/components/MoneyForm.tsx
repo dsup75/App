@@ -125,6 +125,7 @@ export function MoneyForm({
   const [sourceLinks, setSourceLinks] = useState<MoneySourceLinkDraft[]>(initialSourceLinks);
   const [splitOn, setSplitOn] = useState(initialSplit.length > 0);
   const [contacts, setContacts] = useState<{ id: string; name: string; role: string | null }[]>([]);
+  const [duplicateMatches, setDuplicateMatches] = useState<{ lineIndex: number; title: string; txn_date: string; sameReference: boolean }[]>([]);
 
   // Which way money moves for this entry
   const loanDir = table === 'loans' ? form.direction : table === 'loan_repayments' ? refs.loans?.find((l) => l.id === form.loan_id)?.direction : undefined;
@@ -171,6 +172,46 @@ export function MoneyForm({
     const s = (d: 'in' | 'out') => lines.filter((l) => l.direction === d).reduce((t, l) => t + (parseRupeesToPaise(l.amount) ?? 0), 0);
     return table === 'transfers' ? s('out') : s('in') + s('out');
   }, [lines, table]);
+
+
+  // Review-only duplicate detection. Exact UTR matches are strong signals;
+  // amount/date/account matches without a UTR are shown as possible duplicates.
+  useEffect(() => {
+    let live = true;
+    const timer = window.setTimeout(async () => {
+      try {
+        const checks = await Promise.all(lines.map(async (line, lineIndex) => {
+          const amountPaise = parseRupeesToPaise(line.amount);
+          if (!line.account_id || !line.txn_date || !amountPaise || amountPaise <= 0) return [];
+          let query = supabase
+            .from('account_movements')
+            .select('parent_id,parent_table,title,reference,txn_date')
+            .eq('account_id', line.account_id)
+            .eq('amount_paise', amountPaise)
+            .eq('txn_date', line.txn_date);
+          const reference = line.reference.trim();
+          if (reference) query = query.eq('reference', reference);
+          const { data, error } = await query.limit(4);
+          if (error) return [];
+          return ((data ?? []) as any[])
+            .filter((row) => !targetId || row.parent_id !== targetId)
+            .map((row) => ({
+              lineIndex,
+              title: row.title || row.parent_table || 'Existing transaction',
+              txn_date: row.txn_date,
+              sameReference: !!reference && row.reference === reference,
+            }));
+        }));
+        if (live) setDuplicateMatches(checks.flat());
+      } catch {
+        if (live) setDuplicateMatches([]);
+      }
+    }, 350);
+    return () => {
+      live = false;
+      window.clearTimeout(timer);
+    };
+  }, [lines, targetId]);
 
   const linkable = table === 'expenses' || table === 'transfers' || (table === 'loans' && loanDir !== 'borrowed');
 
@@ -279,6 +320,20 @@ export function MoneyForm({
             />
           )}
           <MoneySourceLinkSection targetTable={table} targetId={targetId} total={total} links={sourceLinks} setLinks={setSourceLinks} />
+          {duplicateMatches.length > 0 && (
+            <div className="rounded-[16px] border border-amber-500/30 bg-amber-500/10 p-3">
+              <p className="text-[13px] font-semibold text-amber-700">Possible duplicate transaction</p>
+              <p className="mt-1 text-[11.5px] text-muted">Review these existing entries before saving. Nothing is blocked automatically, because a same-amount payment can be legitimate.</p>
+              <div className="mt-2 space-y-1.5">
+                {duplicateMatches.slice(0, 4).map((match, index) => (
+                  <div key={match.lineIndex + ':' + index} className="flex items-center justify-between gap-2 text-[12px]">
+                    <span className="min-w-0 truncate">{match.title} · {match.txn_date}</span>
+                    <span className="shrink-0 font-semibold">{match.sameReference ? 'UTR match' : 'Amount match'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {table === 'expenses' && <SplitSection on={splitOn} setOn={setSplitOn} split={split} setSplit={setSplit} total={total} />}
         </>
       }
