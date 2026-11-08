@@ -75,7 +75,7 @@ export function MoneySourceLinkSection({
         return;
       }
       const results = await Promise.all(TABLES.map((table) =>
-        supabase.from(table).select('*').is('deleted_at', null).order('txn_date', { ascending: false }).limit(100),
+        supabase.from(table).select('*').is('deleted_at', null).limit(100),
       ));
       const rows: Candidate[] = [];
       results.forEach((result, index) => {
