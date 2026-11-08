@@ -178,7 +178,7 @@ export function MoneyTools() {
                       <div className="text-[12px] text-muted">
                         {node.table} · {node.txn_date ?? 'No date'}
                         {node.table === 'transfers'
-                          ? ` · ${balances.find((account) => account.id === node.from_account_id)?.name ?? 'Source'} → ${balances.find((account) => account.id === node.to_account_id)?.name ?? 'Destination'}`
+                          ? ` · ${balances.find((account) => account.id === ('from_account_id' in node ? node.from_account_id : null))?.name ?? 'Source'} → ${balances.find((account) => account.id === ('to_account_id' in node ? node.to_account_id : null))?.name ?? 'Destination'}`
                           : node.account_id
                             ? ` · ${balances.find((account) => account.id === node.account_id)?.name ?? 'Account'}`
                             : ''}
