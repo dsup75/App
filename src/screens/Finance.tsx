@@ -90,7 +90,7 @@ function Overview({ month }: { month: string }) {
   const nav = useNavigate();
   const { data, error, reload } = useMonthData(month);
   const [balances, setBalances] = useState<Balance[] | null>(null);
-  const [six, setSix] = useState<Row[]>([]);
+  const [six, setSix] = useState<{ amount_paise: number; txn_date: string }[]>([]);
   const { nameOf } = useLookups();
 
   useEffect(() => {
@@ -103,7 +103,7 @@ function Overview({ month }: { month: string }) {
       .select('amount_paise,txn_date')
       .is('deleted_at', null)
       .gte('txn_date', from)
-      .then(({ data }) => setSix((data as Row[]) ?? []));
+      .then(({ data }) => setSix((data as { amount_paise: number; txn_date: string }[] | null) ?? []));
   }, []);
 
   const byCat = useMemo(() => {
@@ -303,8 +303,8 @@ function Transactions({ month }: { month: string }) {
       .gte('txn_date', from)
       .lte('txn_date', today)
       .then(({ data: d }) => {
-        const rows = (d as Row[]) ?? [];
-        const sum = (fn: (x: Row) => boolean) => rows.filter(fn).reduce((t, x) => t + Number(x.amount_paise), 0);
+        const rows = (d as { amount_paise: number; txn_date: string }[] | null) ?? [];
+        const sum = (fn: (x: { amount_paise: number; txn_date: string }) => boolean) => rows.filter(fn).reduce((t, x) => t + Number(x.amount_paise), 0);
         setQuick({ today: sum((x) => x.txn_date === today), week: sum((x) => x.txn_date >= w), month: sum((x) => x.txn_date >= m) });
       });
   }, [data]);

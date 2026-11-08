@@ -292,7 +292,7 @@ export function Home() {
           <>
           <SectionTitle right={<SeeAll onClick={() => nav('/reports')} label="Reports" />}>Spending overview</SectionTitle>
           <Card>
-            <BarChart data={sixMonthBars(byArea(d.sixMonths))} format={(v) => formatINR(v)} />
+            <BarChart data={sixMonthBars(byArea(d.sixMonths) as (Row & { amount_paise: number; txn_date: string })[])} format={(v) => formatINR(v)} />
           </Card>
           </>
         ),

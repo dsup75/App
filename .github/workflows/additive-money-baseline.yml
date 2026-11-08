@@ -1,0 +1,36 @@
+name: Additive Money Baseline
+
+on:
+  push:
+    branches:
+      - "codex/additive-money-*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: additive-money-baseline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout isolated branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install existing dependencies
+        run: npm install --no-audit --no-fund --legacy-peer-deps
+
+      - name: Run existing TypeScript check
+        run: npm run typecheck
+
+      - name: Run existing production web build (even if typecheck fails)
+        if: always()
+        run: npm run build

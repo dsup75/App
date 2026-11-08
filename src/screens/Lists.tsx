@@ -217,7 +217,7 @@ function DropdownsEditor() {
   const run = useRun();
   const [open, setOpen] = useState<ListKey | null>('payment_app');
 
-  const after = () => reload();
+  const after = async (): Promise<void> => { await reload(); };
   const findCustom = (key: ListKey, value: string) => custom.find((c) => c.list_key === key && c.value === value);
 
   const slug = (s: string) =>

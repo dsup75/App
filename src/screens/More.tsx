@@ -37,6 +37,7 @@ const SECTIONS: { title: string; items: Item[] }[] = [
       { label: 'Budgets', to: '/budgets', icon: Gauge, tone: 'amber' },
       { label: 'Subscriptions', to: '/recurring', icon: CalendarClock, tone: 'teal' },
       { label: 'Allocate', to: '/allocations', icon: Link2, tone: 'blue' },
+      { label: 'Money tools', to: '/money-tools', icon: TrendingUp, tone: 'primary' },
     ],
   },
   {

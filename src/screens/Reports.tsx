@@ -382,7 +382,7 @@ function StudyReport({ sessions, tests, nameOf }: { sessions: Row[]; tests: Row[
 
 const BACKUP_TABLES = [
   'accounts', 'categories', 'incomes', 'expenses', 'transfers', 'payment_requests', 'clients', 'projects', 'campaigns', 'invoices',
-  'allocations', 'loans', 'loan_repayments', 'savings_goals', 'savings_entries', 'groups', 'group_members', 'group_expenses',
+  'allocations', 'money_source_links', 'loans', 'loan_repayments', 'savings_goals', 'savings_entries', 'groups', 'group_members', 'group_expenses',
   'group_settlements', 'tasks', 'habits', 'habit_logs', 'events', 'notes', 'shopping_items', 'subjects', 'chapters',
   'study_sessions', 'mock_tests', 'exams', 'user_settings',
 ];
@@ -391,7 +391,11 @@ async function backupAll() {
   const out: Record<string, unknown> = { app: 'DeepBoost Life', exported_at: new Date().toISOString() };
   for (const t of BACKUP_TABLES) {
     const { data, error } = await supabase.from(t).select('*').limit(20000);
-    if (error) throw error;
+    if (error) {
+      // The optional lineage table is absent until its additive migration is applied.
+      if (t === 'money_source_links' && /relation .* does not exist|schema cache/i.test(error.message ?? '')) continue;
+      throw error;
+    }
     out[t] = t === 'user_settings' ? (data ?? []).map((r: any) => ({ ...r, sync_key: r.sync_key ? '(hidden)' : null })) : data;
   }
   return saveFile(`DeepBoost-Backup-${todayISO()}.json`, new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' }));
