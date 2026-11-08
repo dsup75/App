@@ -132,7 +132,9 @@ export function MoneySourceLinkSection({
           rows.push({
             id: raw.id,
             table,
-            title: candidateTitle(table, raw),
+            title: table === 'transfers' && (fundingByTransfer.get(raw.id) ?? []).length > 0
+              ? (fundingByTransfer.get(raw.id) ?? []).map((funding) => funding.title).filter(Boolean).join(' + ')
+              : candidateTitle(table, raw),
             amount_paise: amountPaise,
             available_paise: Math.max(0, amountPaise
               - (alreadyLinked.get(table + ':' + raw.id) ?? 0)
