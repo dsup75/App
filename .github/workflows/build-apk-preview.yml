@@ -64,7 +64,7 @@ jobs:
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           IN=android/app/build/outputs/apk/release/app-release-unsigned.apk
           "$BT/zipalign" -p -f 4 "$IN" aligned.apk
-          "$BT/apksigner" sign --ks "$KS" --ks-pass "pass:$PASS" --key-alias deepboost --key-pass "pass:$PASS" --out DeepBoost-Life-preview.apk aligned.apk
+          "$BT/apksigner" sign --ks "$KS" --ks-pass "pass:$PASS" --ks-key-alias deepboost --key-pass "pass:$PASS" --out DeepBoost-Life-preview.apk aligned.apk
           "$BT/apksigner" verify DeepBoost-Life-preview.apk
       - name: Upload preview APK
         uses: actions/upload-artifact@v4
