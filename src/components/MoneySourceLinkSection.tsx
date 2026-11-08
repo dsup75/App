@@ -82,7 +82,7 @@ export function MoneySourceLinkSection({
           supabase.from(table).select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(100),
         )),
         supabase.from('accounts').select('id,name').is('deleted_at', null),
-        supabase.from('allocations').select('income_id,amount_paise').is('deleted_at', null),
+        supabase.from('allocations').select('income_id,transfer_id,amount_paise').is('deleted_at', null),
         supabase.from('money_source_links').select('source_table,source_id,target_id,amount_paise').is('deleted_at', null),
       ]);
       const accountNames = new Map((accountRes.data ?? []).map((account: any) => [account.id, account.name]));
