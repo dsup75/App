@@ -73,3 +73,5 @@ jobs:
           path: DeepBoost-Life-preview.apk
           if-no-files-found: error
           retention-days: 14
+
+# Preview builds are isolated from the production release workflow.
