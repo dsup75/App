@@ -319,7 +319,7 @@ export function MoneyForm({
               total={total}
             />
           )}
-          <MoneySourceLinkSection targetTable={table} targetId={targetId} total={total} links={sourceLinks} setLinks={setSourceLinks} />
+          <MoneySourceLinkSection targetTable={table} targetId={targetId} targetAccountIds={[...new Set(lines.filter((line) => line.direction === 'out').map((line) => line.account_id).filter(Boolean))]} total={total} links={sourceLinks} setLinks={setSourceLinks} />
           {duplicateMatches.length > 0 && (
             <div className="rounded-[16px] border border-amber-500/30 bg-amber-500/10 p-3">
               <p className="text-[13px] font-semibold text-amber-700">Possible duplicate transaction</p>
