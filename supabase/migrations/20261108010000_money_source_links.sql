@@ -54,6 +54,10 @@ declare
   v_target_user uuid;
   v_source_active boolean;
   v_target_active boolean;
+  v_source_amount bigint;
+  v_target_amount bigint;
+  v_source_used bigint;
+  v_target_used bigint;
 begin
   if new.deleted_at is not null then
     return new;
@@ -84,6 +88,45 @@ begin
 
   if v_target_user is distinct from new.user_id or v_target_active is distinct from true then
     raise exception 'APP_ERROR: The target money record is unavailable.';
+  end if;
+
+  -- Enforce source and target caps on the server as well as in the form.
+  -- These calculations only inspect metadata and never post account movements.
+  execute format(
+    'select %s from public.%I where id = $1',
+    case new.source_table
+      when 'loans' then 'principal_paise'
+      when 'loan_repayments' then 'principal_paise + interest_paise'
+      else 'amount_paise'
+    end,
+    new.source_table
+  ) into v_source_amount using new.source_id;
+
+  execute format(
+    'select %s from public.%I where id = $1',
+    case new.target_table
+      when 'loans' then 'principal_paise'
+      when 'loan_repayments' then 'principal_paise + interest_paise'
+      else 'amount_paise'
+    end,
+    new.target_table
+  ) into v_target_amount using new.target_id;
+
+  select coalesce(sum(amount_paise), 0) into v_source_used
+    from public.money_source_links
+   where user_id = new.user_id and source_table = new.source_table
+     and source_id = new.source_id and deleted_at is null and id <> new.id;
+
+  select coalesce(sum(amount_paise), 0) into v_target_used
+    from public.money_source_links
+   where user_id = new.user_id and target_table = new.target_table
+     and target_id = new.target_id and deleted_at is null and id <> new.id;
+
+  if v_source_used + new.amount_paise > v_source_amount then
+    raise exception 'APP_ERROR: Linked amounts exceed the source transaction total.';
+  end if;
+  if v_target_used + new.amount_paise > v_target_amount then
+    raise exception 'APP_ERROR: Total source links exceed the target transaction total.';
   end if;
 
   return new;
