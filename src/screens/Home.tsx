@@ -21,7 +21,7 @@ interface Dash {
   tasks: Row[];
   incomes: Row[];
   expenses: Row[];
-  sixMonths: { amount_paise: number; txn_date: string; area: string | null }[];
+  sixMonths: Row[];
   transfers: Row[];
   balance: number;
   habits: Row[];
@@ -154,7 +154,7 @@ export function Home() {
     load();
   }, [load]);
 
-  const byArea = <T extends { area?: string | null }>(rows: T[]) => (filter === 'all' ? rows : rows.filter((r) => r.area === filter));
+  const byArea = <T extends Row>(rows: T[]) => (filter === 'all' ? rows : rows.filter((r) => r.area === filter));
   const todayTasks = useMemo(() => (d ? byArea(d.tasks) : []), [d, filter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (error) return <Page title="Home"><ErrorBox message={error} onRetry={load} /></Page>;
@@ -292,7 +292,7 @@ export function Home() {
           <>
           <SectionTitle right={<SeeAll onClick={() => nav('/reports')} label="Reports" />}>Spending overview</SectionTitle>
           <Card>
-            <BarChart data={sixMonthBars(byArea(d.sixMonths))} format={(v) => formatINR(v)} />
+            <BarChart data={sixMonthBars(byArea(d.sixMonths) as (Row & { amount_paise: number; txn_date: string })[])} format={(v) => formatINR(v)} />
           </Card>
           </>
         ),
