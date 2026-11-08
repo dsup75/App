@@ -10,6 +10,8 @@ import { RecordForm, initialFormState } from '../components/RecordForm';
 import { linksFromDb, splitFromDb, type LinkRow, type SplitRow } from '../components/MoneyExtras';
 import { MoneyForm, blankLine, linesFromDb, type LineState } from '../components/MoneyForm';
 import { formatINR } from '../lib/money';
+import { getMoneySourceLinksForTarget, syncMoneySourceLinksForTarget, type MoneySourceTable } from '../lib/moneySourceLinks';
+import type { MoneySourceLinkDraft } from '../components/MoneySourceLinkSection';
 import { advanceRule } from '../lib/recurring';
 import { Button, Empty, ErrorBox, Page, Sheet, Spinner } from '../components/ui';
 import { formatValue } from './RecordDetail';
@@ -114,8 +116,8 @@ export function RecordEdit() {
   const [saving, setSaving] = useState(false);
   const [pending, setPending] = useState<{ values: Record<string, any>; changes: { label: string; from: string; to: string }[] } | null>(null);
   const money = valid && isMoneyTable(t);
-  const [mInit, setMInit] = useState<{ lines: LineState[]; links: LinkRow[]; split: SplitRow[] } | null>(null);
-  const [mPending, setMPending] = useState<{ parent: Record<string, unknown>; lines: LineInput[]; links: LinkInput[] | null; from: number; to: number } | null>(null);
+  const [mInit, setMInit] = useState<{ lines: LineState[]; links: LinkRow[]; split: SplitRow[]; sourceLinks: MoneySourceLinkDraft[] } | null>(null);
+  const [mPending, setMPending] = useState<{ parent: Record<string, unknown>; lines: LineInput[]; links: LinkInput[] | null; sourceLinks: MoneySourceLinkDraft[]; from: number; to: number } | null>(null);
 
   useEffect(() => {
     if (!valid) return;
@@ -135,7 +137,7 @@ export function RecordEdit() {
             state.payment_request_id = req.id;
             state.area = 'business';
           }
-          setMInit({ lines: [line], links: [], split: [] });
+          setMInit({ lines: [line], links: [], split: [], sourceLinks: [] });
           setInitial(state);
         })
         .catch((e) => setError(friendlyError(e)));
@@ -153,7 +155,7 @@ export function RecordEdit() {
         const last = lastUsed(t);
         const withLast = { ...last, ...raw };
         if (raw.payment_app && !raw.account_id) delete withLast.account_id; // app chosen → MoneyForm picks its account
-        setMInit({ lines: prefillLines(t, withLast), links: [], split: [] });
+        setMInit({ lines: prefillLines(t, withLast), links: [], split: [], sourceLinks: [] });
         for (const k of ['payment_mode', 'area']) if (!prefill[k] && last[k] && TABLES[t].fields.some((f) => f.key === k)) prefill[k] = last[k];
       }
       setInitial(initialFormState(t, null, prefill));
@@ -169,10 +171,26 @@ export function RecordEdit() {
         if (dupId && (t === 'tasks' || t === 'payment_requests')) state.status = 'pending';
         if (dupId && 'payment_request_id' in state) state.payment_request_id = '';
         if (isMoneyTable(t)) {
-          Promise.all([getLines(t, sourceId), id ? getLinks(t, sourceId) : Promise.resolve([])])
-            .then(([ls, lk]) => {
+          Promise.all([
+            getLines(t, sourceId),
+            id ? getLinks(t, sourceId) : Promise.resolve([]),
+            id ? getMoneySourceLinksForTarget(t as MoneySourceTable, sourceId).catch(() => []) : Promise.resolve([]),
+          ])
+            .then(([ls, lk, sourceLinks]) => {
               const lines = ls.length ? linesFromDb(ls, !!id) : legacyLines(t, r);
-              setMInit({ lines, links: linksFromDb(lk), split: t === 'expenses' ? splitFromDb(r.split_with) : [] });
+              setMInit({
+                lines,
+                links: linksFromDb(lk),
+                split: t === 'expenses' ? splitFromDb(r.split_with) : [],
+                sourceLinks: sourceLinks.map((link) => ({
+                  id: link.id,
+                  source_table: link.source_table,
+                  source_id: link.source_id,
+                  amount_paise: Number(link.amount_paise),
+                  relation_type: link.relation_type,
+                  note: link.note,
+                })),
+              });
               setInitial(state);
             })
             .catch((e) => setError(friendlyError(e)));
@@ -189,10 +207,19 @@ export function RecordEdit() {
   if (t === 'group_expenses') return <GroupExpenseRedirect id={id ?? dupId} groupId={params.get('group_id')} />;
   const pageTitle = editing ? `Edit ${def.label}` : dupId ? `Copy ${def.label}` : fromRequest ? 'Record payment' : `New ${def.label}`;
 
-  const saveMoney = async (p: { parent: Record<string, unknown>; lines: LineInput[]; links: LinkInput[] | null }) => {
+  const saveMoney = async (p: { parent: Record<string, unknown>; lines: LineInput[]; links: LinkInput[] | null; sourceLinks: MoneySourceLinkDraft[] }) => {
     setSaving(true);
     try {
       const newId = await saveMoneyEntry(t as MoneyTable, editing ? id! : null, p.parent, p.lines, p.links);
+      if (p.sourceLinks.length || (editing && (mInit?.sourceLinks.length ?? 0) > 0)) {
+        try {
+          await syncMoneySourceLinksForTarget(t as MoneySourceTable, newId, p.sourceLinks);
+        } catch (linkError) {
+          toast(`Entry saved, but source links could not be updated: ${friendlyError(linkError)}`, 'error');
+          nav(`/r/${t}/${newId}`, { replace: true });
+          return;
+        }
+      }
       if (!editing) rememberLast(t, p.parent, p.lines);
       const ruleId = params.get('from_rule');
       if (ruleId && !editing) {
@@ -209,7 +236,7 @@ export function RecordEdit() {
     }
   };
 
-  const onMoneySubmit = (parent: Record<string, unknown>, lines: LineInput[], links: LinkInput[] | null) => {
+  const onMoneySubmit = (parent: Record<string, unknown>, lines: LineInput[], links: LinkInput[] | null, sourceLinks: MoneySourceLinkDraft[]) => {
     const ruleId = params.get('from_rule');
     if (ruleId && !editing) {
       parent.recurring_rule_id = ruleId;
@@ -222,9 +249,9 @@ export function RecordEdit() {
     if (editing && original) {
       const from = totalOf(t as MoneyTable, original);
       const to = lines.filter((l) => t !== 'transfers' || l.direction === 'out').reduce((s, l) => s + l.amount_paise, 0);
-      if (from !== to) return setMPending({ parent, lines, links, from, to });
+      if (from !== to) return setMPending({ parent, lines, links, sourceLinks, from, to });
     }
-    saveMoney({ parent, lines, links });
+    saveMoney({ parent, lines, links, sourceLinks });
   };
 
   const save = async (values: Record<string, any>) => {
@@ -282,6 +309,8 @@ export function RecordEdit() {
           initialLines={mInit.lines}
           initialLinks={mInit.links}
           initialSplit={mInit.split}
+          initialSourceLinks={mInit.sourceLinks}
+          targetId={editing ? id : undefined}
           saving={saving}
           submitLabel={editing ? 'Save' : 'Add'}
           onSubmit={onMoneySubmit}
