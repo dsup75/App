@@ -31,5 +31,6 @@ jobs:
       - name: Run existing TypeScript check
         run: npm run typecheck
 
-      - name: Run existing production web build
+      - name: Run existing production web build (even if typecheck fails)
+        if: always()
         run: npm run build
