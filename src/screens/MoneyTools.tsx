@@ -7,7 +7,7 @@ import { getMoneySourceJourney, type MoneyJourneyNode as SourceMoneyJourneyNode 
 import { formatINR, parseRupeesToPaise } from '../lib/money';
 import { Card, Empty, Page, SectionTitle, Spinner } from '../components/ui';
 
-interface AuditEntry { id: string; action: string; table_name: string; record_id: string; created_at: string; }
+interface AuditEntry { id: string; field: string; table_name: string; record_id: string; old_value: unknown; new_value: unknown; changed_at: string; }
 interface ReconciliationRow {
   id: string;
   account_id: string;
@@ -35,7 +35,7 @@ export function MoneyTools() {
   useEffect(() => {
     Promise.all([
       getUnallocatedSummary(),
-      supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(20),
+      supabase.from('edit_history').select('id,field,table_name,record_id,old_value,new_value,changed_at').order('changed_at', { ascending: false }).limit(20),
       supabase.from('reconciliations').select('*').order('created_at', { ascending: false }).limit(20),
       supabase.from('incomes').select('id,title,amount_paise,txn_date,account_id').is('deleted_at', null).order('txn_date', { ascending: false }).limit(20),
       fetchBalances(),
@@ -199,10 +199,10 @@ export function MoneyTools() {
               {audit.slice(0, 10).map((item) => (
                 <Card key={item.id} className="p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="text-[14px] font-semibold">{item.action}</div>
-                    <div className="text-[11px] text-muted">{new Date(item.created_at).toLocaleDateString()}</div>
+                    <div className="text-[14px] font-semibold">{item.field} changed</div>
+                    <div className="text-[11px] text-muted">{new Date(item.changed_at).toLocaleDateString()}</div>
                   </div>
-                  <div className="mt-1 text-[12px] text-muted">{item.table_name}</div>
+                  <div className="mt-1 text-[12px] text-muted">{item.table_name} · {item.record_id.slice(0, 8)}</div>
                 </Card>
               ))}
             </div>
