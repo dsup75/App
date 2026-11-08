@@ -37,3 +37,14 @@ These errors were not introduced or fixed in this phase. They are baseline findi
 5. Add optional UI entry points only after the isolated data/service layer is tested.
 6. Stop and request review if an implementation requires changing an existing component's behavior or balance calculation.
 7. Do not merge this branch into `main` without a separate review and explicit approval.
+
+## Follow-up after the original baseline
+
+The original baseline failures were subsequently addressed on this isolated branch without changing money calculations or transaction behavior:
+
+- `sumPaise` now accepts database row arrays while retaining integer-paise summation.
+- Finance query results use explicit narrow row shapes rather than asserting that partial query results contain full records.
+- Dropdown-list reload callbacks now resolve to `void`.
+- A local ambient declaration describes the existing `qrcode` dependency; no runtime dependency was added.
+
+The original failing workflow runs remain historical evidence. The latest branch revision must still pass the same workflow before this baseline is considered green.
