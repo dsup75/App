@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowRightLeft, BadgeDollarSign, CircleDollarSign, Link2, ShieldCheck, Undo2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getMoneyJourney, getUnallocatedSummary, type MoneyJourneyNode as LegacyMoneyJourneyNode, type UnallocatedSummary } from '../lib/moneyTools';
+import { fetchBalances, type Balance } from '../lib/db';
 import { getMoneySourceJourney, type MoneyJourneyNode as SourceMoneyJourneyNode } from '../lib/moneySourceLinks';
-import { formatINR } from '../lib/money';
+import { formatINR, parseRupeesToPaise } from '../lib/money';
 import { Card, Empty, Page, SectionTitle, Spinner } from '../components/ui';
 
 interface AuditEntry { id: string; action: string; table_name: string; record_id: string; created_at: string; }
@@ -23,6 +24,12 @@ export function MoneyTools() {
   const [journey, setJourney] = useState<(LegacyMoneyJourneyNode | SourceMoneyJourneyNode)[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [recons, setRecons] = useState<ReconciliationRow[]>([]);
+  const [balances, setBalances] = useState<Balance[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState('');
+  const [actualBalance, setActualBalance] = useState('');
+  const [reconciliationNote, setReconciliationNote] = useState('');
+  const [reconciliationError, setReconciliationError] = useState('');
+  const [savingReconciliation, setSavingReconciliation] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,11 +38,14 @@ export function MoneyTools() {
       supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(20),
       supabase.from('reconciliations').select('*').order('created_at', { ascending: false }).limit(20),
       supabase.from('incomes').select('id,title,amount_paise,txn_date,account_id').is('deleted_at', null).order('txn_date', { ascending: false }).limit(20),
+      fetchBalances(),
     ])
-      .then(([summaryData, auditRes, reconRes, incomeRes]) => {
+      .then(([summaryData, auditRes, reconRes, incomeRes, balanceRows]) => {
         setSummary(summaryData);
         setAudit((auditRes.data as AuditEntry[]) ?? []);
         setRecons((reconRes.data as ReconciliationRow[]) ?? []);
+        setBalances(balanceRows);
+        setSelectedAccount((current) => current || balanceRows[0]?.id || '');
 
         const firstIncome = (incomeRes.data as any[] | undefined)?.[0];
         if (firstIncome) {
@@ -61,6 +71,40 @@ export function MoneyTools() {
   }, []);
 
   const journeyRows = useMemo(() => journey.slice(0, 6), [journey]);
+  const selectedBalance = balances.find((account) => account.id === selectedAccount);
+  const actualPaise = parseRupeesToPaise(actualBalance);
+  const reconciliationDifference = selectedBalance && actualPaise !== null
+    ? actualPaise - Number(selectedBalance.balance_paise)
+    : null;
+
+  const saveReconciliation = async () => {
+    if (!selectedBalance || actualPaise === null || actualPaise < 0) {
+      setReconciliationError('Choose an account and enter a valid actual balance.');
+      return;
+    }
+    setSavingReconciliation(true);
+    setReconciliationError('');
+    try {
+      const calculated = Number(selectedBalance.balance_paise);
+      const difference = actualPaise - calculated;
+      const { data, error } = await supabase.from('reconciliations').insert({
+        account_id: selectedBalance.id,
+        actual_balance_paise: actualPaise,
+        calculated_balance_paise: calculated,
+        difference_paise: difference,
+        explanation: reconciliationNote.trim() || null,
+        status: difference === 0 ? 'reviewed' : 'needs_review',
+      }).select('*').single();
+      if (error) throw error;
+      setRecons((current) => [data as ReconciliationRow, ...current].slice(0, 20));
+      setActualBalance('');
+      setReconciliationNote('');
+    } catch (error) {
+      setReconciliationError(error instanceof Error ? error.message : 'Could not save reconciliation.');
+    } finally {
+      setSavingReconciliation(false);
+    }
+  };
 
   return (
     <Page title="Money tools" back>
@@ -109,6 +153,25 @@ export function MoneyTools() {
           )}
 
           <SectionTitle>Reconciliation</SectionTitle>
+          <Card className="space-y-3 p-3.5">
+            <p className="text-[12px] text-muted">Compare the balance shown in the app with your bank, UPI or cash balance. This saves a review snapshot only and never changes your account balance.</p>
+            <select className="field" value={selectedAccount} onChange={(event) => setSelectedAccount(event.target.value)}>
+              <option value="">Choose account</option>
+              {balances.map((account) => <option key={account.id} value={account.id}>{account.name} · App {formatINR(account.balance_paise)}</option>)}
+            </select>
+            <input className="field" inputMode="decimal" placeholder="Actual balance (₹)" value={actualBalance} onChange={(event) => setActualBalance(event.target.value)} />
+            <input className="field" placeholder="Reason / note (optional)" value={reconciliationNote} onChange={(event) => setReconciliationNote(event.target.value)} />
+            {reconciliationDifference !== null && (
+              <div className="rounded-xl bg-[var(--card-2)] p-3 text-[13px]">
+                <div className="flex justify-between"><span className="text-muted">Difference</span><strong>{formatINR(reconciliationDifference)}</strong></div>
+                <p className="mt-1 text-[11px] text-muted">{reconciliationDifference === 0 ? 'Balances match.' : 'This difference is recorded for review; no balance adjustment will be posted.'}</p>
+              </div>
+            )}
+            {reconciliationError && <p className="text-[12px] text-danger">{reconciliationError}</p>}
+            <button type="button" className="liquid h-10 w-full rounded-full text-[13px] font-semibold disabled:opacity-50" disabled={savingReconciliation || !selectedBalance || actualPaise === null} onClick={saveReconciliation}>
+              {savingReconciliation ? 'Saving…' : 'Save reconciliation'}
+            </button>
+          </Card>
           {recons.length === 0 ? (
             <Empty title="No reconciliations" text="Record account mismatches and explanations from the account detail view." />
           ) : (
