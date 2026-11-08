@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowRightLeft, BadgeDollarSign, CircleDollarSign, Link2, ShieldCheck, Undo2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getMoneyJourney, getUnallocatedSummary, type MoneyJourneyNode as LegacyMoneyJourneyNode, type UnallocatedSummary } from '../lib/moneyTools';
@@ -20,6 +21,7 @@ interface ReconciliationRow {
 }
 
 export function MoneyTools() {
+  const nav = useNavigate();
   const [summary, setSummary] = useState<UnallocatedSummary | null>(null);
   const [journey, setJourney] = useState<(LegacyMoneyJourneyNode | SourceMoneyJourneyNode)[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
@@ -152,7 +154,7 @@ export function MoneyTools() {
             </div>
           )}
 
-          <SectionTitle>Reconciliation</SectionTitle>
+          <div id="account-reconciliation"><SectionTitle>Reconciliation</SectionTitle></div>
           <Card className="space-y-3 p-3.5">
             <p className="text-[12px] text-muted">Compare the balance shown in the app with your bank, UPI or cash balance. This saves a review snapshot only and never changes your account balance.</p>
             <select className="field" value={selectedAccount} onChange={(event) => setSelectedAccount(event.target.value)}>
@@ -210,18 +212,18 @@ export function MoneyTools() {
 
           <SectionTitle>Quick actions</SectionTitle>
           <div className="grid grid-cols-2 gap-2">
-            <Card className="flex items-center gap-2 p-3">
+            <button type="button" onClick={() => nav('/finance')} className="glass flex items-center gap-2 rounded-2xl p-3 text-left">
               <Link2 size={15} className="text-primary" />
-              <span className="text-[13px] font-semibold">Source links</span>
-            </Card>
-            <Card className="flex items-center gap-2 p-3">
+              <span className="text-[13px] font-semibold">Money records</span>
+            </button>
+            <button type="button" onClick={() => document.getElementById('account-reconciliation')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="glass flex items-center gap-2 rounded-2xl p-3 text-left">
               <ShieldCheck size={15} className="text-primary" />
-              <span className="text-[13px] font-semibold">Reconcile</span>
-            </Card>
-            <Card className="flex items-center gap-2 p-3">
+              <span className="text-[13px] font-semibold">Reconcile account</span>
+            </button>
+            <button type="button" onClick={() => nav('/recycle')} className="glass col-span-2 flex items-center gap-2 rounded-2xl p-3 text-left">
               <Undo2 size={15} className="text-primary" />
-              <span className="text-[13px] font-semibold">Restore reversal</span>
-            </Card>
+              <span className="text-[13px] font-semibold">Open Recycle Bin · Restore deleted records</span>
+            </button>
           </div>
         </>
       )}
