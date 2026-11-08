@@ -41,7 +41,7 @@ export function MoneyTools() {
   useEffect(() => {
     Promise.all([
       getUnallocatedSummary(),
-      supabase.from('edit_history').select('id,field,table_name,record_id,old_value,new_value,changed_at').order('changed_at', { ascending: false }).limit(20),
+      supabase.from('edit_history').select('id,field,table_name,record_id,old_value,new_value,changed_at').in('table_name', ['incomes', 'expenses', 'transfers', 'loans', 'loan_repayments', 'payment_lines']).order('changed_at', { ascending: false }).limit(20),
       supabase.from('reconciliations').select('*').order('created_at', { ascending: false }).limit(20),
       supabase.from('incomes').select('id,title,amount_paise,txn_date').is('deleted_at', null).order('txn_date', { ascending: false }).limit(100),
       supabase.from('expenses').select('id,title,amount_paise,txn_date').is('deleted_at', null).order('txn_date', { ascending: false }).limit(100),
@@ -212,9 +212,11 @@ export function MoneyTools() {
             <div className="space-y-2">
               {recons.slice(0, 5).map((row) => (
                 <Card key={row.id} className="p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="text-[14px] font-semibold">Difference {formatINR(row.difference_paise)}</div>
-                    <span className="text-[11px] text-muted">{row.status}</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="truncate text-[14px] font-semibold">{balances.find((account) => account.id === row.account_id)?.name ?? 'Account'} · {formatINR(row.difference_paise)}</div>
+                    </div>
+                    <span className="shrink-0 text-[11px] text-muted">{row.status}</span>
                   </div>
                   <div className="mt-2 text-[12px] text-muted">
                     Actual: {formatINR(row.actual_balance_paise)} · Calculated: {formatINR(row.calculated_balance_paise)}
