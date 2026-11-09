@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ImagePlus, Wand2, X, Check, PencilLine, Sparkles } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import { friendlyError, saveMoneyEntry, type LineInput } from '../lib/db';
 import { LINE_FIELDS } from '../components/MoneyForm';
+import { callAssistant } from '../lib/ai';
 import { uploadAttachment } from '../components/Attachments';
 import { useAuth } from '../context/AuthContext';
 import { compressImage, fromAI, parseText, type Draft } from '../lib/parse';
@@ -64,18 +64,16 @@ export function SmartAdd() {
     }
     setBusy(true);
     try {
-      const { data, error } = await supabase.functions.invoke('assistant', {
-        body: { mode: 'extract', text, image: { base64: image.base64, mime: image.mime } },
-      });
-      if (error || data?.error) throw new Error(data?.error ?? error?.message ?? 'AI failed');
+      const { data, error } = await callAssistant({ mode: 'extract', text, image: { base64: image.base64, mime: image.mime } });
+      if (error || !data) throw new Error(error ?? 'AI failed');
       const d = fromAI(data.draft);
       setDraft(d);
       setAmount(d.amount_paise ? paiseToInput(d.amount_paise) : '');
     } catch (e) {
       const msg = (e as Error).message;
       setErr(
-        /not found|404|Failed to send|GEMINI/i.test(msg)
-          ? 'Reading screenshots needs the AI setup (README → step 5). Typed text works without it.'
+        /not found|404|Failed to send|GEMINI|reach|setup/i.test(msg)
+          ? 'AI setup pending — reading screenshots needs AI (Settings → AI Assistant). Typed text works without it.'
           : `Could not read the image: ${msg}`,
       );
       if (text.trim()) {

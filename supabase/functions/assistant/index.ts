@@ -58,10 +58,12 @@ async function extract(text: string, image?: { base64: string; mime: string }) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
+    const body = await req.json().catch(() => ({}));
+    // Connection test from Settings → AI Assistant (never calls Gemini, never returns the key)
+    if (body?.mode === 'ping') return Response.json({ ok: true, key: Boolean(KEY), model: MODEL }, { headers: cors });
     if (!KEY) {
       return Response.json({ error: 'GEMINI_API_KEY is not set in Supabase Edge Function secrets.' }, { status: 500, headers: cors });
     }
-    const body = await req.json();
     if (body?.mode === 'extract') {
       if ((body.image?.base64?.length ?? 0) > 4_000_000) return Response.json({ error: 'Image too large.' }, { status: 400, headers: cors });
       const draft = await extract(String(body.text ?? '').slice(0, 3000), body.image);

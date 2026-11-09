@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { pdfMoney, saveFile } from '../lib/exporter';
 import { copyText } from '../lib/upi';
+import { Checklist } from './Checklist';
 import { monthlyCost, subState, yearlyCost, SUB_STATE_LABEL } from '../lib/recurring';
 import type { Row } from '../lib/db';
 import { Badge, Button, Card, HeroCard, KV, List, ListRow, ProgressBar, SectionTitle, Spinner } from './ui';
@@ -62,6 +63,10 @@ export function DetailExtras({ table, row, nameOf, reloadKey }: { table: TableNa
       return <AccountSummary row={row} reloadKey={reloadKey} />;
     case 'recurring_rules':
       return <SubscriptionSummary row={row} reloadKey={reloadKey} />;
+    case 'tasks':
+      return <Checklist parentTable="tasks" parentId={row.id} />;
+    case 'habits':
+      return <Checklist parentTable="habits" parentId={row.id} />;
     default:
       return null;
   }
@@ -516,6 +521,9 @@ function AccountSummary({ row, reloadKey }: { row: Row; reloadKey: number }) {
           </button>
         )}
       </HeroCard>
+      <Button full onClick={() => nav(`/money-tools/reconcile?account=${row.id}`)}>
+        Check balance with bank (reconcile)
+      </Button>
       <SectionTitle right={<span className="text-[12.5px] text-muted">{moves?.length ?? 0} entries</span>}>Statement</SectionTitle>
       {row.opening_date && <p className="-mt-1 px-1 text-[12px] text-muted">Entries before {formatDate(row.opening_date)} are not counted (opening balance date). Change it in Edit.</p>}
       {moves === null ? (

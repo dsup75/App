@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { fetchBalances, fetchMoney, friendlyError, type Balance, type Row } from '../lib/db';
 import { currentMonth, monthLabel, monthRange, shiftMonth, toISODate, todayISO } from '../lib/dates';
 import { useCustomOptions } from '../lib/options';
+import { BankCardCarousel } from '../components/BankCard';
 import { formatINR, sumPaise } from '../lib/money';
 import { ACCOUNT_TYPES, UPI_APPS, optionLabel } from '../lib/tables';
 import { useLookups } from '../lib/useLookups';
@@ -538,6 +539,7 @@ function Accounts() {
         <p className="text-[13px] opacity-80">All accounts</p>
         <p className="mt-1 text-[28px] font-bold tracking-tight">{formatINR(rows.reduce((s, r) => s + Number(r.balance_paise), 0))}</p>
       </HeroCard>
+      <BankCardCarousel rows={rows} />
       {upi.length > 0 && (
         <>
           <SectionTitle>UPI apps</SectionTitle>

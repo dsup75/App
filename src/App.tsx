@@ -31,6 +31,11 @@ import { SmartAdd } from './screens/SmartAdd';
 import { ListsScreen } from './screens/Lists';
 import { BudgetsScreen, RecurringScreen } from './screens/Planning';
 import { SearchScreen } from './screens/Search';
+import { DuplicatesScreen, HistoryScreen, MoneyToolsHub, ReconcileScreen, SourcesScreen } from './screens/MoneyTools';
+import { CalculatorsScreen } from './screens/Calculators';
+import { BackupScreen } from './screens/Backup';
+import { FocusModeScreen } from './screens/FocusMode';
+import { HealthScreen } from './screens/Health';
 import { SetupScreen } from './screens/Setup';
 import { onReminderTap, scheduleReminders } from './lib/reminders';
 import { syncAll } from './lib/sheets';
@@ -142,6 +147,15 @@ function Gate() {
           <Route path="/smart" element={<SmartAdd />} />
           <Route path="/budgets" element={<BudgetsScreen />} />
           <Route path="/search" element={<SearchScreen />} />
+          <Route path="/money-tools" element={<MoneyToolsHub />} />
+          <Route path="/money-tools/sources" element={<SourcesScreen />} />
+          <Route path="/money-tools/reconcile" element={<ReconcileScreen />} />
+          <Route path="/money-tools/history" element={<HistoryScreen />} />
+          <Route path="/money-tools/duplicates" element={<DuplicatesScreen />} />
+          <Route path="/money-tools/calculators" element={<CalculatorsScreen />} />
+          <Route path="/money-tools/backup" element={<BackupScreen />} />
+          <Route path="/focus-mode" element={<FocusModeScreen />} />
+          <Route path="/health" element={<HealthScreen />} />
           <Route path="/setup" element={<SetupScreen />} />
           <Route path="/recurring" element={<RecurringScreen />} />
           <Route path="/lists" element={<ListsScreen />} />

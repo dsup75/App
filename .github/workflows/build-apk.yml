@@ -37,6 +37,12 @@ jobs:
           set -o pipefail
           npm install --no-audit --no-fund --legacy-peer-deps 2>&1 | tee -a build.log
 
+      - name: Type check (report only)
+        continue-on-error: true
+        run: |
+          npx tsc --noEmit > typecheck.txt 2>&1 && echo "TypeScript: OK (no errors)" >> typecheck.txt || echo "TypeScript: errors above" >> typecheck.txt
+          tail -n 40 typecheck.txt
+
       - name: Build web app
         run: |
           set -o pipefail
@@ -44,8 +50,10 @@ jobs:
 
       - name: Create Android project
         run: |
-          npx cap add android
-          npx cap sync android
+          set -o pipefail
+          npx cap add android 2>&1 | tee -a build.log
+          python3 ci/patch-android.py android 2>&1 | tee -a build.log
+          npx cap sync android 2>&1 | tee -a build.log
 
       - name: App icon
         continue-on-error: true
@@ -88,7 +96,9 @@ jobs:
           tag_name: v1.0.${{ github.run_number }}
           name: DeepBoost Life 1.0.${{ github.run_number }}
           body: "Install: download DeepBoost-Life.apk below on your Android phone and open it."
-          files: DeepBoost-Life.apk
+          files: |
+            DeepBoost-Life.apk
+            typecheck.txt
           make_latest: true
 
       - name: Report failure as an issue

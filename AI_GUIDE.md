@@ -48,6 +48,13 @@ There is no package-lock; CI runs `npm install --legacy-peer-deps`, then `vite b
 - `allocations` = income → (expense | loan | transfer) links. Views `income_usage` (spent / lent / moved / left) and `expense_funding`.
 - Safety-net trigger `sync_default_lines` creates lines for rows written without the RPC (old app versions).
 
+### Money sources, journey & tools (Nov 2026, additive)
+- `money_links` (source → target, with `account_id` = the account the money left from). Older `allocations` still work; `all_money_links` view merges both.
+- `source_moves` / `source_positions` views: where each source's money is now, per account. A transfer only carries money linked into it, so nothing is counted twice. Guard trigger `trg_money_link_account` blocks using money that isn't in that account.
+- Save money-out entries with per-row links via RPC `save_money_entry_with_sources` (frontend `saveMoneyEntryWithSources` in `src/lib/moneyTools.ts`). Entries that already have old `allocations` keep the old combined section.
+- `money_journey` / `money_origin` (journey), `reconciliations` + `reconciliation_adjustments` (never change balances), `transaction_history` view, `find_duplicate_candidates`, `entry_reversals` + `reverse_entry` (undo = new opposite entry), `checklist_items`, `ai_connection` (Edge Function URL only — never a key), `import_backup_rows` (backup import, adds missing rows only).
+- Native: `native/focus-guard` (local Capacitor plugin, Java) for focus mode; `@capgo/capacitor-health` for Health Connect. CI runs `ci/patch-android.py` after `cap add android` (minSdk 26 + Health Connect manifest entries).
+
 ## 5. Frontend structure
 - `src/lib/tables.ts` — **registry of every table** (fields, labels, types, defaults, validation). Generic screens use it: `RecordEdit` (form), `RecordDetail` (detail + edit history), `TableList` (list), `RecordLine` (row). Adding a simple module = migration + entry in `TABLES` + `TABLE_ICON` in `RecordLine.tsx` + a route/list screen.
 - `src/components/RecordForm.tsx` — generic form; `MoneyForm.tsx` — money form (purpose card on top, "Payment breakdown" lines below, income links, split).

@@ -5,6 +5,7 @@ import {
   deleteForever, friendlyError, getHistory, getRecord, isMoneyTable, restoreRecord, softDelete, type HistoryRow, type Row,
 } from '../lib/db';
 import { PaymentBreakdown } from '../components/PaymentBreakdown';
+import { ActivityCard, MoneyJourneyCard } from '../components/MoneyInsights';
 import { Attachments } from '../components/Attachments';
 import { nextDate } from '../lib/recurring';
 import { LINE_FIELDS } from '../components/MoneyForm';
@@ -154,6 +155,8 @@ export function RecordDetail() {
       )}
 
       {isMoneyTable(t) && <PaymentBreakdown table={t} id={row.id} nameOf={nameOf} reloadKey={reloadKey} />}
+      {isMoneyTable(t) && <MoneyJourneyCard table={t} id={row.id} reloadKey={reloadKey} />}
+      {isMoneyTable(t) && <ActivityCard key={`${row.id}-${reloadKey}`} table={t} id={row.id} deleted={!!row.deleted_at} />}
 
       {t === 'payment_requests' && <RequestPanel row={row} nameOf={nameOf} onChanged={load} />}
 
