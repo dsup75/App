@@ -115,20 +115,10 @@ final class FocusState {
         } catch (Exception ignored) {
         }
         p.edit().putBoolean("running", false).putLong("pausedAt", 0L).apply();
-        try {
-            c.stopService(new Intent(c, FocusGuardService.class));
-        } catch (Exception ignored) {
-        }
     }
 
     static void showBlockScreen(Context c, String pkg) {
-        try {
-            Intent i = new Intent(c, BlockActivity.class);
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NO_ANIMATION);
-            i.putExtra("pkg", pkg);
-            c.startActivity(i);
-        } catch (Exception ignored) {
-        }
+        // App blocker removed (Play Protect install issues). Kept as a no-op for older callers.
     }
 
     static String labelOf(Context c, String pkg) {

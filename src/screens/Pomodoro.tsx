@@ -392,7 +392,7 @@ export function Pomodoro() {
         <p className="text-[11.5px] text-muted">Turn your phone sideways for the desk timer · screen stays on while running</p>
       </Card>
 
-      <FocusModeCard />
+      {/* app blocker removed (Play Protect) — timer works without it */}
 
       <Card className="space-y-3">
         <div className="flex items-center gap-2">
@@ -480,7 +480,7 @@ function Visual({ img, pct, color, showRing, size, onPick }: { img: string | nul
 }
 
 /** Collapsed by default: "block other apps while focusing" (Android) */
-function FocusModeCard() {
+export function FocusModeCard() {
   const nav = useNavigate();
   const [open, setOpen] = useState(false);
   const [on, setOn] = useState(() => getFocusPrefs().on);

@@ -17,10 +17,11 @@ interface Look {
 }
 
 const LOOKS: { test: RegExp; look: Look }[] = [
-  { test: /india\s*post|ippb/i, look: { from: '#c4161c', to: '#6e0b10', accent: '#f7c600', mark: 'IPPB' } },
-  { test: /\bsbi\b|state bank/i, look: { from: '#2a6fdb', to: '#13336f', accent: '#8fd3ff', mark: 'SBI' } },
-  { test: /fino/i, look: { from: '#0b5fb0', to: '#00807d', accent: '#7ff0e6', mark: 'FINO' } },
-  { test: /gramin|baroda|\bbob\b/i, look: { from: '#f26522', to: '#a4360a', accent: '#ffd2b8', mark: 'BOB' } },
+  // brand colours: IPPB red + gold, SBI blue + sky, Fino blue + red star, Bank of Baroda / Baroda UP orange
+  { test: /india\s*post|ippb/i, look: { from: '#c9252b', to: '#7a1013', accent: '#f0b60e', mark: 'IPPB' } },
+  { test: /\bsbi\b|state bank/i, look: { from: '#22409a', to: '#0f1f52', accent: '#00b5ef', mark: 'SBI' } },
+  { test: /fino/i, look: { from: '#0a4da2', to: '#062c5e', accent: '#ff4d4f', mark: 'FINO' } },
+  { test: /gramin|baroda|\bbob\b|\bupgb\b/i, look: { from: '#f15a22', to: '#9c3108', accent: '#ffe0cc', mark: 'BARODA' } },
   { test: /hdfc/i, look: { from: '#004c8f', to: '#001f42', accent: '#ed232a', mark: 'HDFC' } },
   { test: /icici/i, look: { from: '#b02a30', to: '#6b1418', accent: '#f58220', mark: 'ICICI' } },
   { test: /axis/i, look: { from: '#97144d', to: '#4a0a26', accent: '#f4b6cf', mark: 'AXIS' } },
@@ -31,7 +32,7 @@ const LOOKS: { test: RegExp; look: Look }[] = [
   { test: /airtel/i, look: { from: '#e40000', to: '#7a0000', accent: '#ffffff', mark: 'AIRTEL' } },
   { test: /paytm/i, look: { from: '#00b9f1', to: '#002e6e', accent: '#ffffff', mark: 'Paytm' } },
   { test: /phone\s*pe/i, look: { from: '#6f2dbd', to: '#2f1060', accent: '#d8c2ff', mark: 'PhonePe' } },
-  { test: /g\s*pay|google pay/i, look: { from: '#3c4043', to: '#16181a', accent: '#8ab4f8', mark: 'G Pay' } },
+  { test: /g\s*pay|google pay/i, look: { from: '#1a73e8', to: '#0b3d91', accent: '#ffffff', mark: 'G Pay' } },
   { test: /amazon/i, look: { from: '#37475a', to: '#131a22', accent: '#ff9900', mark: 'amazon pay' } },
   { test: /cash|wallet|purse/i, look: { from: '#2e8b57', to: '#123d27', accent: '#c8f5d8', mark: '₹ CASH' } },
 ];

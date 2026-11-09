@@ -247,6 +247,79 @@
   --blob4: rgba(242, 121, 91, 0.12);
 }
 
+
+/* ---------- DeepBoost Signature: deep space navy, aurora glow, electric indigo → cyan ---------- */
+.dark[data-theme='signature'],
+[data-theme='signature'] {
+  --bg: #05070f;
+  --card: rgba(16, 21, 38, 0.66);
+  --card-2: rgba(255, 255, 255, 0.05);
+  --solid: #0c1120;
+  --text: #eef1ff;
+  --muted: #8a93b2;
+  --hairline: rgba(150, 165, 255, 0.12);
+  --edge: rgba(150, 165, 255, 0.16);
+  --edge-hi: rgba(255, 255, 255, 0.08);
+  --field: rgba(255, 255, 255, 0.05);
+  --nav: rgba(10, 13, 26, 0.8);
+  --sheet: rgba(9, 12, 24, 0.97);
+  --shadow: 0 10px 34px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255, 255, 255, 0.03);
+  --primary: #a5b6ff;
+  --primary-2: #6d7dff;
+  --primary-soft: rgba(109, 125, 255, 0.16);
+  --acc: 109, 125, 255;
+  --acc2: 34, 211, 238;
+  --hero-1: #3b2fd1;
+  --hero-2: #071030;
+  --income: #34d399;
+  --expense: #fb7185;
+  --tone-income: #34d399;
+  --tone-expense: #fb7185;
+  --warn: #fbbf24;
+  --chart-2: #22d3ee;
+  --chart-3: #fbbf24;
+  --chart-4: #a78bfa;
+  --chart-5: #f472b6;
+  --chart-6: #2dd4bf;
+  --chart-7: #fb7185;
+  --blob1: rgba(109, 92, 255, 0.34);
+  --blob2: rgba(34, 211, 238, 0.16);
+  --blob3: rgba(236, 72, 153, 0.12);
+  --blob4: rgba(59, 130, 246, 0.18);
+  --hero-bar: #67e8f9;
+  --logo-1: #6d5bff;
+  --logo-2: #0ea5e9;
+}
+[data-theme='signature'] .glass {
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(140deg, rgba(140, 150, 255, 0.42), rgba(34, 211, 238, 0.08) 40%, rgba(236, 72, 153, 0.28)) border-box;
+  border: 1px solid transparent;
+}
+[data-theme='signature'] .hero {
+  background:
+    radial-gradient(18rem 12rem at 0% 0%, rgba(124, 92, 255, 0.95), transparent 62%),
+    radial-gradient(16rem 12rem at 100% 100%, rgba(14, 165, 233, 0.8), transparent 60%),
+    radial-gradient(12rem 8rem at 85% 0%, rgba(236, 72, 153, 0.45), transparent 70%),
+    linear-gradient(140deg, #1b1650, #071030);
+  box-shadow: 0 18px 44px rgba(76, 61, 255, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+[data-theme='signature'] .liquid-primary {
+  background: linear-gradient(135deg, #6d7dff 0%, #8b5cf6 55%, #22d3ee 140%) !important;
+  border-color: rgba(190, 200, 255, 0.35) !important;
+  box-shadow: 0 8px 24px rgba(109, 92, 255, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+}
+[data-theme='signature'] .app-bg {
+  animation: aurora 18s ease-in-out infinite alternate;
+}
+@keyframes aurora {
+  0% { filter: hue-rotate(0deg) saturate(1); transform: translate3d(0, 0, 0) scale(1); }
+  100% { filter: hue-rotate(-25deg) saturate(1.25); transform: translate3d(0, -2%, 0) scale(1.06); }
+}
+[data-fx='reduced'][data-theme='signature'] .app-bg {
+  animation: none;
+}
+
 /* ---------- Black & White: pure monochrome ---------- */
 [data-theme='mono'] {
   --bg: #ffffff;

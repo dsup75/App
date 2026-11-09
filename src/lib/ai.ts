@@ -109,11 +109,29 @@ export async function testAiConnection(): Promise<{ status: AiStatus; message: s
   const r = await callAssistant<{ ok?: boolean; key?: boolean; answer?: string }>({ mode: 'ping' }, 20000);
   let out: { status: AiStatus; message: string };
   if (r.data?.ok && r.data.key) out = { status: 'connected', message: 'AI Connected ✅' };
-  else if (r.data?.ok && r.data.key === false) out = { status: 'setup_pending', message: 'AI setup pending — add GEMINI_API_KEY in Supabase Secrets.' };
-  else if (r.error && /GEMINI_API_KEY/i.test(r.error)) out = { status: 'setup_pending', message: 'AI setup pending — Secret check karo (GEMINI_API_KEY).' };
+  else if (r.data?.ok && r.data.key === false) out = { status: 'setup_pending', message: 'Add your Gemini API key above, then test again.' };
+  else if (r.error && /api key/i.test(r.error)) out = { status: 'setup_pending', message: 'Add your Gemini API key above, then test again.' };
   else if (r.status === 404 || r.status === 401 || r.status === 403) out = { status: 'not_connected', message: 'AI setup pending — Function URL check karo.' };
   else if (r.data && !r.error) out = { status: 'connected', message: 'AI Connected ✅' };
   else out = { status: 'not_connected', message: `AI setup pending — Function URL check karo / Secret check karo. (${r.error ?? 'no answer'})` };
   recordStatus(out.status).catch(() => {});
   return out;
+}
+
+/* ---------- the user's own Gemini key (stored encrypted in Supabase Vault; the app can never read it back) ---------- */
+export async function aiKeyInfo(): Promise<{ last4: string; updated_at: string } | null> {
+  const { data, error } = await supabase.from('ai_keys').select('last4, updated_at').maybeSingle();
+  if (error || !data) return null;
+  return data as { last4: string; updated_at: string };
+}
+
+export async function saveAiKey(key: string): Promise<string> {
+  const { data, error } = await supabase.rpc('set_ai_key', { p_key: key.trim() });
+  if (error) throw error;
+  return String(data);
+}
+
+export async function removeAiKey(): Promise<void> {
+  const { error } = await supabase.rpc('clear_ai_key');
+  if (error) throw error;
 }

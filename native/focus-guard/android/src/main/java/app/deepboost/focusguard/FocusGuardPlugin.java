@@ -213,10 +213,6 @@ public class FocusGuardPlugin extends Plugin {
             .putLong("pausedAt", 0L)
             .putLong("endsAt", endsAt)
             .apply();
-        try {
-            ContextCompat.startForegroundService(c, new Intent(c, FocusGuardService.class));
-        } catch (Exception ignored) {
-        }
         call.resolve();
     }
 
@@ -271,59 +267,7 @@ public class FocusGuardPlugin extends Plugin {
 
     @PluginMethod
     public void start(PluginCall call) {
-        Context c = getContext();
-        boolean viaAccessibility = FocusState.accessibilityOn(c);
-        if (!viaAccessibility && !(hasUsageAccess(c) && canDrawOverlays(c))) {
-            call.reject("Turn on the DeepBoost Life blocker in Accessibility settings (or Usage access + Display over other apps)");
-            return;
-        }
-        Double endsAtD = call.getDouble("endsAt");
-        long endsAt = endsAtD == null ? 0L : endsAtD.longValue();
-        long now = System.currentTimeMillis();
-        if (endsAt <= now) {
-            call.reject("Focus end time must be in the future");
-            return;
-        }
-        String mode = "allow".equals(call.getString("mode", "block")) ? "allow" : "block";
-        Set<String> list = new HashSet<>();
-        JSArray arr = call.getArray("apps");
-        if (arr == null) arr = call.getArray("allowed");
-        if (arr != null) {
-            for (int i = 0; i < arr.length(); i++) {
-                String p = arr.optString(i, null);
-                if (p != null && !p.isEmpty()) list.add(p);
-            }
-        }
-        if ("block".equals(mode) && list.isEmpty()) {
-            call.reject("Pick at least one app to block");
-            return;
-        }
-        SharedPreferences p = FocusState.prefs(c);
-        if (p.getBoolean("running", false)) FocusState.finish(c, "replaced");
-        SharedPreferences.Editor ed = p.edit();
-        ed.putStringSet("list", list);
-        ed.putString("mode", mode);
-        ed.putLong("endsAt", endsAt);
-        ed.putLong("startedAt", now);
-        ed.putInt("plannedMinutes", (int) Math.round((endsAt - now) / 60000.0));
-        ed.putInt("blockedCount", 0);
-        ed.putLong("pausedAt", 0L);
-        ed.putLong("pausedTotal", 0L);
-        ed.putBoolean("running", true);
-        ed.apply();
-        try {
-            ContextCompat.startForegroundService(c, new Intent(c, FocusGuardService.class));
-        } catch (Exception e) {
-            // the accessibility blocker works without the notification service
-            if (!viaAccessibility) {
-                p.edit().putBoolean("running", false).apply();
-                call.reject("Could not start focus mode: " + e.getMessage());
-                return;
-            }
-        }
-        JSObject r = new JSObject();
-        r.put("method", viaAccessibility ? "accessibility" : "usage_stats");
-        call.resolve(r);
+        call.reject("The app blocker has been removed from DeepBoost Life. The focus timer still works.");
     }
 
     @PluginMethod

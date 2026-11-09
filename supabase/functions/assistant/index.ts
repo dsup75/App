@@ -1,17 +1,37 @@
 // DeepBoost Life — AI assistant (Supabase Edge Function, Deno)
 //
-// Setup (one time, from the Supabase dashboard on your phone):
-//   1. Edge Functions → Deploy a new function → "Via Editor" → name it: assistant
-//   2. Paste this whole file → Deploy.
-//   3. Edge Functions → Secrets → add GEMINI_API_KEY (free key from aistudio.google.com).
-//      Optional: GEMINI_MODEL (default below).
+// Key: each user pastes their Gemini key in the app (Settings → AI Assistant). It is stored encrypted
+// in Supabase Vault and read here with the service role. A project-wide GEMINI_API_KEY secret, if set,
+// is used instead. Optional secret: GEMINI_MODEL (default below).
 //
 // The app sends the signed-in user's own data summary (already filtered by
 // Row Level Security). The key never reaches the phone. The assistant only
 // answers — it never changes data.
 
 const MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.5-flash';
-const KEY = Deno.env.get('GEMINI_API_KEY');
+const ENV_KEY = Deno.env.get('GEMINI_API_KEY');
+const SB_URL = Deno.env.get('SUPABASE_URL') ?? '';
+const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+/** The key the signed-in user saved in the app (encrypted in Vault), or the project secret. Never sent back. */
+async function keyFor(req: Request): Promise<string | null> {
+  if (ENV_KEY) return ENV_KEY;
+  const auth = req.headers.get('authorization') ?? '';
+  if (!auth.startsWith('Bearer ') || !SB_URL || !SERVICE) return null;
+  const u = await fetch(`${SB_URL}/auth/v1/user`, { headers: { authorization: auth, apikey: SERVICE } });
+  if (!u.ok) return null;
+  const user = await u.json();
+  if (!user?.id) return null;
+  const r = await fetch(`${SB_URL}/rest/v1/rpc/ai_key_for_user`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: SERVICE, authorization: `Bearer ${SERVICE}` },
+    body: JSON.stringify({ p_user: user.id }),
+  });
+  if (!r.ok) return null;
+  const k = await r.json();
+  return typeof k === 'string' && k.length > 10 ? k : null;
+}
+
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -36,7 +56,7 @@ Return ONLY JSON with these keys:
 Rules: use only what is visible or written; never guess an amount; if a value is missing use null.
 "Paid to"/"Sent"/"Debited" = expense. "Received from"/"Credited" = income. title = short purpose or the other party.`;
 
-async function extract(text: string, image?: { base64: string; mime: string }) {
+async function extract(KEY: string, text: string, image?: { base64: string; mime: string }) {
   const parts: unknown[] = [];
   if (image?.base64) parts.push({ inline_data: { mime_type: image.mime || 'image/jpeg', data: image.base64 } });
   parts.push({ text: `Today is ${new Date().toISOString().slice(0, 10)}.\n${text || '(see image)'}` });
@@ -60,13 +80,14 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     // Connection test from Settings → AI Assistant (never calls Gemini, never returns the key)
+    const KEY = await keyFor(req);
     if (body?.mode === 'ping') return Response.json({ ok: true, key: Boolean(KEY), model: MODEL }, { headers: cors });
     if (!KEY) {
-      return Response.json({ error: 'GEMINI_API_KEY is not set in Supabase Edge Function secrets.' }, { status: 500, headers: cors });
+      return Response.json({ error: 'No Gemini API key yet. Add it in Settings → AI Assistant.' }, { status: 400, headers: cors });
     }
     if (body?.mode === 'extract') {
       if ((body.image?.base64?.length ?? 0) > 4_000_000) return Response.json({ error: 'Image too large.' }, { status: 400, headers: cors });
-      const draft = await extract(String(body.text ?? '').slice(0, 3000), body.image);
+      const draft = await extract(KEY, String(body.text ?? '').slice(0, 3000), body.image);
       return Response.json({ draft }, { headers: cors });
     }
     const { question, context, history } = body;

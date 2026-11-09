@@ -122,6 +122,8 @@ export function setFocusPrefs(p: FocusPrefs) {
 
 /** Starts blocking until endsAt if focus mode is switched on. Returns a message when it could not start. */
 export async function startFocusGuard(endsAt: number, force = false): Promise<string | null> {
+  // App blocker removed (Play Protect blocks installs that use it). The timer works without it.
+  if (endsAt > 0 || force) return null;
   const p = getFocusPrefs();
   if (!p.on && !force) return null;
   if (!focusSupported()) return 'Focus mode works in the Android app only.';

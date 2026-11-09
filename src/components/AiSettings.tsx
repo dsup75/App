@@ -1,7 +1,10 @@
-// Settings → AI Assistant: paste the Edge Function URL (like the Apps Script URL), test it, change or disconnect.
+// Settings → AI Assistant: paste your Gemini API key here. It is saved encrypted on the server (Supabase Vault)
+// and only the AI function can use it — the app never reads it back, it is not kept on the phone or in GitHub.
 import { useEffect, useState } from 'react';
-import { Bot, Link2, PlugZap, Unplug } from 'lucide-react';
-import { DEFAULT_AI_URL, disconnectAi, loadAiConnection, looksLikeFunctionUrl, saveAiUrl, testAiConnection, type AiStatus } from '../lib/ai';
+import { Bot, Eye, EyeOff, KeyRound, PlugZap, Trash2, ExternalLink } from 'lucide-react';
+import {
+  DEFAULT_AI_URL, aiKeyInfo, disconnectAi, loadAiConnection, looksLikeFunctionUrl, removeAiKey, saveAiKey, saveAiUrl, testAiConnection, type AiStatus,
+} from '../lib/ai';
 import { friendlyError } from '../lib/db';
 import { useToast } from '../context/ToastContext';
 import { Badge, Button, Card, FormRow, SectionTitle } from './ui';
@@ -11,38 +14,22 @@ const TONE: Record<AiStatus, 'primary' | 'danger' | 'amber'> = { connected: 'pri
 
 export function AiSettings() {
   const toast = useToast();
-  const [saved, setSaved] = useState('');
-  const [url, setUrl] = useState('');
-  const [editing, setEditing] = useState(false);
+  const [key, setKey] = useState('');
+  const [show, setShow] = useState(false);
+  const [info, setInfo] = useState<{ last4: string; updated_at: string } | null>(null);
   const [status, setStatus] = useState<AiStatus>('setup_pending');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState('');
+  const [adv, setAdv] = useState(false);
+  const [url, setUrl] = useState('');
 
   useEffect(() => {
+    aiKeyInfo().then(setInfo);
     loadAiConnection().then((c) => {
-      setSaved(c.url);
       setUrl(c.url);
-      setEditing(!c.url);
-      setStatus(c.status ?? (c.url ? 'setup_pending' : 'not_connected'));
+      if (c.status) setStatus(c.status);
     });
   }, []);
-
-  const save = async () => {
-    const err = looksLikeFunctionUrl(url);
-    if (err) return toast(err, 'error');
-    setBusy('save');
-    try {
-      await saveAiUrl(url);
-      setSaved(url.trim());
-      setEditing(false);
-      toast('AI URL saved');
-      await test();
-    } catch (e) {
-      toast(friendlyError(e), 'error');
-    } finally {
-      setBusy('');
-    }
-  };
 
   const test = async () => {
     setBusy('test');
@@ -52,72 +39,124 @@ export function AiSettings() {
     setBusy('');
   };
 
-  const disconnect = async () => {
-    setBusy('off');
+  const save = async () => {
+    if (!key.trim()) return toast('Paste your Gemini API key first', 'error');
+    setBusy('save');
     try {
-      await disconnectAi();
-    } catch {
-      /* ignore */
+      const last4 = await saveAiKey(key);
+      setKey('');
+      setShow(false);
+      setInfo({ last4, updated_at: new Date().toISOString() });
+      toast('API key saved securely');
+      // make sure the app uses this project's AI function
+      if (!url && DEFAULT_AI_URL) await saveAiUrl(DEFAULT_AI_URL).catch(() => {});
+      await test();
+    } catch (e) {
+      toast(friendlyError(e), 'error');
+    } finally {
+      setBusy('');
     }
-    setSaved('');
-    setUrl('');
-    setEditing(true);
-    setStatus('not_connected');
-    setMsg('Disconnected. Typed Smart Add and quick answers still work.');
-    setBusy('');
+  };
+
+  const remove = async () => {
+    setBusy('remove');
+    try {
+      await removeAiKey();
+      setInfo(null);
+      setStatus('setup_pending');
+      setMsg('Key removed. Typed Smart Add and quick answers still work without AI.');
+    } catch (e) {
+      toast(friendlyError(e), 'error');
+    } finally {
+      setBusy('');
+    }
   };
 
   return (
     <>
-      <SectionTitle>AI Assistant setup</SectionTitle>
+      <SectionTitle>AI Assistant</SectionTitle>
       <Card className="space-y-3">
         <div className="flex items-center gap-2">
           <Bot size={17} className="text-primary" />
-          <p className="min-w-0 flex-1 text-[14.5px] font-semibold">AI connection</p>
+          <p className="min-w-0 flex-1 text-[14.5px] font-semibold">Gemini AI</p>
           <Badge tone={TONE[status]}>{LABEL[status]}</Badge>
         </div>
-        {editing ? (
-          <>
-            <FormRow label="AI Connection URL (Edge Function)">
-              <input
-                className="field"
-                inputMode="url"
-                placeholder={DEFAULT_AI_URL || 'https://xxxx.supabase.co/functions/v1/assistant'}
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-              />
-            </FormRow>
-            <div className="grid grid-cols-2 gap-2">
-              {DEFAULT_AI_URL && !url && (
-                <Button full onClick={() => setUrl(DEFAULT_AI_URL)}>
-                  <Link2 size={14} /> Use my project
-                </Button>
-              )}
-              <Button full variant="primary" loading={busy === 'save'} onClick={save} className={DEFAULT_AI_URL && !url ? '' : 'col-span-2'}>
-                Save
-              </Button>
-            </div>
-          </>
-        ) : (
-          <>
-            <p className="break-all rounded-[12px] p-2.5 text-[12.5px]" style={{ background: 'var(--card-2)' }}>
-              {saved}
-            </p>
-            <Button full variant="primary" loading={busy === 'test'} onClick={test}>
-              <PlugZap size={15} /> Test AI Connection
+
+        {info && (
+          <div className="flex items-center gap-2 rounded-[12px] p-2.5 text-[13px]" style={{ background: 'var(--card-2)' }}>
+            <KeyRound size={15} className="text-primary" />
+            <span className="min-w-0 flex-1">
+              Key saved · ending <b>{info.last4}</b>
+            </span>
+            <Button size="sm" loading={busy === 'remove'} onClick={remove}>
+              <Trash2 size={13} /> Remove
             </Button>
+          </div>
+        )}
+
+        <FormRow label={info ? 'Replace API key' : 'Gemini API key'}>
+          <div className="relative">
+            <input
+              className="field pr-11"
+              type={show ? 'text' : 'password'}
+              autoComplete="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              placeholder="AIza…"
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+            />
+            <button type="button" aria-label={show ? 'Hide key' : 'Show key'} onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted">
+              {show ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        </FormRow>
+        <div className="grid grid-cols-2 gap-2">
+          <Button full variant="primary" loading={busy === 'save'} onClick={save}>
+            <KeyRound size={14} /> Save key
+          </Button>
+          <Button full loading={busy === 'test'} onClick={test}>
+            <PlugZap size={14} /> Test AI
+          </Button>
+        </div>
+        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-[12.5px] font-semibold text-primary">
+          <ExternalLink size={13} /> Get a free key from Google AI Studio
+        </a>
+        {msg && <p className={status === 'connected' ? 'text-[13px] font-semibold text-income' : 'text-[13px] text-danger'}>{msg}</p>}
+        <p className="text-[11.5px] text-muted">
+          Your key is saved encrypted on your DeepBoost server (Supabase Vault). The app can't read it back — only the last 4 letters are shown — and it is never stored on the phone or in GitHub.
+        </p>
+
+        <button type="button" className="text-[12px] text-muted underline" onClick={() => setAdv(!adv)}>
+          {adv ? 'Hide advanced' : 'Advanced (AI function URL)'}
+        </button>
+        {adv && (
+          <div className="space-y-2">
+            <input className="field" inputMode="url" placeholder={DEFAULT_AI_URL} value={url} onChange={(e) => setUrl(e.target.value)} />
             <div className="grid grid-cols-2 gap-2">
-              <Button full onClick={() => setEditing(true)}>
-                Change URL
+              <Button
+                size="sm"
+                onClick={async () => {
+                  const err = looksLikeFunctionUrl(url);
+                  if (err) return toast(err, 'error');
+                  await saveAiUrl(url).then(() => toast('URL saved')).catch((e) => toast(friendlyError(e), 'error'));
+                }}
+              >
+                Save URL
               </Button>
-              <Button full loading={busy === 'off'} onClick={disconnect}>
-                <Unplug size={14} /> Disconnect AI
+              <Button
+                size="sm"
+                onClick={async () => {
+                  await disconnectAi().catch(() => {});
+                  setUrl('');
+                  toast('Using the default AI function');
+                }}
+              >
+                Use default
               </Button>
             </div>
-          </>
+          </div>
         )}
-        {msg && <p className={status === 'connected' ? 'text-[13px] font-semibold text-income' : 'text-[13px] text-danger'}>{msg}</p>}
-        <p className="text-[11.5px] text-muted">API Key Supabase Secrets me daalni hai, app me nahi. (Supabase → Edge Functions → Secrets → GEMINI_API_KEY)</p>
       </Card>
     </>
   );
