@@ -14,7 +14,8 @@ import type { Account, LineInput, LinkInput, MoneyTable } from '../lib/db';
 import { RecordForm } from './RecordForm';
 import { LinksSection, SplitSection, linksToDb, splitToDb, type LinkRow, type SplitRow } from './MoneyExtras';
 import { FormRow, cx } from './ui';
-import { MoneySourceLinkSection, type MoneySourceLinkDraft } from './MoneySourceLinkSection';
+import { RowSourceLinks, type RowLinkState } from './RowSourceLinks';
+import { ROW_LINK_TABLES, type RowLinkInput } from '../lib/moneyTools';
 
 /** Fields that live in the payment lines instead of the purpose card */
 export const LINE_FIELDS: Record<MoneyTable, string[]> = {
@@ -36,6 +37,8 @@ export interface LineState {
   reference: string;
   party_name: string;
   notes: string;
+  /** money sources linked to this money-out row (optional) */
+  links?: RowLinkState[];
 }
 
 const nowTime = () => {
@@ -100,32 +103,29 @@ export function MoneyForm({
   initialLines,
   initialLinks,
   initialSplit,
-  initialSourceLinks,
-  targetId,
   submitLabel,
   saving,
   onSubmit,
+  ownRowLinks,
 }: {
   table: MoneyTable;
   initial: Record<string, string>;
   initialLines: LineState[];
   initialLinks: LinkRow[];
   initialSplit: SplitRow[];
-  initialSourceLinks: MoneySourceLinkDraft[];
-  targetId?: string;
   submitLabel: string;
   saving?: boolean;
-  onSubmit: (parent: Record<string, unknown>, lines: LineInput[], links: LinkInput[] | null, sourceLinks: MoneySourceLinkDraft[]) => void;
+  onSubmit: (parent: Record<string, unknown>, lines: LineInput[], links: LinkInput[] | null, rowLinks?: RowLinkInput[] | null) => void;
+  /** per-row links this entry already holds, key "table:id@account" → paise (editing) */
+  ownRowLinks?: Map<string, number>;
 }) {
   const { accounts, refs } = useLookups();
   const [form, setForm] = useState(initial);
   const [lines, setLines] = useState<LineState[]>(initialLines);
   const [links, setLinks] = useState<LinkRow[]>(initialLinks);
   const [split, setSplit] = useState<SplitRow[]>(initialSplit);
-  const [sourceLinks, setSourceLinks] = useState<MoneySourceLinkDraft[]>(initialSourceLinks);
   const [splitOn, setSplitOn] = useState(initialSplit.length > 0);
   const [contacts, setContacts] = useState<{ id: string; name: string; role: string | null }[]>([]);
-  const [duplicateMatches, setDuplicateMatches] = useState<{ lineIndex: number; title: string; txn_date: string; sameReference: boolean }[]>([]);
 
   // Which way money moves for this entry
   const loanDir = table === 'loans' ? form.direction : table === 'loan_repayments' ? refs.loans?.find((l) => l.id === form.loan_id)?.direction : undefined;
@@ -173,47 +173,37 @@ export function MoneyForm({
     return table === 'transfers' ? s('out') : s('in') + s('out');
   }, [lines, table]);
 
-
-  // Review-only duplicate detection. Exact UTR matches are strong signals;
-  // amount/date/account matches without a UTR are shown as possible duplicates.
-  useEffect(() => {
-    let live = true;
-    const timer = window.setTimeout(async () => {
-      try {
-        const checks = await Promise.all(lines.map(async (line, lineIndex) => {
-          const amountPaise = parseRupeesToPaise(line.amount);
-          if (!line.account_id || !line.txn_date || !amountPaise || amountPaise <= 0) return [];
-          let query = supabase
-            .from('account_movements')
-            .select('parent_id,parent_table,title,reference,txn_date')
-            .eq('account_id', line.account_id)
-            .eq('amount_paise', amountPaise)
-            .eq('txn_date', line.txn_date);
-          const reference = line.reference.trim();
-          if (reference) query = query.eq('reference', reference);
-          const { data, error } = await query.limit(4);
-          if (error) return [];
-          return ((data ?? []) as any[])
-            .filter((row) => !targetId || row.parent_id !== targetId)
-            .map((row) => ({
-              lineIndex,
-              title: row.title || row.parent_table || 'Existing transaction',
-              txn_date: row.txn_date,
-              sameReference: !!reference && row.reference === reference,
-            }));
-        }));
-        if (live) setDuplicateMatches(checks.flat());
-      } catch {
-        if (live) setDuplicateMatches([]);
-      }
-    }, 350);
-    return () => {
-      live = false;
-      window.clearTimeout(timer);
-    };
-  }, [lines, targetId]);
-
   const linkable = table === 'expenses' || table === 'transfers' || (table === 'loans' && loanDir !== 'borrowed');
+  // Older entries linked the whole entry to incomes; they keep that section. New entries link per payment row.
+  const legacyLinks = initialLinks.length > 0;
+  const rowLinkable = !legacyLinks && ROW_LINK_TABLES.includes(table);
+  const [ownLinks] = useState(() => ownRowLinks ?? new Map<string, number>());
+  const rowLinksOf = (): RowLinkInput[] | string => {
+    const m = new Map<string, RowLinkInput>();
+    const perAccount = new Map<string, { linked: number; rows: number }>();
+    for (const l of lines) {
+      if (l.direction !== 'out' || !l.account_id) continue;
+      const pa = perAccount.get(l.account_id) ?? { linked: 0, rows: 0 };
+      pa.rows += parseRupeesToPaise(l.amount) ?? 0;
+      for (const k of l.links ?? []) {
+        if (!k.source_id && !k.amount.trim()) continue;
+        const amt = parseRupeesToPaise(k.amount);
+        if (!k.source_id || !amt || amt <= 0) return 'Each linked money source needs an amount.';
+        pa.linked += amt;
+        const key = `${k.source_table}:${k.source_id}@${l.account_id}`;
+        const prev = m.get(key);
+        m.set(key, { source_table: k.source_table, source_id: k.source_id, account_id: l.account_id, amount_paise: (prev?.amount_paise ?? 0) + amt });
+      }
+      perAccount.set(l.account_id, pa);
+    }
+    for (const [acc, v] of perAccount) {
+      if (v.linked > v.rows) {
+        const name = accounts.find((a) => a.id === acc)?.name ?? 'an account';
+        return `Linked money (${formatINR(v.linked)}) is more than what is paid from ${name} (${formatINR(v.rows)}).`;
+      }
+    }
+    return [...m.values()];
+  };
 
   const validateExtra = () => {
     const ls = linesToDb(lines);
@@ -228,12 +218,14 @@ export function MoneyForm({
       const interest = parseRupeesToPaise(form.interest_paise || '0') ?? 0;
       if (interest > total) return 'Interest part cannot be more than the total paid.';
     }
-    if (linkable) {
+    if (linkable && legacyLinks) {
       const lk = linksToDb(links, total);
       if (typeof lk === 'string') return lk;
     }
-    const sourceTotal = sourceLinks.reduce((sum, link) => sum + link.amount_paise, 0);
-    if (sourceTotal > total) return 'Linked money sources cannot exceed this transaction amount.';
+    if (rowLinkable) {
+      const rl = rowLinksOf();
+      if (typeof rl === 'string') return rl;
+    }
     if (table === 'expenses') {
       const sp = splitToDb(split, splitOn, total);
       if (typeof sp === 'string') return sp;
@@ -243,10 +235,10 @@ export function MoneyForm({
 
   const submit = (values: Record<string, unknown>) => {
     const ls = linesToDb(lines) as LineInput[];
-    const lk = linkable ? (linksToDb(links, total) as LinkInput[]) : null;
+    const lk = linkable && legacyLinks ? (linksToDb(links, total) as LinkInput[]) : null;
     const parent = { ...values };
     if (table === 'expenses') parent.split_with = splitToDb(split, splitOn, total);
-    onSubmit(parent, ls, lk, sourceLinks);
+    onSubmit(parent, ls, lk, rowLinkable ? (rowLinksOf() as RowLinkInput[]) : null);
   };
 
   const groups: { direction: 'in' | 'out'; title: string }[] =
@@ -284,17 +276,28 @@ export function MoneyForm({
                   <span className="text-[13px] font-semibold">{formatINR(sub)}</span>
                 </div>
                 {mine.map(({ l, i }, n) => (
-                  <LineCard
-                    key={i}
-                    index={n}
-                    line={l}
-                    accounts={accounts}
-                    partyLabel={partyLabel}
-                    contacts={g.direction === 'in' && table === 'incomes' ? contacts : []}
-                    canRemove={mine.length > 1}
-                    onChange={(patch) => setLines((ls) => ls.map((x, j) => (j === i ? { ...x, ...patch } : x)))}
-                    onRemove={() => setLines((ls) => ls.filter((_, j) => j !== i))}
-                  />
+                  <div key={i} className="space-y-2">
+                    <LineCard
+                      index={n}
+                      line={l}
+                      accounts={accounts}
+                      partyLabel={partyLabel}
+                      contacts={g.direction === 'in' && table === 'incomes' ? contacts : []}
+                      canRemove={mine.length > 1}
+                      onChange={(patch) => setLines((ls) => ls.map((x, j) => (j === i ? { ...x, ...patch, ...(patch.account_id && patch.account_id !== x.account_id ? { links: [] } : {}) } : x)))}
+                      onRemove={() => setLines((ls) => ls.filter((_, j) => j !== i))}
+                    />
+                    {rowLinkable && l.direction === 'out' && l.account_id && (
+                      <RowSourceLinks
+                        accountId={l.account_id}
+                        accountName={accounts.find((a) => a.id === l.account_id)?.name ?? 'this account'}
+                        rowAmount={parseRupeesToPaise(l.amount) ?? 0}
+                        links={l.links ?? []}
+                        own={ownLinks}
+                        onChange={(next) => setLines((ls) => ls.map((x, j) => (j === i ? { ...x, links: next } : x)))}
+                      />
+                    )}
+                  </div>
                 ))}
                 <button
                   className="liquid flex h-9 w-full items-center justify-center gap-1.5 rounded-full text-[13px] font-semibold"
@@ -310,7 +313,7 @@ export function MoneyForm({
               </div>
             );
           })}
-          {linkable && (
+          {linkable && legacyLinks && (
             <LinksSection
               title={table === 'transfers' ? 'Moving money of which income?' : 'Paid out of which income?'}
               hint="Link one or more incomes (optional)"
@@ -318,21 +321,6 @@ export function MoneyForm({
               setLinks={setLinks}
               total={total}
             />
-          )}
-          <MoneySourceLinkSection targetTable={table} targetId={targetId} total={total} links={sourceLinks} setLinks={setSourceLinks} />
-          {duplicateMatches.length > 0 && (
-            <div className="rounded-[16px] border border-amber-500/30 bg-amber-500/10 p-3">
-              <p className="text-[13px] font-semibold text-amber-700">Possible duplicate transaction</p>
-              <p className="mt-1 text-[11.5px] text-muted">Review these existing entries before saving. Nothing is blocked automatically, because a same-amount payment can be legitimate.</p>
-              <div className="mt-2 space-y-1.5">
-                {duplicateMatches.slice(0, 4).map((match, index) => (
-                  <div key={match.lineIndex + ':' + index} className="flex items-center justify-between gap-2 text-[12px]">
-                    <span className="min-w-0 truncate">{match.title} · {match.txn_date}</span>
-                    <span className="shrink-0 font-semibold">{match.sameReference ? 'UTR match' : 'Amount match'}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
           )}
           {table === 'expenses' && <SplitSection on={splitOn} setOn={setSplitOn} split={split} setSplit={setSplit} total={total} />}
         </>

@@ -7,6 +7,9 @@ import { createRecord, friendlyError } from '../lib/db';
 import { todayISO } from '../lib/dates';
 import { compressImage } from '../lib/parse';
 import { askPermission } from '../lib/reminders';
+import { getFocusPrefs, setFocusPrefs, startFocusGuard, stopFocusGuard } from '../lib/focusGuard';
+import { useNavigate } from 'react-router-dom';
+import { ShieldBan, ChevronDown } from 'lucide-react';
 import { useLookups } from '../lib/useLookups';
 import { useToast } from '../context/ToastContext';
 import { useLock } from '../context/LockContext';
@@ -203,9 +206,11 @@ export function Pomodoro() {
     const endsAt = Date.now() + s.remainingMs;
     setS((x) => ({ ...x, endsAt, startedAt: x.phase === 'focus' ? Date.now() : null }));
     scheduleEnd(endsAt, s.phase);
+    if (s.phase === 'focus') startFocusGuard(endsAt).then((m) => m && toast(m, 'error'));
   };
   const pause = () => {
     cancelEnd();
+    stopFocusGuard();
     setS((x) => ({
       ...x,
       endsAt: null,
@@ -217,11 +222,13 @@ export function Pomodoro() {
   /** Back to the full time of this phase (nothing is saved) — works while running too */
   const reset = () => {
     cancelEnd();
+    stopFocusGuard();
     setS((x) => ({ ...x, endsAt: null, remainingMs: x.durations[x.phase] * 60000, focusedMs: 0, startedAt: null }));
   };
   /** Stop and save the real focus minutes */
   const stop = async () => {
     cancelEnd();
+    stopFocusGuard();
     if (s.phase === 'focus') await saveSession(s.focusedMs + (s.startedAt ? Date.now() - s.startedAt : 0));
     setS((x) => ({ ...x, phase: 'focus', endsAt: null, remainingMs: x.durations.focus * 60000, startedAt: null, focusedMs: 0 }));
   };
@@ -374,6 +381,8 @@ export function Pomodoro() {
         <p className="text-[11.5px] text-muted">Turn your phone sideways for the desk timer · screen stays on while running</p>
       </Card>
 
+      <FocusModeCard />
+
       <Card className="space-y-3">
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={choose}>
@@ -456,5 +465,41 @@ function Visual({ img, pct, color, showRing, size, onPick }: { img: string | nul
         )}
       </button>
     </div>
+  );
+}
+
+/** Collapsed by default: "block other apps while focusing" (Android) */
+function FocusModeCard() {
+  const nav = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [on, setOn] = useState(() => getFocusPrefs().on);
+  return (
+    <Card className="space-y-2">
+      <button type="button" onClick={() => setOpen((v) => !v)} className="flex w-full items-center gap-2 text-left">
+        <ShieldBan size={16} className="text-primary" />
+        <span className="min-w-0 flex-1 text-[14px] font-semibold">Distraction-free focus mode</span>
+        <span className="text-[12px] text-muted">{on ? 'On' : 'Off'}</span>
+        <ChevronDown size={15} className={cx('text-muted transition-transform', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <>
+          <label className="flex items-center gap-2 text-[13.5px]">
+            <input
+              type="checkbox"
+              checked={on}
+              onChange={(e) => {
+                setOn(e.target.checked);
+                setFocusPrefs({ ...getFocusPrefs(), on: e.target.checked });
+              }}
+            />
+            Block other apps during Focus (not during breaks)
+          </label>
+          <Button size="sm" onClick={() => nav('/focus-mode')}>
+            Permissions & allowed apps
+          </Button>
+          <p className="text-[11.5px] text-muted">Android app only. Phone, settings and keyboard are never blocked.</p>
+        </>
+      )}
+    </Card>
   );
 }

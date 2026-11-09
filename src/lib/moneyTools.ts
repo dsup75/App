@@ -1,107 +1,214 @@
+// Money Tools data layer (additive): source positions, per-row links, journey,
+// duplicates, reversal, reconciliation, history.
 import { supabase } from './supabase';
+import type { LineInput, MoneyTable } from './db';
+import { invalidateLookups } from './useLookups';
+import { invalidateUsage } from './useUsage';
 
-export interface MoneyLinkRow {
-  id: string;
-  source_table: string;
+export type SourceTable = 'incomes' | 'transfers' | 'loans' | 'loan_repayments';
+
+export interface SourcePosition {
+  source_table: SourceTable;
   source_id: string;
-  target_table: string;
-  target_id: string;
-  relation_type: string;
-  amount_paise: number;
-  note?: string | null;
-  created_at?: string;
+  account_id: string;
+  title: string;
+  via_title: string | null;
+  source_date: string | null;
+  received_paise: number;
+  moved_out_paise: number;
+  spent_paise: number;
+  available_paise: number;
 }
 
-export interface MoneyJourneyNode {
+/** Row-level link as saved: money from a source, taken out of one account */
+export interface RowLinkInput {
+  source_table: SourceTable;
+  source_id: string;
+  account_id: string;
+  amount_paise: number;
+}
+
+/** Tables whose money-out rows can be linked to a source */
+export const ROW_LINK_TABLES: MoneyTable[] = ['expenses', 'transfers', 'loans', 'loan_repayments'];
+
+export const sourceKey = (t: string, id: string) => `${t}:${id}`;
+
+function num(v: unknown) {
+  return Number(v) || 0;
+}
+
+/** Where every source's money is right now, per account. Amounts are capped by what the source still has overall. */
+export async function fetchSourcePositions(): Promise<SourcePosition[]> {
+  const [p, s] = await Promise.all([
+    supabase.from('source_positions').select('*').limit(5000),
+    supabase.from('money_source_status').select('source_table,source_id,remaining_paise').limit(5000),
+  ]);
+  if (p.error) throw p.error;
+  const remaining = new Map(((s.data as any[]) ?? []).map((x) => [sourceKey(x.source_table, x.source_id), num(x.remaining_paise)]));
+  return ((p.data as any[]) ?? []).map((x) => {
+    const left = remaining.get(sourceKey(x.source_table, x.source_id));
+    return {
+      ...x,
+      received_paise: num(x.received_paise),
+      moved_out_paise: num(x.moved_out_paise),
+      spent_paise: num(x.spent_paise),
+      // never offer more than the source has left in total (covers older links without an account)
+      available_paise: Math.max(0, Math.min(num(x.available_paise), left ?? num(x.available_paise))),
+    } as SourcePosition;
+  });
+}
+
+/** Links already saved on an entry (new per-row links only) */
+export async function getRowLinks(table: MoneyTable, id: string): Promise<(RowLinkInput & { id: string })[]> {
+  const { data, error } = await supabase
+    .from('money_links')
+    .select('id,source_table,source_id,account_id,amount_paise')
+    .eq('target_table', table)
+    .eq('target_id', id)
+    .is('deleted_at', null);
+  if (error) throw error;
+  return ((data as any[]) ?? []).map((x) => ({ ...x, amount_paise: num(x.amount_paise) }));
+}
+
+/** Saves the entry, its payment lines and its per-row source links in one transaction */
+export async function saveMoneyEntryWithSources(
+  table: MoneyTable,
+  id: string | null,
+  parent: Record<string, unknown>,
+  lines: LineInput[],
+  rowLinks: RowLinkInput[] | null,
+): Promise<string> {
+  invalidateLookups();
+  invalidateUsage();
+  const { data, error } = await supabase.rpc('save_money_entry_with_sources', {
+    p_table: table,
+    p_id: id,
+    p_parent: parent,
+    p_lines: lines,
+    p_row_links: rowLinks,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+export interface DuplicateCandidate {
   id: string;
-  table: string;
+  kind: 'incomes' | 'expenses' | 'transfers';
   title: string;
   amount_paise: number;
-  account_id: string | null;
-  txn_date: string | null;
-  sourceRelation?: string;
+  txn_date: string;
+  reasons: string[];
+  score: number;
 }
 
-export interface UnallocatedSummary {
-  received_paise: number;
-  allocated_paise: number;
-  transferred_paise: number;
-  remaining_paise: number;
-}
-
-async function fetchRecord(table: string, id: string): Promise<Record<string, any> | null> {
-  const { data, error } = await supabase.from(table).select('*').eq('id', id).maybeSingle();
-  if (error) return null;
-  return (data as Record<string, any>) ?? null;
-}
-
-function titleFor(table: string, row: Record<string, any>): string {
-  if (!row) return 'Record';
-  if (table === 'incomes' || table === 'expenses') return row.title ?? 'Untitled';
-  if (table === 'transfers') return row.title ?? 'Transfer';
-  if (table === 'loans') return row.person ?? 'Loan';
-  if (table === 'accounts') return row.name ?? 'Account';
-  return row.title ?? row.name ?? 'Record';
-}
-
-export async function getMoneyJourney(targetTable: string, targetId: string): Promise<MoneyJourneyNode[]> {
-  const seen = new Set<string>();
-  const queue: { table: string; id: string; rel?: string }[] = [{ table: targetTable, id: targetId }];
-  const out: MoneyJourneyNode[] = [];
-
-  while (queue.length) {
-    const next = queue.shift();
-    if (!next) continue;
-    const key = `${next.table}:${next.id}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-
-    const row = await fetchRecord(next.table, next.id);
-    if (!row) continue;
-
-    const amount = Number(row.amount_paise ?? row.principal_paise ?? 0);
-    out.push({
-      id: next.id,
-      table: next.table,
-      title: titleFor(next.table, row),
-      amount_paise: amount,
-      account_id: row.account_id ?? row.from_account_id ?? row.to_account_id ?? null,
-      txn_date: row.txn_date ?? row.start_date ?? null,
-      sourceRelation: next.rel,
+/** Possible duplicates of an entry about to be saved. Never throws — a failed check just means no warning. */
+export async function findDuplicates(
+  kind: string,
+  amount: number,
+  date: string,
+  accountId: string | null,
+  title: string | null,
+  reference: string | null,
+  excludeId: string | null,
+): Promise<DuplicateCandidate[]> {
+  if (!['incomes', 'expenses', 'transfers'].includes(kind) || !amount) return [];
+  try {
+    const { data, error } = await supabase.rpc('find_duplicate_candidates', {
+      p_kind: kind,
+      p_amount_paise: amount,
+      p_date: date,
+      p_account_id: accountId,
+      p_title: title,
+      p_reference: reference,
+      p_exclude_id: excludeId,
+      p_window_days: 1,
     });
-
-    const { data: links, error } = await supabase.from('money_links').select('*').eq('target_table', next.table).eq('target_id', next.id).is('deleted_at', null).order('created_at', { ascending: true });
-    if (error || !links) continue;
-
-    for (const link of links as MoneyLinkRow[]) {
-      queue.push({ table: link.source_table, id: link.source_id, rel: link.relation_type });
-    }
+    if (error) return [];
+    return ((data as any[]) ?? []).map((x) => ({ ...x, amount_paise: num(x.amount_paise) }));
+  } catch {
+    return [];
   }
-
-  return out;
 }
 
-export async function getUnallocatedSummary(): Promise<UnallocatedSummary> {
-  const [incomeRes, allocationsRes] = await Promise.all([
-    supabase.from('incomes').select('amount_paise').is('deleted_at', null),
-    supabase.from('allocations').select('amount_paise,expense_id,loan_id,transfer_id').is('deleted_at', null),
-  ]);
-
-  const received = (incomeRes.data ?? []).reduce((sum, row: any) => sum + Number(row.amount_paise ?? 0), 0);
-  const allocationRows = allocationsRes.data ?? [];
-  // Only transfers explicitly funded by an income reduce that income's
-  // unallocated amount. Unlinked account-to-account transfers are neutral.
-  const transferred = allocationRows
-    .filter((row: any) => !!row.transfer_id)
-    .reduce((sum, row: any) => sum + Number(row.amount_paise ?? 0), 0);
-  const allocated = allocationRows
-    .filter((row: any) => !!row.expense_id || !!row.loan_id)
-    .reduce((sum, row: any) => sum + Number(row.amount_paise ?? 0), 0);
-
-  return {
-    received_paise: received,
-    allocated_paise: allocated,
-    transferred_paise: transferred,
-    remaining_paise: Math.max(0, received - allocated - transferred),
-  };
+/** Undo = a new opposite entry; the original is never edited */
+export async function reverseEntry(table: string, id: string, reason?: string): Promise<string> {
+  invalidateLookups();
+  invalidateUsage();
+  const { data, error } = await supabase.rpc('reverse_entry', { p_table: table, p_id: id, p_reason: reason ?? null, p_date: null });
+  if (error) throw error;
+  return data as string;
 }
+
+export interface Reversal {
+  original_table: string;
+  original_id: string;
+  reversal_table: string;
+  reversal_id: string;
+  reason: string | null;
+  created_at: string;
+}
+export async function getReversals(table: string, id: string): Promise<Reversal[]> {
+  const { data } = await supabase
+    .from('entry_reversals')
+    .select('original_table,original_id,reversal_table,reversal_id,reason,created_at')
+    .is('deleted_at', null)
+    .or(`and(original_table.eq.${table},original_id.eq.${id}),and(reversal_table.eq.${table},reversal_id.eq.${id})`);
+  return (data as Reversal[]) ?? [];
+}
+
+export interface JourneyStep {
+  depth: number;
+  from_table: string;
+  from_id: string;
+  from_title: string | null;
+  to_table: string;
+  to_id: string;
+  to_title: string | null;
+  amount_paise: number;
+  to_account_name?: string | null;
+}
+export async function journeyForward(table: string, id: string): Promise<JourneyStep[]> {
+  const { data } = await supabase.rpc('money_journey', { p_source_table: table, p_source_id: id, p_max_depth: 8 });
+  return ((data as any[]) ?? []).map((x) => ({ ...x, amount_paise: num(x.amount_paise) }));
+}
+export async function journeyBack(table: string, id: string): Promise<JourneyStep[]> {
+  const { data } = await supabase.rpc('money_origin', { p_target_table: table, p_target_id: id, p_max_depth: 8 });
+  return ((data as any[]) ?? []).map((x) => ({ ...x, amount_paise: num(x.amount_paise) }));
+}
+
+export interface HistoryEvent {
+  id: string;
+  table_name: string;
+  record_id: string;
+  field: string;
+  old_value: unknown;
+  new_value: unknown;
+  changed_at: string;
+  event_type: 'created' | 'edited' | 'deleted' | 'restored';
+  title: string | null;
+}
+export async function fetchHistory(opts: { table?: string; id?: string; limit?: number } = {}): Promise<HistoryEvent[]> {
+  let q = supabase.from('transaction_history').select('*').order('changed_at', { ascending: false }).limit(opts.limit ?? 200);
+  if (opts.table) q = q.eq('table_name', opts.table);
+  if (opts.id) q = q.eq('record_id', opts.id);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data as HistoryEvent[]) ?? [];
+}
+
+export async function createReconciliation(accountId: string, actualPaise: number, asOf: string, notes: string | null): Promise<string> {
+  const { data, error } = await supabase.rpc('create_reconciliation', { p_account_id: accountId, p_actual_paise: actualPaise, p_as_of: asOf, p_notes: notes });
+  if (error) throw error;
+  return data as string;
+}
+
+export const ADJUSTMENT_KINDS = [
+  { value: 'missing_income', label: 'Income not recorded' },
+  { value: 'missing_expense', label: 'Expense not recorded' },
+  { value: 'bank_fee', label: 'Bank fee / charge' },
+  { value: 'interest', label: 'Interest' },
+  { value: 'rounding', label: 'Rounding' },
+  { value: 'cash_difference', label: 'Cash counting difference' },
+  { value: 'other', label: 'Other' },
+];
+

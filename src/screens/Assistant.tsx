@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Send, Sparkles, Bot } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { callAssistant } from '../lib/ai';
 import { currentMonth, monthRange, todayISO, toISODate, formatDate } from '../lib/dates';
 import { formatINR, sumPaise } from '../lib/money';
 import { Card, Page, cx } from '../components/ui';
@@ -146,17 +147,15 @@ export function AssistantScreen() {
         setMsgs([...next, { role: 'assistant', text: local, local: true }]);
         return;
       }
-      const { data, error } = await supabase.functions.invoke('assistant', {
-        body: { question: q, context: ctx, history: msgs.slice(-6) },
-      });
-      if (error || data?.error) {
-        const msg = data?.error ?? error?.message ?? '';
+      const { data, error } = await callAssistant({ question: q, context: ctx, history: msgs.slice(-6) });
+      if (error || !data) {
+        const msg = error ?? '';
         setMsgs([
           ...next,
           {
             role: 'assistant',
-            text: /not found|404|Failed to send/i.test(msg)
-              ? 'The AI part is not set up yet. Quick questions (tasks, spending, pending payments, loans, weak chapters) still work. To enable full AI, deploy the "assistant" Edge Function in Supabase and add a GEMINI_API_KEY secret (see README).'
+            text: /not found|404|Failed to send|reach|GEMINI|setup/i.test(msg)
+              ? 'AI setup pending (Settings → AI Assistant). Quick questions (tasks, spending, pending payments, loans, weak chapters) still work. To enable full AI, deploy the "assistant" Edge Function in Supabase and add a GEMINI_API_KEY secret (see README).'
               : `AI error: ${msg}`,
           },
         ]);

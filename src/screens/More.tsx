@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import {
   ListTodo, Receipt, HandCoins, Users, PiggyBank, TrendingUp, Bot, Settings, Trash2, CalendarDays, QrCode, Flame, StickyNote,
-  ShoppingCart, CalendarCheck, Link2, Timer, Megaphone, FolderKanban, Target, Wand2, Gauge, CalendarClock, Search, Sparkles,
+  ShoppingCart, CalendarCheck, Link2, Timer, Megaphone, FolderKanban, Target, Wand2, Gauge, CalendarClock, Search, Sparkles, Wrench, HeartPulse, ShieldBan,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { IconBubble, Page, SectionTitle, type Tone } from '../components/ui';
@@ -35,9 +35,9 @@ const SECTIONS: { title: string; items: Item[] }[] = [
       { label: 'Split', to: '/groups', icon: Users, tone: 'violet' },
       { label: 'Goals', to: '/goals', icon: Target, tone: 'pink' },
       { label: 'Budgets', to: '/budgets', icon: Gauge, tone: 'amber' },
+      { label: 'Money Tools', to: '/money-tools', icon: Wrench, tone: 'primary' },
       { label: 'Subscriptions', to: '/recurring', icon: CalendarClock, tone: 'teal' },
       { label: 'Allocate', to: '/allocations', icon: Link2, tone: 'blue' },
-      { label: 'Money tools', to: '/money-tools', icon: TrendingUp, tone: 'primary' },
     ],
   },
   {
@@ -46,6 +46,8 @@ const SECTIONS: { title: string; items: Item[] }[] = [
       { label: 'Projects', to: '/projects', icon: FolderKanban, tone: 'blue' },
       { label: 'Campaigns', to: '/campaigns', icon: Megaphone, tone: 'pink' },
       { label: 'Focus timer', to: '/pomodoro', icon: Timer, tone: 'primary' },
+      { label: 'Focus mode', to: '/focus-mode', icon: ShieldBan, tone: 'violet' },
+      { label: 'Health', to: '/health', icon: HeartPulse, tone: 'pink' },
     ],
   },
   {

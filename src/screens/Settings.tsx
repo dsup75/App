@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
-import { Lock, Fingerprint, Timer, LogOut, FileSpreadsheet, User, KeyRound, Bell } from 'lucide-react';
+import { Lock, Fingerprint, Timer, LogOut, FileSpreadsheet, User, KeyRound, Bell, DatabaseBackup } from 'lucide-react';
+import { AiSettings } from '../components/AiSettings';
 import { askPermission, getReminderConfig, remindersSupported, saveReminderConfig, scheduleReminders, DEFAULT_REMINDERS, type ReminderConfig } from '../lib/reminders';
 import { useAuth } from '../context/AuthContext';
 import { useLock } from '../context/LockContext';
@@ -125,6 +126,19 @@ export function SettingsScreen() {
       </List>
 
       <Reminders />
+
+      <AiSettings />
+
+      <SectionTitle>Data & Backup</SectionTitle>
+      <List>
+        <ListRow
+          icon={<IconBubble tone="pink"><DatabaseBackup size={18} /></IconBubble>}
+          title="Backup & restore"
+          subtitle="Export all data as a JSON file, or import a backup"
+          onClick={() => nav('/money-tools/backup')}
+          chevron
+        />
+      </List>
 
       <PaymentsBusiness />
 
