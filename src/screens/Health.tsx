@@ -47,7 +47,7 @@ export function HealthScreen() {
     setBusy(false);
   };
 
-  const nothing = data && [data.steps, data.calories, data.distanceKm, data.heartRateAvg, data.sleepMinutes].every((v) => v === null);
+  const noAccess = !data || !Object.values(data.permissions).some(Boolean);
 
   return (
     <Page title="Health" subtitle="Today's activity from Health Connect" back>
@@ -60,7 +60,7 @@ export function HealthScreen() {
         </Card>
       ) : state !== 'ready' ? (
         <Card className="space-y-3">
-          <p className="text-[14.5px] font-semibold">Health Connect not found</p>
+          <p className="text-[14.5px] font-semibold">{state === 'needs_update' ? 'Health Connect needs an update' : 'Health Connect not found'}</p>
           <p className="text-[13px] text-muted">Install or update "Health Connect" from the Play Store (it is built in on Android 14+), then come back.</p>
           <Button full onClick={() => { suppressBriefly(); openHealthConnect(); }}>
             Open Health Connect
@@ -79,7 +79,7 @@ export function HealthScreen() {
           {data && <p className="px-1 text-[11.5px] text-muted">Read from Health Connect at {new Date(data.readAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}. "No data" means Health Connect has nothing for today or access was not given.</p>}
           <div className="grid grid-cols-2 gap-2">
             <Button full variant="primary" loading={busy} onClick={connect}>
-              {nothing ? 'Give access' : 'Check access'}
+              {noAccess ? 'Give access' : 'Change access'}
             </Button>
             <Button full onClick={() => load()}>
               <RefreshCw size={14} /> Refresh
@@ -91,7 +91,7 @@ export function HealthScreen() {
               <p className="text-[14px] font-semibold">Smartwatch (Da Fit etc.)</p>
             </div>
             <p className="text-[12.5px] text-muted">
-              Da Fit has no public connection for other apps. Your watch data appears here only if the Da Fit app (or Google Fit) shares it with Health Connect: Health Connect → App permissions → allow your watch app to write steps / heart rate / sleep. Native sync — no fake numbers are ever shown.
+              Your watch talks to the Da Fit app over Bluetooth — not to this app. Its data shows here only when Da Fit (or Google Fit / another app that Da Fit syncs to) writes it into Health Connect. In Health Connect → App permissions, allow that app to write steps, heart rate and sleep, and allow DeepBoost Life to read them. If Da Fit doesn't write to Health Connect, these boxes stay "No data" — no fake numbers are ever shown.
             </p>
             <Button size="sm" onClick={() => { suppressBriefly(); openHealthConnect(); }}>
               Open Health Connect settings

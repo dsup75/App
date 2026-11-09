@@ -1,0 +1,16 @@
+{
+  "name": "health-connect",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DeepBoost Life: read-only Android Health Connect stats (steps, calories, distance, heart rate, sleep). Based on MIT-licensed mley/capacitor-health.",
+  "main": "index.js",
+  "license": "MIT",
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": "^6.0.0"
+  }
+}
