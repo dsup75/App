@@ -378,7 +378,7 @@ function Transactions({ month }: { month: string }) {
         </div>
         <button onClick={() => setShowFilters(true)} className="liquid relative flex h-[42px] items-center gap-1.5 rounded-[14px] px-3 text-[13px] font-semibold">
           <SlidersHorizontal size={15} /> Filter
-          {activeFilters > 0 && <span className="rounded-full bg-[var(--primary)] px-1.5 text-[11px] text-white">{activeFilters}</span>}
+          {activeFilters > 0 && <span className="rounded-full bg-[var(--primary)] px-1.5 text-[11px] text-[var(--on-primary)]">{activeFilters}</span>}
         </button>
       </div>
 

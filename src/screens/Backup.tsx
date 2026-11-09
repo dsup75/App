@@ -8,6 +8,8 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLock } from '../context/LockContext';
 import { invalidateLookups } from '../lib/useLookups';
+import { exportIconFiles, importIconFiles, loadIcons } from '../lib/icons';
+import { applyTheme } from '../lib/theme';
 import { Button, Card, Page, Sheet } from '../components/ui';
 
 /** Parents before children, so links always find what they point to */
@@ -17,7 +19,16 @@ export const BACKUP_TABLES = [
   'group_expenses', 'group_settlements', 'invoices', 'payment_requests', 'incomes', 'expenses', 'transfers', 'loans', 'loan_repayments',
   'payment_lines', 'allocations', 'money_links', 'budgets', 'recurring_rules', 'study_sessions', 'mock_tests', 'reconciliations',
   'reconciliation_adjustments', 'entry_reversals', 'checklist_items',
+  // added Nov 2026
+  'focus_sessions', 'revision_settings', 'revisions', 'gadgets', 'health_profile', 'body_measurements', 'activity_daily', 'screen_time_daily',
+  'custom_icons', 'entity_icons',
 ] as const;
+
+/** Tables keyed by user (+ day / record) instead of an "id" column */
+const KEYED_TABLES = new Set(['revision_settings', 'health_profile', 'activity_daily', 'screen_time_daily', 'entity_icons']);
+
+/** App look & phone settings that can travel with a backup (restored only if you tick the box) */
+const LOCAL_KEYS = ['theme-prefs', 'home-layout', 'focus-mode', 'screen-goal', 'hide-balance'];
 
 const FORMAT = 'deepboost-life-backup';
 
@@ -27,6 +38,8 @@ interface BackupFile {
   exported_at: string;
   user_id: string;
   tables: Record<string, Record<string, unknown>[]>;
+  icon_files?: Record<string, string>;
+  local_settings?: Record<string, string>;
 }
 
 async function readAll(table: string): Promise<Record<string, unknown>[]> {
@@ -63,10 +76,12 @@ export function validateBackup(x: unknown, userId: string): string | null {
   if (typeof b.version !== 'number' || b.version > 1) return 'This backup was made by a newer app version. Update the app first.';
   if (!b.tables || typeof b.tables !== 'object') return 'The backup file is damaged (no tables).';
   if (b.user_id && b.user_id !== userId) return 'This backup belongs to a different account. Sign in with that account to import it.';
+  if (b.icon_files && (typeof b.icon_files !== 'object' || Object.keys(b.icon_files).some((k) => !k.startsWith(`${userId}/`)))) return 'The icon files in this backup are damaged.';
+  if (b.local_settings && typeof b.local_settings !== 'object') return 'The settings in this backup are damaged.';
   for (const [t, rows] of Object.entries(b.tables)) {
     if (!(BACKUP_TABLES as readonly string[]).includes(t)) return `Unknown section "${t}" in the backup.`;
     if (!Array.isArray(rows)) return `Section "${t}" is damaged.`;
-    if (rows.some((r) => !r || typeof r !== 'object' || typeof (r as any).id !== 'string')) return `Some rows in "${t}" are damaged.`;
+    if (rows.some((r) => !r || typeof r !== 'object' || (!KEYED_TABLES.has(t) && typeof (r as any).id !== 'string'))) return `Some rows in "${t}" are damaged.`;
     if (rows.some((r) => typeof (r as any).user_id === 'string' && (r as any).user_id !== userId)) return 'This backup belongs to a different account.';
   }
   return null;
@@ -80,6 +95,7 @@ export function BackupScreen() {
   const [busy, setBusy] = useState('');
   const [pending, setPending] = useState<BackupFile | null>(null);
   const [result, setResult] = useState<string | null>(null);
+  const [restoreLocal, setRestoreLocal] = useState(false);
 
   const exportAll = async () => {
     if (!user) return;
@@ -87,7 +103,18 @@ export function BackupScreen() {
     try {
       const tables: Record<string, Record<string, unknown>[]> = {};
       for (const t of BACKUP_TABLES) tables[t] = await readAll(t);
-      const file: BackupFile = { format: FORMAT, version: 1, exported_at: new Date().toISOString(), user_id: user.id, tables };
+      setBusy('Adding your icons…');
+      const icon_files = await exportIconFiles().catch(() => ({}));
+      const local_settings: Record<string, string> = {};
+      for (const k of LOCAL_KEYS) {
+        try {
+          const v = localStorage.getItem(k);
+          if (v !== null) local_settings[k] = v;
+        } catch {
+          /* ignore */
+        }
+      }
+      const file: BackupFile = { format: FORMAT, version: 1, exported_at: new Date().toISOString(), user_id: user.id, tables, icon_files, local_settings };
       const count = Object.values(tables).reduce((s, r) => s + r.length, 0);
       const name = `deepboost-backup-${new Date().toISOString().slice(0, 10)}.json`;
       suppressBriefly();
@@ -122,11 +149,16 @@ export function BackupScreen() {
   };
 
   const importNow = async () => {
-    if (!pending) return;
+    if (!pending || !user) return;
     const b = pending;
     setPending(null);
     let added = 0;
+    let skipped = 0;
     const failed: string[] = [];
+    if (b.icon_files && Object.keys(b.icon_files).length) {
+      setBusy('Restoring icons…');
+      await importIconFiles(b.icon_files, user.id).catch(() => 0);
+    }
     for (const t of BACKUP_TABLES) {
       const rows = b.tables[t];
       if (!rows?.length) continue;
@@ -137,12 +169,30 @@ export function BackupScreen() {
           failed.push(`${t.replace(/_/g, ' ')}: ${friendlyError(error)}`);
           break;
         }
-        added += Number(data) || 0;
+        const n = Number(data) || 0;
+        added += n;
+        skipped += rows.slice(i, i + 300).length - n;
       }
     }
+    let restoredLook = false;
+    if (restoreLocal && b.local_settings) {
+      for (const [k, v] of Object.entries(b.local_settings)) {
+        if (!LOCAL_KEYS.includes(k) || typeof v !== 'string') continue;
+        try {
+          localStorage.setItem(k, v);
+          restoredLook = true;
+        } catch {
+          /* ignore */
+        }
+      }
+      if (restoredLook) applyTheme();
+    }
     invalidateLookups();
+    loadIcons(true).catch(() => {});
     setBusy('');
-    setResult(`${added} records added. Records you already had were left as they are.${failed.length ? `\n\nNot imported:\n${failed.join('\n')}` : ''}`);
+    setResult(
+      `${added} records added. ${skipped} were already in your account (duplicates skipped, nothing changed).${restoredLook ? '\nApp look & phone settings restored.' : ''}${failed.length ? `\n\nNot imported:\n${failed.join('\n')}` : ''}`,
+    );
   };
 
   const counts = pending ? Object.entries(pending.tables).filter(([, r]) => r.length) : [];
@@ -154,7 +204,7 @@ export function BackupScreen() {
           <Download size={17} className="text-primary" />
           <p className="text-[14.5px] font-semibold">Export backup</p>
         </div>
-        <p className="text-[13px] text-muted">One JSON file with all your entries, accounts, clients, study and tasks. Photos are not included.</p>
+        <p className="text-[13px] text-muted">One JSON file with all your entries, accounts, clients, study, tasks, health data, your uploaded icons and app look. Bill photos are not included.</p>
         <Button full variant="primary" loading={busy !== '' && busy.startsWith('Reading')} disabled={!!busy} onClick={exportAll}>
           Export all data
         </Button>
@@ -194,6 +244,16 @@ export function BackupScreen() {
               </div>
             ))}
           </div>
+          {pending?.icon_files && Object.keys(pending.icon_files).length > 0 && (
+            <p className="text-[12.5px] text-muted">{Object.keys(pending.icon_files).length} uploaded icons will be restored if missing.</p>
+          )}
+          {pending?.local_settings && Object.keys(pending.local_settings).length > 0 && (
+            <label className="flex items-center gap-2 text-[13px]">
+              <input type="checkbox" checked={restoreLocal} onChange={(e) => setRestoreLocal(e.target.checked)} />
+              Also restore app look &amp; phone settings (theme, home layout, focus apps)
+            </label>
+          )}
+          <p className="text-[12px] text-muted">Only missing records are added. Anything already in your account is skipped and never overwritten.</p>
           <div className="grid grid-cols-2 gap-2">
             <Button full onClick={() => setPending(null)}>
               Cancel

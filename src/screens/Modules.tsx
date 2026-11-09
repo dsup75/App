@@ -292,7 +292,7 @@ export function ShoppingScreen() {
                 }
               >
                 {r.done ? (
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary-2)] text-white">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary-2)] text-[var(--on-primary)]">
                     <Check size={14} strokeWidth={3} />
                   </span>
                 ) : (

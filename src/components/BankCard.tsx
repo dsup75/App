@@ -1,5 +1,6 @@
 // Premium card for an account, coloured like its bank / app. Each card has its own hide/show eye.
 import { useState, type MouseEvent } from 'react';
+import { useIconStore } from '../lib/icons';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Wifi } from 'lucide-react';
 import { formatINR } from '../lib/money';
@@ -56,6 +57,10 @@ function readHidden(id: string) {
 export function BankCard({ account }: { account: Balance & { opening_date?: string | null } }) {
   const nav = useNavigate();
   const look = cardLook(account);
+  const icons = useIconStore();
+  const ic = icons.get('accounts', account.id);
+  const up = ic?.kind === 'custom' ? icons.upload(ic.custom_icon_id) : null;
+  const logo = up && icons.url(up.path) ? { url: icons.url(up.path)!, keep: up.keep_colors } : null;
   const [hidden, setHidden] = useState(() => readHidden(account.id));
   const toggle = (e: MouseEvent) => {
     e.stopPropagation();
@@ -76,7 +81,7 @@ export function BankCard({ account }: { account: Balance & { opening_date?: stri
       tabIndex={0}
       onClick={() => nav(`/r/accounts/${account.id}`)}
       onKeyDown={(e) => e.key === 'Enter' && nav(`/r/accounts/${account.id}`)}
-      className="press relative aspect-[1.586] w-full shrink-0 snap-center overflow-hidden rounded-[22px] p-4 text-white"
+      className="bank-card press relative aspect-[1.586] w-full shrink-0 snap-center overflow-hidden rounded-[22px] p-4 text-white"
       style={{
         background: `linear-gradient(135deg, ${look.from}, ${look.to})`,
         boxShadow: '0 14px 30px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.25)',
@@ -96,9 +101,15 @@ export function BankCard({ account }: { account: Balance & { opening_date?: stri
               {account.upi_app ? ` · ${optionLabel(UPI_APPS, account.upi_app)}` : ''}
             </p>
           </div>
-          <span className="shrink-0 text-[15px] font-black italic tracking-tight" style={{ color: look.accent }}>
-            {look.mark}
-          </span>
+          {logo ? (
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[10px]" style={{ background: 'rgba(255,255,255,.92)' }}>
+              <img src={logo.url} alt="" className={logo.keep ? '' : 'themed-img'} style={{ width: 30, height: 30, objectFit: 'contain' }} />
+            </span>
+          ) : (
+            <span className="shrink-0 text-[15px] font-black italic tracking-tight" style={{ color: look.accent }}>
+              {look.mark}
+            </span>
+          )}
         </div>
 
         <div className="mt-3 flex items-center gap-2">

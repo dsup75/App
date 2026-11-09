@@ -287,7 +287,7 @@ export function Pomodoro() {
   const pct = Math.min(1, Math.max(0, 1 - remaining / total));
   const mm = String(Math.floor(remaining / 60000)).padStart(2, '0');
   const ss = String(Math.floor((remaining % 60000) / 1000)).padStart(2, '0');
-  const ringColor = s.phase === 'focus' ? 'var(--primary-2)' : '#3B82F6';
+  const ringColor = s.phase === 'focus' ? 'var(--primary-2)' : 'var(--tone-blue)';
   const phaseLabel = `${s.phase === 'focus' ? 'Focus' : s.phase === 'short' ? 'Short break' : 'Long break'} · round ${s.rounds + (s.phase === 'focus' ? 1 : 0)}`;
   const subjects = (refs.subjects ?? []).filter((x) => !x.deleted_at);
   const chapters = (refs.chapters ?? []).filter((x) => !x.deleted_at && (!s.subjectId || x.subject_id === s.subjectId));

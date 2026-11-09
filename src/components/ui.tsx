@@ -1,4 +1,5 @@
 import { useEffect, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Loader2, CircleAlert, Inbox } from 'lucide-react';
 
@@ -156,7 +157,7 @@ export function Segmented<T extends string>({
         <button
           key={o.value}
           onClick={() => onChange(o.value)}
-          className={cx('relative z-10 flex-1 truncate rounded-full px-1 py-1.5 text-[12.5px] font-semibold transition-colors', o.value === value ? 'text-white' : 'text-muted')}
+          className={cx('relative z-10 flex-1 truncate rounded-full px-1 py-1.5 text-[12.5px] font-semibold transition-colors', o.value === value ? 'text-[var(--on-primary)]' : 'text-muted')}
         >
           {o.label}
         </button>
@@ -240,16 +241,17 @@ export function ListRow({
 
 export type Tone = 'primary' | 'income' | 'expense' | 'muted' | 'blue' | 'violet' | 'amber' | 'pink' | 'teal';
 
+/** Tone colours come from CSS variables, so every theme (incl. Black & White) controls them. */
 export const TONES: Record<Tone, { bg: string; fg: string; solid: string }> = {
   primary: { bg: 'var(--primary-soft)', fg: 'var(--primary-2)', solid: 'var(--primary-2)' },
-  income: { bg: 'rgba(30,158,97,.13)', fg: '#1E9E61', solid: '#1E9E61' },
-  expense: { bg: 'rgba(229,72,77,.12)', fg: '#E5484D', solid: '#E5484D' },
-  muted: { bg: 'rgba(107,124,116,.14)', fg: '#6B7C74', solid: '#6B7C74' },
-  blue: { bg: 'rgba(59,130,246,.13)', fg: '#3B82F6', solid: '#3B82F6' },
-  violet: { bg: 'rgba(139,92,246,.13)', fg: '#8B5CF6', solid: '#8B5CF6' },
-  amber: { bg: 'rgba(245,158,11,.15)', fg: '#D97706', solid: '#F59E0B' },
-  pink: { bg: 'rgba(236,72,153,.13)', fg: '#DB2777', solid: '#EC4899' },
-  teal: { bg: 'rgba(20,184,166,.13)', fg: '#0D9488', solid: '#14B8A6' },
+  income: { bg: 'var(--tone-income-bg)', fg: 'var(--tone-income)', solid: 'var(--tone-income)' },
+  expense: { bg: 'var(--tone-expense-bg)', fg: 'var(--tone-expense)', solid: 'var(--tone-expense)' },
+  muted: { bg: 'var(--tone-muted-bg)', fg: 'var(--tone-muted)', solid: 'var(--tone-muted)' },
+  blue: { bg: 'var(--tone-blue-bg)', fg: 'var(--tone-blue)', solid: 'var(--tone-blue)' },
+  violet: { bg: 'var(--tone-violet-bg)', fg: 'var(--tone-violet)', solid: 'var(--tone-violet)' },
+  amber: { bg: 'var(--tone-amber-bg)', fg: 'var(--tone-amber)', solid: 'var(--tone-amber-solid)' },
+  pink: { bg: 'var(--tone-pink-bg)', fg: 'var(--tone-pink)', solid: 'var(--tone-pink-solid)' },
+  teal: { bg: 'var(--tone-teal-bg)', fg: 'var(--tone-teal)', solid: 'var(--tone-teal-solid)' },
 };
 
 export function IconBubble({ children, tone = 'primary', size = 36 }: { children: ReactNode; tone?: Tone; size?: number }) {
@@ -294,7 +296,7 @@ export function BarChart({
     <div className="flex items-end gap-2" style={{ height: height + 22 }}>
       {data.map((d, i) => (
         <div key={i} className="flex min-w-0 flex-1 flex-col items-center gap-1">
-          {d.highlight && format && <span className="rounded-md bg-[var(--primary)] px-1.5 py-0.5 text-[10px] font-semibold text-white">{format(d.value)}</span>}
+          {d.highlight && format && <span className="rounded-md bg-[var(--primary)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--on-primary)]">{format(d.value)}</span>}
           <div
             className="w-full max-w-[26px] rounded-[7px]"
             style={{
@@ -344,7 +346,7 @@ export function Donut({ parts, size = 132, center }: { parts: { value: number; c
   );
 }
 
-export const CHART_COLORS = ['var(--primary-2)', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6', '#E5484D', '#6B7C74'];
+export const CHART_COLORS = ['var(--primary-2)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)', 'var(--chart-6)', 'var(--chart-7)', 'var(--chart-8)'];
 
 /* ---------- Bottom sheet ---------- */
 export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title?: string; children: ReactNode }) {
@@ -355,7 +357,8 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
   if (!open) return null;
-  return (
+  // rendered at the end of <body> so a parent with blur (glass) can never clip or misplace it
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div className="fade-in absolute inset-0 bg-black/30" onClick={onClose} />
       <div
@@ -367,7 +370,8 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
         {children}
         <div className="h-4" />
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -457,9 +461,9 @@ export function Badge({ children, tone = 'muted' }: { children: ReactNode; tone?
   const map = {
     muted: { background: 'var(--hairline)', color: 'var(--muted)' },
     primary: { background: 'var(--primary-soft)', color: 'var(--primary-2)' },
-    danger: { background: 'rgba(229,72,77,.12)', color: 'var(--danger)' },
-    amber: { background: 'rgba(245,158,11,.15)', color: '#D97706' },
-    blue: { background: 'rgba(59,130,246,.13)', color: '#3B82F6' },
+    danger: { background: 'var(--tone-expense-bg)', color: 'var(--danger)' },
+    amber: { background: 'var(--tone-amber-bg)', color: 'var(--tone-amber)' },
+    blue: { background: 'var(--tone-blue-bg)', color: 'var(--tone-blue)' },
   };
   return (
     <span className="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold" style={map[tone]}>

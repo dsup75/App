@@ -19,7 +19,9 @@ import { useCustomOptions } from '../lib/options';
 import { useToast } from '../context/ToastContext';
 import { RequestPanel } from '../components/RequestPanel';
 import { DetailExtras } from '../components/DetailExtras';
-import { RecordLine } from '../components/RecordLine';
+import { EntityIcon, IconPickerSheet } from '../components/EntityIcon';
+import { ICONABLE } from '../lib/icons';
+import { RecordLine, TABLE_ICON } from '../components/RecordLine';
 import { Badge, Button, Card, Confirm, Empty, ErrorBox, List, ListRow, Page, SectionTitle, Spinner } from '../components/ui';
 
 export function formatValue(f: Field | undefined, value: unknown, nameOf: (id: string) => string): string {
@@ -75,6 +77,7 @@ export function RecordDetail() {
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState<'delete' | 'forever' | null>(null);
+  const [iconOpen, setIconOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -142,6 +145,18 @@ export function RecordDetail() {
           <span className="text-[13px] text-muted">Deleted {formatDateTime(row.deleted_at)}</span>
         </Card>
       )}
+
+      {!deleted && ICONABLE.has(t) && (
+        <Card className="flex items-center gap-3 !py-3" onClick={() => setIconOpen(true)}>
+          <EntityIcon table={t} id={row.id} fallback={TABLE_ICON[t].icon} fallbackTone={TABLE_ICON[t].tone} size={44} />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[14px] font-semibold">Icon</span>
+            <span className="block text-[12px] text-muted">Pick from the library or upload your own logo</span>
+          </span>
+          <Button size="sm">Change</Button>
+        </Card>
+      )}
+      {ICONABLE.has(t) && <IconPickerSheet open={iconOpen} onClose={() => setIconOpen(false)} table={t} id={row.id} title={`Icon for ${title}`} />}
 
       {!deleted && <DetailExtras table={t} row={row} nameOf={nameOf} reloadKey={reloadKey} />}
 

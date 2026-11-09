@@ -15,6 +15,7 @@ import {
 } from '../components/ui';
 import { LibraryBig } from 'lucide-react';
 import { RevisionSummary } from './Revisions';
+import { EntityIcon } from '../components/EntityIcon';
 
 export function StudyHub() {
   const nav = useNavigate();
@@ -145,7 +146,7 @@ export function StudyHub() {
             return (
               <div key={s.id} onClick={() => nav(`/r/subjects/${s.id}`)} className="glass cursor-pointer rounded-[18px] p-3.5 active:scale-[0.99] transition-transform">
                 <div className="flex items-center gap-3">
-                  <IconBubble tone="blue"><BookOpen size={17} /></IconBubble>
+                  <EntityIcon table="subjects" id={s.id} fallback={BookOpen} fallbackTone="blue" />
                   <div className="min-w-0 flex-1">
                     <p className="text-[14.5px] font-semibold">{s.name}</p>
                     <p className="text-[12.5px] text-muted">

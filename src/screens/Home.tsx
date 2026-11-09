@@ -209,7 +209,7 @@ export function Home() {
                 {done}/{todayTasks.length} tasks done
               </p>
               <button onClick={() => nav('/habits')} className="flex items-center gap-1.5 text-[12.5px] text-muted">
-                <Flame size={14} className="text-amber-500" /> Habits {d.habitLogs.length}/{d.habits.length} today
+                <Flame size={14} className="text-warn" /> Habits {d.habitLogs.length}/{d.habits.length} today
               </button>
               <button onClick={() => nav('/study')} className="flex items-center gap-1.5 text-[12.5px] text-muted">
                 <Timer size={14} className="text-primary" /> Studied {Math.floor(d.studyMinutes / 60)}h {d.studyMinutes % 60}m today
@@ -561,7 +561,7 @@ export function TaskLine({
     <div className="flex min-h-[52px] items-center gap-3 px-3.5 py-2">
       <button aria-label={done ? 'Mark not done' : 'Mark done'} onClick={onToggle} className="shrink-0 transition-transform active:scale-90">
         {done ? (
-          <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[var(--primary-2)] text-white">
+          <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[var(--primary-2)] text-[var(--on-primary)]">
             <Check size={14} strokeWidth={3} />
           </span>
         ) : (

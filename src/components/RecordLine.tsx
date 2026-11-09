@@ -11,6 +11,8 @@ import { formatDate, relativeDay } from '../lib/dates';
 import { optionLabel, UPI_APPS, TASK_STATUS, CHAPTER_STATUS, PROJECT_STATUS, CAMPAIGN_STATUS, PLATFORMS, CLIENT_STATUS, FREQUENCIES, type TableName } from '../lib/tables';
 import { IconBubble, ListRow, Badge, type Tone } from './ui';
 import { useUsage } from '../lib/useUsage';
+import { ICONABLE } from '../lib/icons';
+import { EntityIcon } from './EntityIcon';
 
 export const TABLE_ICON: Record<TableName, { icon: LucideIcon; tone: Tone }> = {
   incomes: { icon: ArrowDownLeft, tone: 'income' },
@@ -173,7 +175,7 @@ export function RecordLine({ table, row, nameOf }: { table: TableName; row: any;
 
   return (
     <ListRow
-      icon={<IconBubble tone={tone}><Icon size={17} /></IconBubble>}
+      icon={ICONABLE.has(table) && row.id ? <EntityIcon table={table} id={row.id} fallback={Icon} fallbackTone={tone} /> : <IconBubble tone={tone}><Icon size={17} /></IconBubble>}
       title={title}
       subtitle={sub || undefined}
       right={right}

@@ -9,8 +9,8 @@ type Mode = 'login' | 'signup' | 'forgot';
 export function Logo({ size = 64 }: { size?: number }) {
   return (
     <div
-      className="liquid mx-auto flex items-center justify-center rounded-[22px] text-white"
-      style={{ width: size, height: size, background: 'linear-gradient(140deg,#2F7A5C,#143F30)', boxShadow: '0 10px 24px rgba(20,63,48,.3)' }}
+      className="liquid brand-logo mx-auto flex items-center justify-center rounded-[22px] text-white"
+      style={{ width: size, height: size, background: 'linear-gradient(140deg,var(--logo-1),var(--logo-2))', boxShadow: '0 10px 24px rgba(0,0,0,.18)' }}
     >
       <span className="text-[28px] font-extrabold tracking-tight">D</span>
     </div>

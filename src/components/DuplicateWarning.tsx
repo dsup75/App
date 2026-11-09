@@ -11,8 +11,8 @@ export function DuplicateWarning({ list, onCancel, onSaveAnyway }: { list: Dupli
   return (
     <Sheet open={!!list} onClose={onCancel} title="Possible duplicate">
       <div className="space-y-3">
-        <div className="flex items-start gap-2.5 rounded-2xl p-3" style={{ background: 'rgba(224,160,48,.12)' }}>
-          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-500" />
+        <div className="flex items-start gap-2.5 rounded-2xl p-3" style={{ background: 'var(--tone-amber-bg)' }}>
+          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-warn" />
           <p className="text-[13.5px]">A similar entry already exists. Check it before saving so the same money isn't counted twice.</p>
         </div>
         <div className="glass divide-y divide-[var(--hairline)] overflow-hidden rounded-[18px]">

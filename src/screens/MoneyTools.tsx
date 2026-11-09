@@ -343,7 +343,7 @@ export function ReconcileScreen() {
                 ))}
                 {r.unexplained_paise !== 0 && (
                   <div className="flex items-center justify-between">
-                    <span className="text-[12.5px] text-amber-600">{formatINR(r.unexplained_paise)} not explained yet</span>
+                    <span className="text-[12.5px] text-warn">{formatINR(r.unexplained_paise)} not explained yet</span>
                     <Button size="sm" onClick={() => { setExplain(r); setEf({ kind: 'bank_fee', amount: (r.unexplained_paise / 100).toString(), reason: '' }); }}>
                       <Plus size={13} /> Explain
                     </Button>
@@ -549,7 +549,7 @@ export function DuplicatesScreen() {
         visible.map((g) => (
           <Card key={key(g)} className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-[13px] font-semibold text-amber-600">
+              <p className="text-[13px] font-semibold text-warn">
                 {g.rows.length} similar {g.kind === 'incomes' ? 'incomes' : g.kind === 'expenses' ? 'expenses' : 'transfers'}
               </p>
               <button type="button" className="text-[12.5px] font-semibold text-primary" onClick={() => dismiss(g)}>

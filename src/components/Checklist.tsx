@@ -85,7 +85,7 @@ export function Checklist({ parentTable, parentId }: { parentTable: 'tasks' | 'h
         <div key={i.id} className="flex items-center gap-2.5">
           <button type="button" aria-label={isDone(i) ? 'Mark not done' : 'Mark done'} onClick={() => toggle(i)} className="shrink-0">
             {isDone(i) ? (
-              <span className="flex h-[20px] w-[20px] items-center justify-center rounded-full bg-[var(--primary-2)] text-white">
+              <span className="flex h-[20px] w-[20px] items-center justify-center rounded-full bg-[var(--primary-2)] text-[var(--on-primary)]">
                 <Check size={13} strokeWidth={3} />
               </span>
             ) : (

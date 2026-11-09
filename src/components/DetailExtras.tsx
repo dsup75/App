@@ -165,7 +165,7 @@ function InvoiceSummary({ row, nameOf, reloadKey }: { row: Row; nameOf: (id: str
       <p className="mt-1 text-[28px] font-bold tracking-tight">{formatINR(outstanding)}</p>
       <p className="text-[12px] opacity-80">outstanding of {formatINR(row.amount_paise)}</p>
       <div className="mt-3">
-        <ProgressBar pct={(received / row.amount_paise) * 100} color="#7CE0B0" />
+        <ProgressBar pct={(received / row.amount_paise) * 100} color="var(--hero-bar)" />
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2">
         <Button size="sm" onClick={() => nav(`/r/incomes/new?invoice_id=${row.id}&client_id=${row.client_id}&area=business&title=${encodeURIComponent(`${row.invoice_no} payment`)}`)}>
@@ -204,7 +204,7 @@ function LoanSummary({ row, reloadKey }: { row: Row; reloadKey: number }) {
       <p className="mt-1 text-[28px] font-bold tracking-tight">{formatINR(remaining)}</p>
       <p className="text-[12px] opacity-80">principal remaining of {formatINR(row.principal_paise)}</p>
       <div className="mt-3">
-        <ProgressBar pct={(t.principal_repaid_paise / row.principal_paise) * 100} color="#7CE0B0" />
+        <ProgressBar pct={(t.principal_repaid_paise / row.principal_paise) * 100} color="var(--hero-bar)" />
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
         <div className="rounded-xl bg-white/10 p-2">
@@ -247,7 +247,7 @@ function GoalSummary({ row, reloadKey }: { row: Row; reloadKey: number }) {
         {row.target_date ? ` · by ${formatDate(row.target_date)}` : ''}
       </p>
       <div className="mt-3">
-        <ProgressBar pct={pct} color="#7CE0B0" />
+        <ProgressBar pct={pct} color="var(--hero-bar)" />
       </div>
       <p className="mt-2 text-[11px] opacity-75">Goal entries set money aside; they are not counted as new income.</p>
     </HeroCard>

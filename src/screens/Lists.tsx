@@ -1,7 +1,8 @@
 // Settings → Manage lists: categories, accounts, clients + staff, and every editable dropdown.
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Pencil, Eye, EyeOff, ChevronDown, ChevronRight, Check, X } from 'lucide-react';
+import { Plus, Trash2, Pencil, Eye, EyeOff, ChevronDown, ChevronRight, Check, X, Tag } from 'lucide-react';
+import { EntityIcon, IconPickerSheet } from '../components/EntityIcon';
 import { supabase } from '../lib/supabase';
 import { createRecord, friendlyError, softDelete, updateRecord, type Row } from '../lib/db';
 import { BUILTIN, loadCustomOptions, useCustomOptions } from '../lib/options';
@@ -59,8 +60,11 @@ function AddRow({ placeholder, onAdd }: { placeholder: string; onAdd: (name: str
 }
 
 /* Editable line: tap pencil to rename, trash to delete */
-function EditLine({ label, sub, onRename, onDelete, right }: { label: string; sub?: string; onRename?: (v: string) => Promise<void>; onDelete?: () => Promise<void>; right?: ReactNode }) {
+function EditLine({
+  label, sub, onRename, onDelete, right, icon,
+}: { label: string; sub?: string; onRename?: (v: string) => Promise<void>; onDelete?: () => Promise<void>; right?: ReactNode; icon?: { table: string; id: string } }) {
   const [edit, setEdit] = useState(false);
+  const [iconOpen, setIconOpen] = useState(false);
   const [v, setV] = useState(label);
   const save = async () => {
     if (v.trim() && v.trim() !== label && onRename) await onRename(v.trim());
@@ -80,6 +84,12 @@ function EditLine({ label, sub, onRename, onDelete, right }: { label: string; su
         </>
       ) : (
         <>
+          {icon && (
+            <button type="button" aria-label="Change icon" onClick={() => setIconOpen(true)} className="shrink-0">
+              <EntityIcon table={icon.table} id={icon.id} fallback={Tag} fallbackTone="muted" size={32} />
+            </button>
+          )}
+          {icon && <IconPickerSheet open={iconOpen} onClose={() => setIconOpen(false)} table={icon.table} id={icon.id} title={`Icon for ${label}`} />}
           <div className="min-w-0 flex-1">
             <p className="truncate text-[14.5px] font-medium">{label}</p>
             {sub && <p className="truncate text-[12px] text-muted">{sub}</p>}
@@ -133,6 +143,7 @@ function CategoriesEditor() {
                 <EditLine
                   key={c.id}
                   label={c.name}
+                  icon={{ table: 'categories', id: c.id }}
                   onRename={(name) => run(() => updateRecord('categories', c.id, { name }), 'Renamed')}
                   onDelete={() => run(() => softDelete('categories', c.id), 'Moved to Recycle Bin')}
                 />
@@ -257,6 +268,7 @@ function DropdownsEditor() {
                       <EditLine
                         key={o.value}
                         label={label}
+                        icon={{ table: 'option', id: `${key}:${o.value}` }}
                         sub={hidden ? 'Hidden' : 'Built-in'}
                         onRename={(nl) =>
                           run(
@@ -285,6 +297,7 @@ function DropdownsEditor() {
                     <EditLine
                       key={c.id}
                       label={c.label}
+                      icon={{ table: 'option', id: `${key}:${c.value}` }}
                       sub="Added by you"
                       onRename={(nl) => run(() => updateRecord('custom_options', c.id, { label: nl }), 'Renamed').then(after)}
                       onDelete={() => run(() => softDelete('custom_options', c.id), 'Deleted').then(after)}

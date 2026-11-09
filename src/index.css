@@ -33,6 +33,39 @@
   --blob2: rgba(var(--acc2), 0.22);
   --blob3: rgba(var(--acc), 0.12);
   --blob4: rgba(var(--acc2), 0.14);
+  /* status / tone colours (themes may override — Black & White makes them grey) */
+  --on-primary: #ffffff;
+  --warn: #d97706;
+  --tone-income: #1e9e61;
+  --tone-expense: #e5484d;
+  --tone-muted: #6b7c74;
+  --tone-blue: #3b82f6;
+  --tone-violet: #8b5cf6;
+  --tone-amber: #d97706;
+  --tone-amber-solid: #f59e0b;
+  --tone-pink: #db2777;
+  --tone-pink-solid: #ec4899;
+  --tone-teal: #0d9488;
+  --tone-teal-solid: #14b8a6;
+  --chart-2: #3b82f6;
+  --chart-3: #f59e0b;
+  --chart-4: #8b5cf6;
+  --chart-5: #ec4899;
+  --chart-6: #14b8a6;
+  --chart-7: #e5484d;
+  --chart-8: #6b7c74;
+  --tone-income-bg: rgba(30, 158, 97, 0.13);
+  --tone-expense-bg: rgba(229, 72, 77, 0.12);
+  --tone-muted-bg: rgba(107, 124, 116, 0.14);
+  --tone-blue-bg: rgba(59, 130, 246, 0.13);
+  --tone-violet-bg: rgba(139, 92, 246, 0.13);
+  --tone-amber-bg: rgba(245, 158, 11, 0.15);
+  --tone-pink-bg: rgba(236, 72, 153, 0.13);
+  --tone-teal-bg: rgba(20, 184, 166, 0.13);
+  --img-filter: none;
+  --hero-bar: #7ce0b0;
+  --logo-1: #2f7a5c;
+  --logo-2: #143f30;
   color-scheme: light;
 }
 .dark {
@@ -117,6 +150,249 @@
   --field: #1c2421;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
+
+/* =====================================================================
+   THEMES (Settings → Appearance). Each one sets every colour token.
+   ===================================================================== */
+
+/* ---------- Light: crisp neutral ---------- */
+[data-theme='light'] {
+  --bg: #f4f6f9;
+  --card: rgba(255, 255, 255, 0.78);
+  --card-2: rgba(255, 255, 255, 0.7);
+  --solid: #ffffff;
+  --text: #111827;
+  --muted: #667085;
+  --hairline: rgba(17, 24, 39, 0.08);
+  --field: rgba(255, 255, 255, 0.8);
+  --nav: rgba(255, 255, 255, 0.82);
+  --sheet: rgba(250, 251, 253, 0.96);
+  --shadow: 0 6px 22px rgba(17, 24, 39, 0.07), 0 1px 2px rgba(17, 24, 39, 0.05);
+  --blob1: rgba(var(--acc), 0.14);
+  --blob2: rgba(var(--acc2), 0.1);
+  --blob3: transparent;
+  --blob4: rgba(var(--acc), 0.06);
+}
+
+/* ---------- Dark: graphite ---------- */
+[data-theme='dark'] {
+  --bg: #0d1117;
+  --card: rgba(30, 36, 48, 0.62);
+  --card-2: rgba(255, 255, 255, 0.06);
+  --solid: #161b24;
+  --text: #e8edf5;
+  --muted: #8b95a7;
+  --hairline: rgba(255, 255, 255, 0.08);
+  --nav: rgba(22, 27, 36, 0.78);
+  --sheet: rgba(18, 22, 30, 0.97);
+  --blob1: rgba(var(--acc), 0.14);
+  --blob2: rgba(var(--acc2), 0.06);
+  --blob3: transparent;
+  --blob4: rgba(var(--acc), 0.05);
+}
+
+/* ---------- Midnight: true black (uses the Midnight style) + violet ---------- */
+[data-theme='midnight'] {
+  --text: #f2f0fa;
+  --muted: #8f8aa3;
+}
+
+/* ---------- Pearl: warm ivory + champagne gold ---------- */
+[data-theme='pearl'] {
+  --bg: #f6f1ea;
+  --card: rgba(255, 253, 249, 0.72);
+  --card-2: rgba(255, 252, 246, 0.66);
+  --solid: #fffdf9;
+  --text: #2b2118;
+  --muted: #85776a;
+  --hairline: rgba(60, 40, 20, 0.09);
+  --edge: rgba(255, 255, 255, 0.85);
+  --field: rgba(255, 253, 249, 0.75);
+  --nav: rgba(255, 252, 247, 0.82);
+  --sheet: rgba(252, 249, 244, 0.96);
+  --shadow: 0 8px 26px rgba(80, 55, 25, 0.08), 0 1px 2px rgba(80, 55, 25, 0.05);
+  --primary: #8a6434;
+  --primary-2: #a67c46;
+  --acc: 166, 124, 70;
+  --acc2: 214, 178, 128;
+  --hero-1: #a67c46;
+  --hero-2: #4b3218;
+  --blob1: rgba(214, 178, 128, 0.28);
+  --blob2: rgba(240, 214, 200, 0.4);
+  --blob3: rgba(255, 255, 255, 0.5);
+  --blob4: rgba(200, 170, 140, 0.16);
+}
+
+/* ---------- Sunset: peach → plum + coral ---------- */
+[data-theme='sunset'] {
+  --bg: #fff1ea;
+  --card: rgba(255, 250, 247, 0.66);
+  --card-2: rgba(255, 248, 244, 0.6);
+  --solid: #fffaf7;
+  --text: #2d1424;
+  --muted: #8a6575;
+  --hairline: rgba(80, 20, 50, 0.08);
+  --field: rgba(255, 250, 247, 0.7);
+  --nav: rgba(255, 247, 242, 0.8);
+  --sheet: rgba(255, 246, 241, 0.96);
+  --primary: #c94f35;
+  --primary-2: #e8664a;
+  --acc: 232, 102, 74;
+  --acc2: 157, 72, 140;
+  --hero-1: #ec7a52;
+  --hero-2: #6b2f5c;
+  --blob1: rgba(242, 121, 91, 0.3);
+  --blob2: rgba(157, 72, 140, 0.18);
+  --blob3: rgba(255, 196, 120, 0.25);
+  --blob4: rgba(242, 121, 91, 0.12);
+}
+
+/* ---------- Black & White: pure monochrome ---------- */
+[data-theme='mono'] {
+  --bg: #ffffff;
+  --card: #ffffff;
+  --card-2: #f5f5f5;
+  --solid: #ffffff;
+  --text: #000000;
+  --muted: #808080;
+  --danger: #000000;
+  --income: #000000;
+  --expense: #808080;
+  --hairline: #e5e5e5;
+  --edge: #e5e5e5;
+  --edge-hi: transparent;
+  --field: #ffffff;
+  --nav: #ffffff;
+  --sheet: #ffffff;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 14px rgba(0, 0, 0, 0.05);
+  --blur: 0px;
+  --primary: #000000;
+  --primary-2: #111111;
+  --acc: 17, 17, 17;
+  --acc2: 128, 128, 128;
+  --hero-1: #222222;
+  --hero-2: #000000;
+  --primary-soft: #e5e5e5;
+  --on-primary: #ffffff;
+  --warn: #000000;
+  --tone-income: #000000;
+  --tone-expense: #808080;
+  --tone-muted: #808080;
+  --tone-blue: #222222;
+  --tone-violet: #222222;
+  --tone-amber: #000000;
+  --tone-amber-solid: #222222;
+  --tone-pink: #222222;
+  --tone-pink-solid: #222222;
+  --tone-teal: #222222;
+  --tone-teal-solid: #222222;
+  --chart-2: #808080;
+  --chart-3: #222222;
+  --chart-4: #b3b3b3;
+  --chart-5: #4d4d4d;
+  --chart-6: #999999;
+  --chart-7: #000000;
+  --chart-8: #cccccc;
+  --tone-income-bg: #eeeeee;
+  --tone-expense-bg: #f2f2f2;
+  --tone-muted-bg: #f2f2f2;
+  --tone-blue-bg: #eeeeee;
+  --tone-violet-bg: #eeeeee;
+  --tone-amber-bg: #e5e5e5;
+  --tone-pink-bg: #eeeeee;
+  --tone-teal-bg: #eeeeee;
+  --img-filter: grayscale(1);
+  --hero-bar: #ffffff;
+  --logo-1: #222222;
+  --logo-2: #000000;
+}
+.dark[data-theme='mono'] {
+  --bg: #000000;
+  --card: #111111;
+  --card-2: #1a1a1a;
+  --solid: #111111;
+  --text: #ffffff;
+  --muted: #808080;
+  --danger: #ffffff;
+  --income: #ffffff;
+  --expense: #808080;
+  --hairline: #222222;
+  --edge: #222222;
+  --field: #111111;
+  --nav: #111111;
+  --sheet: #111111;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  --primary: #ffffff;
+  --primary-2: #e5e5e5;
+  --acc: 229, 229, 229;
+  --hero-1: #222222;
+  --hero-2: #111111;
+  --primary-soft: #222222;
+  --on-primary: #000000;
+  --warn: #ffffff;
+  --tone-income: #ffffff;
+  --tone-amber: #ffffff;
+  --tone-blue: #e5e5e5;
+  --tone-violet: #e5e5e5;
+  --tone-pink: #e5e5e5;
+  --tone-teal: #e5e5e5;
+  --tone-amber-solid: #e5e5e5;
+  --tone-pink-solid: #e5e5e5;
+  --tone-teal-solid: #e5e5e5;
+  --chart-3: #e5e5e5;
+  --chart-5: #b3b3b3;
+  --chart-7: #ffffff;
+  --tone-income-bg: #222222;
+  --tone-expense-bg: #1a1a1a;
+  --tone-muted-bg: #1a1a1a;
+  --tone-blue-bg: #222222;
+  --tone-violet-bg: #222222;
+  --tone-amber-bg: #2a2a2a;
+  --tone-pink-bg: #222222;
+  --tone-teal-bg: #222222;
+}
+[data-theme='mono'] .app-bg {
+  display: none;
+}
+[data-theme='mono'] .liquid,
+[data-theme='mono'] .liquid-primary,
+[data-theme='mono'] .liquid-danger {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+[data-theme='mono'] .liquid::before {
+  display: none;
+}
+[data-theme='mono'] .liquid:not(.brand-logo) {
+  background: var(--card) !important;
+  border: 1px solid var(--hairline) !important;
+  box-shadow: none !important;
+}
+[data-theme='mono'] .liquid-primary {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: var(--on-primary) !important;
+}
+[data-theme='mono'] .liquid-danger {
+  background: transparent !important;
+  border: 1px solid var(--text) !important;
+  color: var(--text) !important;
+}
+[data-theme='mono'] .hero {
+  box-shadow: none;
+  border-color: transparent;
+}
+[data-theme='mono'] .hero .liquid {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  color: #ffffff !important;
+}
+/* uploaded logos / photos follow the theme unless the user chose "original colours" */
+[data-theme='mono'][data-images='theme'] .themed-img,
+[data-theme='mono'][data-images='theme'] .bank-card {
+  filter: grayscale(1);
+}
+
 [data-style='clean'] .app-bg,
 [data-fx='reduced'] .app-bg {
   display: none;
@@ -271,7 +547,7 @@ select {
   .liquid-primary {
     background: linear-gradient(180deg, var(--primary-2), var(--primary)) !important;
     border-color: rgba(255, 255, 255, 0.35) !important;
-    color: #fff !important;
+    color: var(--on-primary) !important;
     box-shadow:
       inset 0 1px 1px rgba(255, 255, 255, 0.45),
       inset 0 -3px 8px rgba(0, 0, 0, 0.15),

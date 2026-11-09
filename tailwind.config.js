@@ -14,6 +14,7 @@ export default {
         income: 'var(--income)',
         expense: 'var(--expense)',
         hairline: 'var(--hairline)',
+        warn: 'var(--warn)',
       },
       fontFamily: {
         sans: ['"Inter Variable"', 'Inter', 'system-ui', '-apple-system', 'Roboto', 'sans-serif'],

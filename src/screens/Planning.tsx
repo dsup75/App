@@ -14,7 +14,7 @@ import { useToast } from '../context/ToastContext';
 import { Badge, Button, Card, Chips, Empty, ErrorBox, HeroCard, IconBubble, IconButton, List, ListRow, Page, ProgressBar, SectionTitle, Skeleton, Spinner } from '../components/ui';
 
 export function barColor(pct: number) {
-  return pct >= 100 ? 'var(--danger)' : pct >= 80 ? '#E0A030' : undefined;
+  return pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warn)' : undefined;
 }
 
 export function BudgetsScreen() {
@@ -210,7 +210,7 @@ export function RecurringScreen() {
                   </div>
                 </div>
                 {st === 'active' && (
-                  <p className={'text-[12.5px] ' + (days < 0 ? 'font-semibold text-danger' : days <= (r.remind_days ?? 1) ? 'font-semibold text-amber-600' : 'text-muted')}>
+                  <p className={'text-[12.5px] ' + (days < 0 ? 'font-semibold text-danger' : days <= (r.remind_days ?? 1) ? 'font-semibold text-warn' : 'text-muted')}>
                     {days < 0 ? `Overdue by ${-days} day${days < -1 ? 's' : ''}` : days === 0 ? 'Due today' : `Next payment in ${days} day${days > 1 ? 's' : ''}`} · {formatDate(r.next_date)}
                   </p>
                 )}

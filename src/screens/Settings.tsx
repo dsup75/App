@@ -9,7 +9,7 @@ import { useLock } from '../context/LockContext';
 import { useToast } from '../context/ToastContext';
 import { friendlyError, saveSettings } from '../lib/db';
 import { biometricAvailable, biometricPrompt, hashPin, verifyPin, LOCK_TIMEOUTS, type LockConfig } from '../lib/lock';
-import { ACCENTS, STYLES, TEXT_SIZES, getThemePrefs, setThemePrefs, type ThemePrefs } from '../lib/theme';
+import { ACCENTS, STYLES, TEXT_SIZES, THEMES, getThemePrefs, setThemePrefs, type ThemePrefs } from '../lib/theme';
 import { isValidScriptUrl, syncAll, testScript } from '../lib/sheets';
 import { isValidUpiId } from '../lib/upi';
 import { formatDateTime } from '../lib/dates';
@@ -256,64 +256,74 @@ function Appearance() {
     setThemePrefs(patch);
     setP(getThemePrefs());
   };
+  const preset = THEMES.find((t) => t.value === p.theme);
+  const followsMode = p.theme === 'custom' ? p.style !== 'midnight' : !preset?.mode;
   return (
     <>
       <SectionTitle>Appearance</SectionTitle>
       <Card className="space-y-4">
         <div className="space-y-2">
-          <p className="text-[13px] font-semibold text-muted">Style</p>
-          <div className="grid grid-cols-3 gap-2">
-            {STYLES.map((st) => (
+          <p className="text-[13px] font-semibold text-muted">Theme</p>
+          <div className="grid grid-cols-4 gap-2">
+            {THEMES.map((t) => (
               <button
-                key={st.value}
-                onClick={() => set({ style: st.value })}
-                className={cx('press rounded-[14px] p-2.5 text-left', p.style === st.value ? 'ring-2 ring-[var(--primary-2)]' : '')}
+                key={t.value}
+                type="button"
+                onClick={() => set({ theme: t.value })}
+                aria-pressed={p.theme === t.value}
+                className={cx('press rounded-[14px] p-1.5 text-center', p.theme === t.value ? 'ring-2 ring-[var(--primary-2)]' : '')}
                 style={{ background: 'var(--card-2)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
               >
-                <span
-                  className="mb-1.5 block h-8 rounded-[9px]"
-                  style={{
-                    background:
-                      st.value === 'midnight'
-                        ? 'linear-gradient(135deg,#000,#1a1a1d)'
-                        : st.value === 'clean'
-                          ? 'linear-gradient(135deg,#fff,#eceff0)'
-                          : 'linear-gradient(135deg,rgba(var(--acc),.35),rgba(255,255,255,.5))',
-                    boxShadow: 'inset 0 0 0 1px var(--hairline)',
-                  }}
-                />
-                <span className="block text-[12.5px] font-semibold">{st.label}</span>
+                <span className="relative mb-1 block h-11 overflow-hidden rounded-[10px]" style={{ background: t.swatch[0], boxShadow: 'inset 0 0 0 1px rgba(128,128,128,.25)' }}>
+                  <span className="absolute inset-x-1.5 top-1.5 h-3.5 rounded-[5px]" style={{ background: t.swatch[1], opacity: 0.95 }} />
+                  <span className="absolute bottom-1.5 left-1.5 h-2.5 w-6 rounded-full" style={{ background: t.swatch[2] }} />
+                </span>
+                <span className="block truncate text-[11px] font-semibold">{t.label}</span>
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => set({ theme: 'custom' })}
+              aria-pressed={p.theme === 'custom'}
+              className={cx('press rounded-[14px] p-1.5 text-center', p.theme === 'custom' ? 'ring-2 ring-[var(--primary-2)]' : '')}
+              style={{ background: 'var(--card-2)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+            >
+              <span className="mb-1 flex h-11 items-center justify-center rounded-[10px] text-[18px]" style={{ background: 'var(--field)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}>
+                ⚙︎
+              </span>
+              <span className="block truncate text-[11px] font-semibold">Custom</span>
+            </button>
           </div>
-          <p className="text-[12px] text-muted">{STYLES.find((x) => x.value === p.style)?.hint}</p>
+          <p className="text-[12px] text-muted">{preset ? preset.hint : 'Your own mix of style and accent colour.'}</p>
         </div>
 
-        <div className="space-y-2">
-          <p className="text-[13px] font-semibold text-muted">Accent colour</p>
-          <div className="flex flex-wrap gap-2.5">
-            {ACCENTS.map((a) => (
-              <button
-                key={a.value}
-                aria-label={a.label}
-                onClick={() => set({ accent: a.value })}
-                className="press flex flex-col items-center gap-1"
-              >
-                <span
-                  className="block h-9 w-9 rounded-full"
-                  style={{ background: a.color, boxShadow: p.accent === a.value ? `0 0 0 2px var(--bg), 0 0 0 4px ${a.color}` : 'inset 0 0 0 1px rgba(0,0,0,.1)' }}
-                />
-                <span className="text-[11px] text-muted">{a.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        {p.theme === 'custom' && (
+          <>
+            <div className="space-y-2">
+              <p className="text-[13px] font-semibold text-muted">Style</p>
+              <Segmented value={p.style} onChange={(v) => set({ style: v })} options={STYLES.map((st) => ({ value: st.value, label: st.label }))} />
+              <p className="text-[12px] text-muted">{STYLES.find((x) => x.value === p.style)?.hint}</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-[13px] font-semibold text-muted">Accent colour</p>
+              <div className="flex flex-wrap gap-2.5">
+                {ACCENTS.map((a) => (
+                  <button key={a.value} aria-label={a.label} onClick={() => set({ accent: a.value })} className="press flex flex-col items-center gap-1">
+                    <span
+                      className="block h-9 w-9 rounded-full"
+                      style={{ background: a.color, boxShadow: p.accent === a.value ? `0 0 0 2px var(--bg), 0 0 0 4px ${a.color}` : 'inset 0 0 0 1px rgba(0,0,0,.1)' }}
+                    />
+                    <span className="text-[11px] text-muted">{a.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
         <div className="space-y-2">
           <p className="text-[13px] font-semibold text-muted">Light / dark</p>
-          {p.style === 'midnight' ? (
-            <p className="text-[12.5px] text-muted">Midnight is always dark.</p>
-          ) : (
+          {followsMode ? (
             <Segmented
               value={p.mode}
               onChange={(m) => set({ mode: m })}
@@ -323,7 +333,22 @@ function Appearance() {
                 { value: 'dark', label: 'Dark' },
               ]}
             />
+          ) : (
+            <p className="text-[12.5px] text-muted">{preset?.label ?? 'Midnight'} is always {(preset?.mode ?? 'dark') === 'dark' ? 'dark' : 'light'}.</p>
           )}
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-[13px] font-semibold text-muted">Your logos & photos</p>
+          <Segmented
+            value={p.images}
+            onChange={(v) => set({ images: v })}
+            options={[
+              { value: 'theme', label: 'Follow theme' },
+              { value: 'original', label: 'Original colours' },
+            ]}
+          />
+          <p className="text-[12px] text-muted">In Black &amp; White, "Follow theme" shows uploaded icons, logos and bank cards in grey.</p>
         </div>
 
         <div className="space-y-2">

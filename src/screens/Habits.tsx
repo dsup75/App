@@ -96,7 +96,7 @@ export function HabitsScreen() {
           {doneToday}/{habits.length} done
         </p>
         <div className="mt-2">
-          <ProgressBar pct={habits.length ? (doneToday / habits.length) * 100 : 0} color="#7CE0B0" />
+          <ProgressBar pct={habits.length ? (doneToday / habits.length) * 100 : 0} color="var(--hero-bar)" />
         </div>
       </HeroCard>
 
@@ -124,7 +124,7 @@ export function HabitsScreen() {
                       onClick={() => toggle(h.id, today)}
                       className={cx(
                         'flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all active:scale-90',
-                        todayOn ? 'bg-[var(--primary-2)] text-white' : 'bg-[var(--card-2)] text-muted',
+                        todayOn ? 'bg-[var(--primary-2)] text-[var(--on-primary)]' : 'bg-[var(--card-2)] text-muted',
                       )}
                       style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
                     >
@@ -137,7 +137,7 @@ export function HabitsScreen() {
                       </p>
                     </button>
                     {st > 0 && (
-                      <span className="flex items-center gap-1 text-[13px] font-semibold text-amber-500">
+                      <span className="flex items-center gap-1 text-[13px] font-semibold text-warn">
                         <Flame size={15} /> {st}
                       </span>
                     )}

@@ -226,7 +226,7 @@ export function FocusModeScreen() {
                       <span className="block truncate text-[11px] text-muted">{a.packageName}</span>
                     </span>
                     <span
-                      className={cx('flex h-6 w-6 items-center justify-center rounded-full', on ? (prefs.mode === 'block' ? 'bg-[var(--danger)] text-white' : 'bg-[var(--primary-2)] text-white') : '')}
+                      className={cx('flex h-6 w-6 items-center justify-center rounded-full', on ? (prefs.mode === 'block' ? 'bg-[var(--danger)] text-[var(--on-primary)]' : 'bg-[var(--primary-2)] text-[var(--on-primary)]') : '')}
                       style={on ? undefined : { boxShadow: 'inset 0 0 0 2px var(--muted)' }}
                     >
                       {on && <Check size={14} strokeWidth={3} />}
@@ -258,7 +258,7 @@ export function FocusModeScreen() {
             <Button full onClick={() => nav('/pomodoro')}>
               <ExternalLink size={14} /> Open focus timer
             </Button>
-            {!ready && <p className="text-[12px] text-amber-600">Turn on the DeepBoost blocker above first.</p>}
+            {!ready && <p className="text-[12px] text-warn">Turn on the DeepBoost blocker above first.</p>}
             <p className="text-[11.5px] text-muted">
               On the block screen, "Emergency exit" (hold 5 seconds) ends the session. Android does not let any app stop force-stop or uninstall, so this is a self-control tool, not a lock.
             </p>
