@@ -88,6 +88,7 @@ export async function scheduleReminders(uid: string): Promise<number> {
     cfg.exams ? supabase.from('exams').select('id,name,exam_date').is('deleted_at', null).gte('exam_date', today).lte('exam_date', addDays(today, 37)) : null,
     cfg.recurring ? supabase.from('recurring_rules').select('id,title,amount_paise,next_date,end_date,remind_days,is_subscription').is('deleted_at', null).eq('status', 'active').lte('next_date', until) : null,
     cfg.daily ? supabase.from('tasks').select('id,due_date').is('deleted_at', null).in('status', ['pending', 'in_progress', 'waiting']).not('due_date', 'is', null).lte('due_date', until) : null,
+    cfg.exams ? supabase.from('revision_queue').select('id,chapter_name,due_date').eq('status', 'pending').lte('due_date', until) : null,
   ]);
   const data = (i: number) => ((q[i] as any)?.data ?? []) as any[];
 
@@ -111,6 +112,20 @@ export async function scheduleReminders(uid: string): Promise<number> {
   }
   for (const r of data(4)) {
     list.push({ title: `Payment due: ${r.title}`, body: `${formatINR(r.amount_paise)} to receive`, when: at(r.due_date < today ? today : r.due_date, cfg.time), url: `/r/payment_requests/${r.id}` });
+  }
+  // revisions: one reminder per day
+  const revDays = new Map<string, string[]>();
+  for (const r of data(8)) {
+    const day = r.due_date < today ? today : r.due_date;
+    revDays.set(day, [...(revDays.get(day) ?? []), r.chapter_name]);
+  }
+  for (const [day, names] of revDays) {
+    list.push({
+      title: names.length === 1 ? `Revise ${names[0]} today` : `${names.length} revisions due today`,
+      body: names.length === 1 ? 'Revise it, then tap Easy / Moderate / Difficult.' : names.slice(0, 4).join(', ') + (names.length > 4 ? '…' : ''),
+      when: at(day, cfg.time),
+      url: '/revisions',
+    });
   }
   for (const e of data(5)) {
     for (const before of [7, 1]) {

@@ -14,6 +14,7 @@ import {
   BarChart, Button, Card, Empty, ErrorBox,  HeroCard, IconBubble, IconButton, List, ListRow, Page, ProgressBar, SectionTitle, SeeAll,  Sheet, Spinner,
 } from '../components/ui';
 import { LibraryBig } from 'lucide-react';
+import { RevisionSummary } from './Revisions';
 
 export function StudyHub() {
   const nav = useNavigate();
@@ -111,6 +112,8 @@ export function StudyHub() {
         <Shortcut icon={<GraduationCap size={16} />} label="Exams" onClick={() => nav('/exams')} />
         <Shortcut icon={<BookOpen size={16} />} label="Sessions" onClick={() => nav('/sessions')} />
       </div>
+
+      <RevisionSummary />
 
       {data.chapters.length === 0 && (
         <Card className="flex items-center gap-3">

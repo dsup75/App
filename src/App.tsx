@@ -36,6 +36,7 @@ import { CalculatorsScreen } from './screens/Calculators';
 import { BackupScreen } from './screens/Backup';
 import { FocusModeScreen } from './screens/FocusMode';
 import { HealthScreen } from './screens/Health';
+import { RevisionsScreen } from './screens/Revisions';
 import { SetupScreen } from './screens/Setup';
 import { onReminderTap, scheduleReminders } from './lib/reminders';
 import { saveFinishedFocusSession } from './lib/focusGuard';
@@ -160,6 +161,7 @@ function Gate() {
           <Route path="/money-tools/backup" element={<BackupScreen />} />
           <Route path="/focus-mode" element={<FocusModeScreen />} />
           <Route path="/health" element={<HealthScreen />} />
+          <Route path="/revisions" element={<RevisionsScreen />} />
           <Route path="/setup" element={<SetupScreen />} />
           <Route path="/recurring" element={<RecurringScreen />} />
           <Route path="/lists" element={<ListsScreen />} />

@@ -44,6 +44,8 @@ export function CalendarScreen() {
         supabase.from('campaigns').select('id,name,end_date').is('deleted_at', null).gte('end_date', f0).lte('end_date', t0),
       ]);
       for (const x of r) if (x.error) throw x.error;
+      const rv = await supabase.from('revision_queue').select('id,chapter_name,due_date,status').eq('status', 'pending').gte('due_date', f0).lte('due_date', t0);
+      const revs = rv.error ? [] : ((rv.data ?? []) as any[]);
       const d = r.map((x) => (x.data as any[]) ?? []);
       setItems([
         ...d[0].map((x) => ({ date: x.due_date, title: x.title, kind: x.client_id ? 'Client task' : 'Task', tone: (x.status === 'completed' ? 'muted' : 'blue') as Tone, to: `/r/tasks/${x.id}` })),
@@ -56,6 +58,7 @@ export function CalendarScreen() {
         ...d[7].map((x) => ({ date: x.due_date, title: x.title, kind: 'Payment due', tone: 'teal' as Tone, to: `/r/payment_requests/${x.id}` })),
         ...d[8].map((x) => ({ date: x.deadline, title: x.name, kind: 'Project deadline', tone: 'pink' as Tone, to: `/r/projects/${x.id}` })),
         ...d[9].map((x) => ({ date: x.end_date, title: x.name, kind: 'Campaign ends', tone: 'pink' as Tone, to: `/r/campaigns/${x.id}` })),
+        ...revs.map((x) => ({ date: x.due_date, title: `Revise ${x.chapter_name}`, kind: 'Revision', tone: 'violet' as Tone, to: '/revisions' })),
       ]);
     } catch (e) {
       setError(friendlyError(e));

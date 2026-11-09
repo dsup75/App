@@ -1,7 +1,7 @@
 import { RecurringDrafts, BudgetWarnings } from './Planning';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Circle, Settings as Gear, Eye, EyeOff, ArrowDownLeft, ArrowUpRight, Timer, Flame, CalendarClock, LayoutGrid, ChevronUp, ChevronDown, Search } from 'lucide-react';
+import { Check, Circle, Settings as Gear, Eye, EyeOff, ArrowDownLeft, ArrowUpRight, Timer, Flame, CalendarClock, LayoutGrid, ChevronUp, ChevronDown, Search, RotateCcw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { supabase } from '../lib/supabase';
@@ -33,6 +33,7 @@ interface Dash {
   upcoming: { date: string; title: string; kind: string; to: string }[];
   followUps: number;
   nextExam: Row | null;
+  revisionsDue: number;
 }
 
 export function Home() {
@@ -121,7 +122,15 @@ export function Home() {
         .map((l: any) => ({ ...l, remaining: l.principal_paise - (repaid.get(l.id) ?? 0) }))
         .filter((l: any) => l.remaining > 0);
 
+      let revs: { id: string; chapter_name: string; subject_name: string | null; due_date: string }[] = [];
+      try {
+        const rq = await supabase.from('revision_queue').select('id,chapter_name,subject_name,due_date').eq('status', 'pending').lte('due_date', week).order('due_date').limit(100);
+        if (!rq.error) revs = (rq.data ?? []) as typeof revs;
+      } catch {
+        /* revisions are optional on Home */
+      }
       const upcoming = [
+        ...revs.filter((r) => r.due_date > today).map((r) => ({ date: r.due_date, title: `Revise ${r.chapter_name}`, kind: r.subject_name ? `Revision · ${r.subject_name}` : 'Revision', to: '/revisions' })),
         ...(weekTasks.data ?? []).map((t: any) => ({ date: t.due_date, title: t.title, kind: 'Task', to: `/r/tasks/${t.id}` })),
         ...(events.data ?? []).map((e: any) => ({ date: e.event_date, title: e.title, kind: 'Event', to: `/r/events/${e.id}` })),
         ...unpaidInv.filter((x: any) => x.due_date && x.due_date <= week).map((x: any) => ({ date: x.due_date, title: `Invoice ${x.invoice_no}`, kind: 'Invoice due', to: `/r/invoices/${x.id}` })),
@@ -144,6 +153,7 @@ export function Home() {
         upcoming,
         followUps: fu.count ?? 0,
         nextExam: (exams.data ?? [])[0] ?? null,
+        revisionsDue: revs.filter((r) => r.due_date <= today).length,
       });
     } catch (err) {
       setError(friendlyError(err));
@@ -250,10 +260,20 @@ export function Home() {
         ),
         attention: (
           <>
-          {(d.toReceive > 0 || d.dueLoans.length > 0 || d.followUps > 0) && (
+          {(d.toReceive > 0 || d.dueLoans.length > 0 || d.followUps > 0 || d.revisionsDue > 0) && (
             <>
               <SectionTitle>Needs attention</SectionTitle>
               <List>
+                {d.revisionsDue > 0 && (
+                  <ListRow
+                    icon={<IconBubble tone="violet"><RotateCcw size={17} /></IconBubble>}
+                    title="Revisions due"
+                    subtitle="Revise and tell how it felt"
+                    right={<Badge tone="amber">{d.revisionsDue}</Badge>}
+                    onClick={() => nav('/revisions')}
+                    chevron
+                  />
+                )}
                 {d.toReceive > 0 && (
                   <ListRow
                     icon={<IconBubble tone="teal"><ArrowDownLeft size={17} /></IconBubble>}

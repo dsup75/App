@@ -1,5 +1,6 @@
 // Summary panels shown at the top of specific record detail screens.
 import { useEffect, useMemo, useState } from 'react';
+import { ChapterRevisions } from './ChapterRevisions';
 import { useNavigate } from 'react-router-dom';
 import { FileDown, Plus, Copy } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -57,6 +58,8 @@ export function DetailExtras({ table, row, nameOf, reloadKey }: { table: TableNa
       );
     case 'mock_tests':
       return <TestSummary row={row} />;
+    case 'chapters':
+      return <ChapterRevisions chapterId={row.id} reloadKey={reloadKey} />;
     case 'clients':
       return <ClientSummary row={row} reloadKey={reloadKey} />;
     case 'accounts':

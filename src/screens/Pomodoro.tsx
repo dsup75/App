@@ -4,7 +4,8 @@ import { Play, Pause, Square, RotateCcw, ImagePlus, Maximize2, Minimize2, X } fr
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { createRecord, friendlyError } from '../lib/db';
-import { todayISO } from '../lib/dates';
+import { relativeDay, todayISO } from '../lib/dates';
+import { supabase } from '../lib/supabase';
 import { compressImage } from '../lib/parse';
 import { askPermission } from '../lib/reminders';
 import { focusStatus, getFocusPrefs, pauseFocusGuard, resumeFocusGuard, setFocusPrefs, startFocusGuard, stopFocusGuard } from '../lib/focusGuard';
@@ -168,7 +169,12 @@ export function Pomodoro() {
           subject_id: s.subjectId || null,
           chapter_id: s.chapterId || null,
         });
-        toast(`Saved ${minutes} min of study`);
+        let extra = '';
+        if (s.chapterId) {
+          const { data } = await supabase.from('revisions').select('due_date').eq('chapter_id', s.chapterId).eq('status', 'pending').is('deleted_at', null).maybeSingle();
+          if (data?.due_date) extra = ` · revision ${relativeDay(data.due_date)}`;
+        }
+        toast(`Saved ${minutes} min of study${extra}`);
       } catch (e) {
         toast(friendlyError(e), 'error');
       } finally {
