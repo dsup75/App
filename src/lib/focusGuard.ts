@@ -47,9 +47,12 @@ interface FocusGuardPlugin {
   resume(o: { endsAt?: number }): Promise<void>;
   stop(o?: { reason?: string }): Promise<void>;
   takeLastSession(): Promise<{ session?: FocusSessionSummary }>;
+  getUsage(o: { start: number; end: number }): Promise<{ totalMs: number; unlocks: number; apps: (AppInfo & { ms: number })[] }>;
 }
 
 const FocusGuard = registerPlugin<FocusGuardPlugin>('FocusGuard');
+/** Same native plugin, shared with screen time */
+export const focusGuardPlugin = FocusGuard;
 
 export const focusSupported = () => Capacitor.getPlatform() === 'android' && Capacitor.isPluginAvailable('FocusGuard');
 

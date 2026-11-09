@@ -11,6 +11,9 @@ export interface HealthToday {
   heartRateAvg: number | null; // bpm
   heartRateLatest: number | null;
   sleepMinutes: number | null; // last night
+  weightKg: number | null; // latest in the last 30 days
+  weightAt: string | null;
+  bodyFatPct: number | null;
   permissions: Record<string, boolean>;
   readAt: string;
 }
@@ -29,6 +32,9 @@ interface HealthConnectPlugin {
     heartRateAvg: number | null;
     heartRateLatest: number | null;
     sleepMinutes: number | null;
+    weightKg?: number | null;
+    weightAt?: string | null;
+    bodyFatPct?: number | null;
     permissions: Record<string, boolean>;
   }>;
 }
@@ -74,7 +80,7 @@ export async function readToday(): Promise<HealthToday> {
   start.setHours(0, 0, 0, 0);
   const sleepStart = new Date(start.getTime() - 12 * 3600000); // from 12 noon yesterday
   const e = now.toISOString();
-  const empty: HealthToday = { steps: null, calories: null, distanceKm: null, heartRateAvg: null, heartRateLatest: null, sleepMinutes: null, permissions: {}, readAt: e };
+  const empty: HealthToday = { steps: null, calories: null, distanceKm: null, heartRateAvg: null, heartRateLatest: null, sleepMinutes: null, weightKg: null, weightAt: null, bodyFatPct: null, permissions: {}, readAt: e };
   if (!isAndroid()) return empty;
   try {
     const r = await HC.readToday({ startDate: start.toISOString(), endDate: e, sleepStartDate: sleepStart.toISOString() });
@@ -91,10 +97,43 @@ export async function readToday(): Promise<HealthToday> {
       heartRateAvg: avg === null ? null : Math.round(avg),
       heartRateLatest: last === null ? null : Math.round(last),
       sleepMinutes: sleep === null ? null : Math.round(sleep),
+      weightKg: num(r.weightKg) === null ? null : Math.round(num(r.weightKg)! * 100) / 100,
+      weightAt: typeof r.weightAt === 'string' ? r.weightAt : null,
+      bodyFatPct: num(r.bodyFatPct) === null ? null : Math.round(num(r.bodyFatPct)! * 10) / 10,
       permissions: r.permissions ?? {},
       readAt: e,
     };
   } catch {
     return empty;
+  }
+}
+
+/** Keeps a daily copy (for history and the dashboard) of what Health Connect returned. Never invents values. */
+export async function saveHealthSnapshot(d: HealthToday): Promise<void> {
+  const { supabase } = await import('./supabase');
+  const { todayISO } = await import('./dates');
+  const any = [d.steps, d.calories, d.distanceKm, d.heartRateAvg, d.sleepMinutes].some((v) => v !== null);
+  if (any) {
+    await supabase.from('activity_daily').upsert(
+      {
+        day: todayISO(),
+        source: 'health_connect',
+        steps: d.steps,
+        distance_m: d.distanceKm === null ? null : Math.round(d.distanceKm * 1000),
+        calories_kcal: d.calories,
+        heart_rate_avg: d.heartRateAvg,
+        sleep_minutes: d.sleepMinutes,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,day,source' },
+    );
+  }
+  if (d.weightKg !== null && d.weightAt && d.weightKg >= 10 && d.weightKg <= 400) {
+    await supabase
+      .from('body_measurements')
+      .upsert(
+        { measured_at: d.weightAt, weight_kg: d.weightKg, body_fat_pct: d.bodyFatPct, source: 'health_connect' },
+        { onConflict: 'user_id,measured_at,source', ignoreDuplicates: true },
+      );
   }
 }

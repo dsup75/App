@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import {
   ListTodo, Receipt, HandCoins, Users, PiggyBank, TrendingUp, Bot, Settings, Trash2, CalendarDays, QrCode, Flame, StickyNote,
-  ShoppingCart, CalendarCheck, Link2, Timer, Megaphone, FolderKanban, Target, Wand2, Gauge, CalendarClock, Search, Sparkles, Wrench, HeartPulse, ShieldBan,
+  ShoppingCart, CalendarCheck, Link2, Timer, Megaphone, FolderKanban, Target, Wand2, Gauge, CalendarClock, Search, Sparkles, Wrench, HeartPulse, ShieldBan, RotateCcw, Watch, Scale, MonitorSmartphone,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { IconBubble, Page, SectionTitle, type Tone } from '../components/ui';
@@ -47,7 +47,16 @@ const SECTIONS: { title: string; items: Item[] }[] = [
       { label: 'Campaigns', to: '/campaigns', icon: Megaphone, tone: 'pink' },
       { label: 'Focus timer', to: '/pomodoro', icon: Timer, tone: 'primary' },
       { label: 'Focus mode', to: '/focus-mode', icon: ShieldBan, tone: 'violet' },
+      { label: 'Revisions', to: '/revisions', icon: RotateCcw, tone: 'violet' },
+    ],
+  },
+  {
+    title: 'Health & gadgets',
+    items: [
+      { label: 'Gadgets', to: '/gadgets', icon: Watch, tone: 'blue' },
       { label: 'Health', to: '/health', icon: HeartPulse, tone: 'pink' },
+      { label: 'Weight', to: '/weight', icon: Scale, tone: 'teal' },
+      { label: 'Screen time', to: '/screen-time', icon: MonitorSmartphone, tone: 'amber' },
     ],
   },
   {

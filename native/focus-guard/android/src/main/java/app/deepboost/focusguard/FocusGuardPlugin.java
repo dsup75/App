@@ -74,6 +74,80 @@ public class FocusGuardPlugin extends Plugin {
         call.resolve(r);
     }
 
+    /** Screen time between start and end (ms epoch), worked out from Android usage events. Stays on the phone. */
+    @PluginMethod
+    public void getUsage(PluginCall call) {
+        Context c = getContext();
+        if (!hasUsageAccess(c)) {
+            call.reject("Usage access is off");
+            return;
+        }
+        Double s0 = call.getDouble("start");
+        Double e0 = call.getDouble("end");
+        long now = System.currentTimeMillis();
+        long start = s0 == null ? now - 86400000L : s0.longValue();
+        long end = e0 == null ? now : Math.min(now, e0.longValue());
+        if (end <= start) {
+            call.reject("Bad time range");
+            return;
+        }
+        try {
+            android.app.usage.UsageStatsManager usm = (android.app.usage.UsageStatsManager) c.getSystemService(Context.USAGE_STATS_SERVICE);
+            android.app.usage.UsageEvents events = usm.queryEvents(start, end);
+            android.app.usage.UsageEvents.Event ev = new android.app.usage.UsageEvents.Event();
+            java.util.Map<String, Long> fgSince = new java.util.HashMap<>();
+            java.util.Map<String, Long> total = new java.util.HashMap<>();
+            int unlocks = 0;
+            String home = FocusState.homePackage(c);
+            while (events.hasNextEvent()) {
+                events.getNextEvent(ev);
+                int t = ev.getEventType();
+                String pkg = ev.getPackageName();
+                long ts = ev.getTimeStamp();
+                if (t == 18) { // KEYGUARD_HIDDEN = phone unlocked (Android 9+)
+                    unlocks++;
+                    continue;
+                }
+                if (pkg == null) continue;
+                if (t == android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND) {
+                    if (!fgSince.containsKey(pkg)) fgSince.put(pkg, ts);
+                } else if (t == android.app.usage.UsageEvents.Event.MOVE_TO_BACKGROUND) {
+                    Long since = fgSince.remove(pkg);
+                    if (since != null && ts > since) total.put(pkg, (total.containsKey(pkg) ? total.get(pkg) : 0L) + (ts - since));
+                }
+            }
+            for (java.util.Map.Entry<String, Long> en : fgSince.entrySet()) {
+                // still open at the end of the range (cap at 3 hours to avoid a missed close event counting forever)
+                long add = Math.min(end - en.getValue(), 3L * 3600000L);
+                if (add > 0) total.put(en.getKey(), (total.containsKey(en.getKey()) ? total.get(en.getKey()) : 0L) + add);
+            }
+            PackageManager pm = c.getPackageManager();
+            List<JSObject> apps = new ArrayList<>();
+            long sum = 0L;
+            for (java.util.Map.Entry<String, Long> en : total.entrySet()) {
+                String pkg = en.getKey();
+                if (pkg.equals(home) || pkg.equals("com.android.systemui") || pkg.contains("launcher") || en.getValue() < 1000L) continue;
+                if (pm.getLaunchIntentForPackage(pkg) == null && !pkg.equals(c.getPackageName())) continue; // background/system parts
+                JSObject a = new JSObject();
+                a.put("packageName", pkg);
+                a.put("label", FocusState.labelOf(c, pkg));
+                a.put("ms", en.getValue());
+                apps.add(a);
+                sum += en.getValue();
+            }
+            Collections.sort(apps, (x, y) -> Long.compare(y.optLong("ms", 0L), x.optLong("ms", 0L)));
+            JSArray arr = new JSArray();
+            for (JSObject a : apps) arr.put(a);
+            JSObject r = new JSObject();
+            r.put("totalMs", sum);
+            r.put("unlocks", Build.VERSION.SDK_INT >= 28 ? unlocks : -1);
+            r.put("apps", arr);
+            call.resolve(r);
+        } catch (Exception e) {
+            call.reject("Could not read screen time: " + e.getMessage());
+        }
+    }
+
     @PluginMethod
     public void takeLastSession(PluginCall call) {
         SharedPreferences p = FocusState.prefs(getContext());

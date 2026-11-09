@@ -15,6 +15,8 @@ import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
+import androidx.health.connect.client.records.WeightRecord
+import androidx.health.connect.client.records.BodyFatRecord
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
@@ -39,7 +41,9 @@ class HealthConnectPlugin : Plugin() {
         "android.permission.health.READ_TOTAL_CALORIES_BURNED",
         "android.permission.health.READ_DISTANCE",
         "android.permission.health.READ_HEART_RATE",
-        "android.permission.health.READ_SLEEP"
+        "android.permission.health.READ_SLEEP",
+        "android.permission.health.READ_WEIGHT",
+        "android.permission.health.READ_BODY_FAT"
     )
 
     private var client: HealthConnectClient? = null
@@ -248,6 +252,34 @@ class HealthConnectPlugin : Plugin() {
                 } catch (e: Exception) { }
             }
             o.put("sleepMinutes", sleepMinutes ?: JSONObject.NULL)
+
+            // Latest weight / body fat in the last 30 days (written by a scale app, if any)
+            val monthRange = TimeRangeFilter.between(end.minusSeconds(30L * 86400L), end)
+            var weightKg: Double? = null
+            var weightAt: String? = null
+            if (has("READ_WEIGHT")) {
+                try {
+                    val w = c.readRecords(
+                        ReadRecordsRequest(recordType = WeightRecord::class, timeRangeFilter = monthRange, ascendingOrder = false, pageSize = 1)
+                    ).records.firstOrNull()
+                    if (w != null) {
+                        weightKg = w.weight.inKilograms
+                        weightAt = w.time.toString()
+                    }
+                } catch (e: Exception) { }
+            }
+            o.put("weightKg", weightKg ?: JSONObject.NULL)
+            o.put("weightAt", weightAt ?: JSONObject.NULL)
+            var fat: Double? = null
+            if (has("READ_BODY_FAT")) {
+                try {
+                    val f = c.readRecords(
+                        ReadRecordsRequest(recordType = BodyFatRecord::class, timeRangeFilter = monthRange, ascendingOrder = false, pageSize = 1)
+                    ).records.firstOrNull()
+                    if (f != null) fat = f.percentage.value
+                } catch (e: Exception) { }
+            }
+            o.put("bodyFatPct", fat ?: JSONObject.NULL)
 
             val perms = JSObject()
             for (p in readPermissions) perms.put(short(p), has(short(p)))

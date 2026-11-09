@@ -1,8 +1,8 @@
 // Daily health stats from Health Connect (smartwatch data appears only if your watch app shares it there)
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Footprints, Flame, HeartPulse, Moon, Route, RefreshCw, Watch } from 'lucide-react';
+import { Footprints, Flame, HeartPulse, Moon, Route, RefreshCw, Watch, Scale } from 'lucide-react';
 import { App as CapApp } from '@capacitor/app';
-import { healthAvailable, openHealthConnect, readToday, requestHealthAccess, type HealthState, type HealthToday } from '../lib/health';
+import { healthAvailable, openHealthConnect, readToday, requestHealthAccess, saveHealthSnapshot, type HealthState, type HealthToday } from '../lib/health';
 import { useLock } from '../context/LockContext';
 import { Button, Card, Page, Skeleton } from '../components/ui';
 
@@ -30,7 +30,11 @@ export function HealthScreen() {
   const load = useCallback(async () => {
     const st = await healthAvailable();
     setState(st);
-    if (st === 'ready') setData(await readToday());
+    if (st === 'ready') {
+      const d = await readToday();
+      setData(d);
+      saveHealthSnapshot(d).catch(() => {});
+    }
   }, []);
   useEffect(() => {
     load();
@@ -75,6 +79,8 @@ export function HealthScreen() {
             <Stat icon={<HeartPulse size={14} />} label="Heart rate (avg)" value={data?.heartRateAvg ?? null} unit="bpm" />
             <Stat icon={<Moon size={14} />} label="Sleep last night" value={data?.sleepMinutes != null ? Math.round((data.sleepMinutes / 60) * 10) / 10 : null} unit="h" />
             <Stat icon={<HeartPulse size={14} />} label="Heart rate (latest)" value={data?.heartRateLatest ?? null} unit="bpm" />
+            <Stat icon={<Scale size={14} />} label="Weight (latest)" value={data?.weightKg ?? null} unit="kg" />
+            <Stat icon={<Scale size={14} />} label="Body fat" value={data?.bodyFatPct ?? null} unit="%" />
           </div>
           {data && <p className="px-1 text-[11.5px] text-muted">Read from Health Connect at {new Date(data.readAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}. "No data" means Health Connect has nothing for today or access was not given.</p>}
           <div className="grid grid-cols-2 gap-2">

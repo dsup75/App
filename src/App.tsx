@@ -37,9 +37,13 @@ import { BackupScreen } from './screens/Backup';
 import { FocusModeScreen } from './screens/FocusMode';
 import { HealthScreen } from './screens/Health';
 import { RevisionsScreen } from './screens/Revisions';
+import { GadgetDetail, GadgetsHub } from './screens/Gadgets';
+import { WeightScreen } from './screens/Weight';
+import { ScreenTimeScreen } from './screens/ScreenTime';
 import { SetupScreen } from './screens/Setup';
 import { onReminderTap, scheduleReminders } from './lib/reminders';
 import { saveFinishedFocusSession } from './lib/focusGuard';
+import { checkScreenGoalAlert, syncScreenTimeTotals } from './lib/screenTime';
 import { syncAll } from './lib/sheets';
 import { saveSettings } from './lib/db';
 import { useRef } from 'react';
@@ -97,6 +101,8 @@ function ReminderSync() {
     const run = () => {
       scheduleReminders(user.id).catch(() => {});
       saveFinishedFocusSession().catch(() => {});
+      syncScreenTimeTotals().catch(() => {});
+      checkScreenGoalAlert().catch(() => {});
     };
     const t = setTimeout(run, 4000);
     const off = onReminderTap((url) => nav(url));
@@ -162,6 +168,10 @@ function Gate() {
           <Route path="/focus-mode" element={<FocusModeScreen />} />
           <Route path="/health" element={<HealthScreen />} />
           <Route path="/revisions" element={<RevisionsScreen />} />
+          <Route path="/gadgets" element={<GadgetsHub />} />
+          <Route path="/gadgets/:id" element={<GadgetDetail />} />
+          <Route path="/weight" element={<WeightScreen />} />
+          <Route path="/screen-time" element={<ScreenTimeScreen />} />
           <Route path="/setup" element={<SetupScreen />} />
           <Route path="/recurring" element={<RecurringScreen />} />
           <Route path="/lists" element={<ListsScreen />} />

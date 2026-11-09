@@ -49,7 +49,7 @@ if 'com.google.android.apps.healthdata' not in m:
 '''
     m = m.replace('<application', q + '\n    <application', 1)
 
-perms = ['READ_STEPS', 'READ_HEART_RATE', 'READ_SLEEP', 'READ_DISTANCE', 'READ_TOTAL_CALORIES_BURNED', 'READ_ACTIVE_CALORIES_BURNED']
+perms = ['READ_STEPS', 'READ_HEART_RATE', 'READ_SLEEP', 'READ_DISTANCE', 'READ_TOTAL_CALORIES_BURNED', 'READ_ACTIVE_CALORIES_BURNED', 'READ_WEIGHT', 'READ_BODY_FAT']
 for p in perms:
     tag = f'<uses-permission android:name="android.permission.health.{p}" />'
     if tag not in m:
