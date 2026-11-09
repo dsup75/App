@@ -10,7 +10,7 @@ import {
   HeartPulse, Heart, Activity, Dumbbell, Footprints, Bed, Moon, Pill, Stethoscope, Salad, Scale, Bike as Cycle, Trophy, Medal, Flame,
   Briefcase, Building2, Users, User, UserRound, Handshake, Megaphone, Target, Rocket, Presentation, FileText, Folder, Mail, Phone, MessageCircle, Send, Share2,
   ListTodo, SquareCheckBig, ClipboardList, Calendar, CalendarDays, Clock, Timer, AlarmClock, Bell, Star, Bookmark, Flag, Pin, Zap, Sparkles, Leaf, Sun, Cloud,
-  Music, Film, Palette, Brush, Image, Video, Mic, Code, Terminal, Database, Server, Shield, Lock, Key, Settings, Wrench, Hammer,
+  Music, Film, Palette, Brush, Image as ImageIcon, Video, Mic, Code, Terminal, Database, Server, Shield, Lock, Key, Settings, Wrench, Hammer,
   Baby, Dog, Cat, Shirt, Scissors, Sofa, Trees, Mountain, Waves, Umbrella, Church, Package, Truck, Ship,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -30,7 +30,7 @@ export const ICON_GROUPS: { label: string; icons: Record<string, LucideIcon> }[]
   { label: 'Shopping & food', icons: { ShoppingBag, ShoppingCart, Gift, Tag, Ticket, Utensils, Coffee, Pizza, Apple, Soup, Package, Shirt } },
   { label: 'Communication', icons: { Mail, Phone, MessageCircle, Send, Share2, Megaphone } },
   { label: 'Home & life', icons: { House, Lightbulb, Droplets, Sofa, Baby, Dog, Cat, Scissors, Trees, Mountain, Waves, Umbrella, Church, Leaf, Sun, Cloud } },
-  { label: 'Creative & tech', icons: { Music, Film, Palette, Brush, Image, Video, Mic, Code, Terminal, Database, Server, Settings, Wrench, Hammer } },
+  { label: 'Creative & tech', icons: { Music, Film, Palette, Brush, Image: ImageIcon, Video, Mic, Code, Terminal, Database, Server, Settings, Wrench, Hammer } },
 ];
 
 export const LIBRARY: Record<string, LucideIcon> = Object.assign({}, ...ICON_GROUPS.map((g) => g.icons));
@@ -117,7 +117,7 @@ const OK_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((res, rej) => {
-    const img = new Image();
+    const img = new window.Image();
     img.onload = () => res(img);
     img.onerror = () => rej(new Error('This image could not be opened.'));
     img.src = src;

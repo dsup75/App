@@ -56,6 +56,16 @@ There is no package-lock; CI runs `npm install --legacy-peer-deps`, then `vite b
 - The earlier Codex `money_source_links` idea (PR #1 notes in ADDITIVE_MONEY_PHASE*.md) was never applied to the database and is replaced by the `money_links` system above — do not bring it back.
 - Native: `native/focus-guard` (local Capacitor plugin, Java) for focus mode; `native/health-connect` (local Capacitor plugin, Kotlin, read-only; `@capgo/capacitor-health` has no Capacitor 6 version) for Health Connect. CI runs `ci/patch-android.py` after `cap add android` (minSdk 26 + Health Connect manifest entries).
 
+### Nov 2026 additions (all additive)
+- Focus blocker: `native/focus-guard` uses Usage access + Display over other apps (FocusGuardService polls ~0.7 s, BlockActivity shows the block screen). **Never add an AccessibilityService, SMS or notification-listener permission** — Google Play Protect (India fraud protection) blocks installing the downloaded APK. History in `focus_sessions`.
+- Smart revision: `revisions`, `revision_settings`, trigger `trg_plan_revision` on study_sessions, RPCs `complete_revision`, `reschedule_revision`, `start_revision_plan`, view `revision_queue`.
+- Gadgets & health: `gadgets`, `body_measurements`, `health_profile`, `activity_daily`, `screen_time_daily` (only daily totals; app-wise screen time stays on the phone). BLE via `@capacitor-community/bluetooth-le` (`src/lib/ble.ts`); Health Connect via local plugin `native/health-connect`.
+- Themes: `THEMES` in `src/lib/theme.ts`, tokens in `src/index.css` (`[data-theme=…]`). Use CSS variables (`--tone-*`, `--chart-*`, `--on-primary`, `--warn`) — never hard-code colours, or Black & White breaks.
+- Custom icons: Storage bucket `icons` (private, `<user_id>/…`), tables `custom_icons` + `entity_icons` (any table, by `entity_table` + `entity_id`); `EntityIcon` / `IconPickerSheet` in `src/components/EntityIcon.tsx`; `ICONABLE` list in `src/lib/icons.ts`.
+- Subscriptions: `recurring_rules.split_group_id`; trigger `trg_split_subscription` adds one group bill per cycle. Accounts have optional bank details (masked in UI). Never store PIN/CVV/OTP/passwords.
+- Home (Dashboard 2.0): `BalanceCarousel`, `HealthCarousel`, `Notifications`, `ActivityTimeline`. Bottom nav: Home · Finance · Quick add · Study · More (Clients is in More).
+- Backup: new tables are in `BACKUP_TABLES` and `import_backup_rows`; icon files and optional app look travel in the JSON.
+
 ## 5. Frontend structure
 - `src/lib/tables.ts` — **registry of every table** (fields, labels, types, defaults, validation). Generic screens use it: `RecordEdit` (form), `RecordDetail` (detail + edit history), `TableList` (list), `RecordLine` (row). Adding a simple module = migration + entry in `TABLES` + `TABLE_ICON` in `RecordLine.tsx` + a route/list screen.
 - `src/components/RecordForm.tsx` — generic form; `MoneyForm.tsx` — money form (purpose card on top, "Payment breakdown" lines below, income links, split).
