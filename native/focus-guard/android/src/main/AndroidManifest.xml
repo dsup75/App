@@ -25,7 +25,26 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Focus mode: keeps the user on allowed apps during a study timer they started" />
+                android:value="Focus mode: shows a block screen for apps the user chose to block during a study timer they started" />
         </service>
+        <service
+            android:name="app.deepboost.focusguard.FocusAccessibilityService"
+            android:label="@string/focus_blocker_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/focus_blocker_service" />
+        </service>
+        <activity
+            android:name="app.deepboost.focusguard.BlockActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="app.deepboost.focusguard.block"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
     </application>
 </manifest>

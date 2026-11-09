@@ -7,7 +7,7 @@ import { createRecord, friendlyError } from '../lib/db';
 import { todayISO } from '../lib/dates';
 import { compressImage } from '../lib/parse';
 import { askPermission } from '../lib/reminders';
-import { getFocusPrefs, setFocusPrefs, startFocusGuard, stopFocusGuard } from '../lib/focusGuard';
+import { focusStatus, getFocusPrefs, pauseFocusGuard, resumeFocusGuard, setFocusPrefs, startFocusGuard, stopFocusGuard } from '../lib/focusGuard';
 import { useNavigate } from 'react-router-dom';
 import { ShieldBan, ChevronDown } from 'lucide-react';
 import { useLookups } from '../lib/useLookups';
@@ -189,6 +189,7 @@ export function Pomodoro() {
     if (s.phase === 'focus') {
       const focused = s.focusedMs + (s.startedAt ? Math.min(Date.now(), s.endsAt!) - s.startedAt : 0);
       saveSession(Math.min(focused, s.durations.focus * 60000));
+      stopFocusGuard('completed');
       const rounds = s.rounds + 1;
       const next: Phase = rounds % 4 === 0 ? 'long' : 'short';
       setS((x) => ({ ...x, phase: next, rounds, endsAt: null, remainingMs: x.durations[next] * 60000, startedAt: null, focusedMs: 0 }));
@@ -206,11 +207,15 @@ export function Pomodoro() {
     const endsAt = Date.now() + s.remainingMs;
     setS((x) => ({ ...x, endsAt, startedAt: x.phase === 'focus' ? Date.now() : null }));
     scheduleEnd(endsAt, s.phase);
-    if (s.phase === 'focus') startFocusGuard(endsAt).then((m) => m && toast(m, 'error'));
+    if (s.phase === 'focus') {
+      const st = await focusStatus();
+      if (st.running && st.paused) await resumeFocusGuard(endsAt);
+      else startFocusGuard(endsAt).then((m) => m && toast(m, 'error'));
+    }
   };
   const pause = () => {
     cancelEnd();
-    stopFocusGuard();
+    pauseFocusGuard();
     setS((x) => ({
       ...x,
       endsAt: null,
@@ -495,7 +500,7 @@ function FocusModeCard() {
             Block other apps during Focus (not during breaks)
           </label>
           <Button size="sm" onClick={() => nav('/focus-mode')}>
-            Permissions & allowed apps
+            Permissions & apps to block
           </Button>
           <p className="text-[11.5px] text-muted">Android app only. Phone, settings and keyboard are never blocked.</p>
         </>

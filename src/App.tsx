@@ -38,6 +38,7 @@ import { FocusModeScreen } from './screens/FocusMode';
 import { HealthScreen } from './screens/Health';
 import { SetupScreen } from './screens/Setup';
 import { onReminderTap, scheduleReminders } from './lib/reminders';
+import { saveFinishedFocusSession } from './lib/focusGuard';
 import { syncAll } from './lib/sheets';
 import { saveSettings } from './lib/db';
 import { useRef } from 'react';
@@ -92,7 +93,10 @@ function ReminderSync() {
   const nav = useNavigate();
   useEffect(() => {
     if (!user) return;
-    const run = () => scheduleReminders(user.id).catch(() => {});
+    const run = () => {
+      scheduleReminders(user.id).catch(() => {});
+      saveFinishedFocusSession().catch(() => {});
+    };
     const t = setTimeout(run, 4000);
     const off = onReminderTap((url) => nav(url));
     let sub: { remove: () => void } | null = null;

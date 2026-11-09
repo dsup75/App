@@ -28,51 +28,45 @@ import java.util.Set;
 /** Watches the app on screen during a focus session and brings DeepBoost Life back if it is not allowed. */
 public class FocusGuardService extends Service {
 
-    static final String PREFS = "focus_guard";
+    static final String PREFS = FocusState.PREFS;
     private static final String CHANNEL = "focus_guard";
     private static final int NOTIF_ID = 4711;
 
-    // Apps that are never blocked: phone, emergency, system UI, settings, home screen
-    private static final String[] ALWAYS_ALLOWED = {
-        "android", "com.android.systemui", "com.android.settings", "com.android.phone", "com.android.dialer",
-        "com.google.android.dialer", "com.samsung.android.dialer", "com.android.server.telecom", "com.android.emergency",
-        "com.google.android.apps.safetyhub", "com.android.incallui", "com.miui.securitycenter", "com.android.permissioncontroller",
-        "com.google.android.permissioncontroller"
-    };
-
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private Set<String> allowed = new HashSet<>();
     private long endsAt = 0L;
     private long lastKick = 0L;
-    private String home = "";
 
     static boolean isRunning(Context c) {
-        SharedPreferences p = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        return p.getBoolean("running", false) && p.getLong("endsAt", 0L) > System.currentTimeMillis();
+        return FocusState.isRunning(c);
     }
 
     static long endsAt(Context c) {
-        return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong("endsAt", 0L);
-    }
-
-    static void stop(Context c) {
-        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("running", false).apply();
-        c.stopService(new Intent(c, FocusGuardService.class));
+        return FocusState.prefs(c).getLong("endsAt", 0L);
     }
 
     private final Runnable tick = new Runnable() {
         @Override
         public void run() {
             long now = System.currentTimeMillis();
-            if (now >= endsAt || !getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("running", false)) {
+            endsAt = endsAt(FocusGuardService.this);
+            if (!FocusState.prefs(FocusGuardService.this).getBoolean("running", false)) {
+                stopSelfSafely();
+                return;
+            }
+            if (now >= endsAt) {
+                FocusState.finish(FocusGuardService.this, "completed");
                 stopSelfSafely();
                 return;
             }
             try {
-                String fg = foregroundApp(now);
-                if (fg != null && !isAllowed(fg) && now - lastKick > 1500) {
-                    lastKick = now;
-                    bringBack(fg);
+                // The accessibility blocker reacts instantly; this 1-second check is the fallback when it is off.
+                if (!FocusState.accessibilityOn(FocusGuardService.this) && FocusGuardPlugin.hasUsageAccess(FocusGuardService.this)) {
+                    String fg = foregroundApp(now);
+                    if (fg != null && now - lastKick > 1500 && FocusState.shouldBlock(FocusGuardService.this, fg)) {
+                        lastKick = now;
+                        FocusState.countBlock(FocusGuardService.this, fg);
+                        FocusState.showBlockScreen(FocusGuardService.this, fg);
+                    }
                 }
             } catch (Exception ignored) {
                 // never crash the phone's foreground service
@@ -83,10 +77,7 @@ public class FocusGuardService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        SharedPreferences p = getSharedPreferences(PREFS, MODE_PRIVATE);
-        allowed = new HashSet<>(p.getStringSet("allowed", new HashSet<>()));
-        endsAt = p.getLong("endsAt", 0L);
-        home = homePackage();
+        endsAt = endsAt(this);
         Notification n = buildNotification();
         if (Build.VERSION.SDK_INT >= 34) {
             startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
@@ -110,7 +101,6 @@ public class FocusGuardService extends Service {
     }
 
     private void stopSelfSafely() {
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean("running", false).apply();
         handler.removeCallbacks(tick);
         if (Build.VERSION.SDK_INT >= 24) {
             stopForeground(STOP_FOREGROUND_REMOVE);
@@ -120,22 +110,7 @@ public class FocusGuardService extends Service {
         stopSelf();
     }
 
-    private boolean isAllowed(String pkg) {
-        if (pkg.equals(getPackageName()) || pkg.equals(home) || allowed.contains(pkg)) return true;
-        for (String a : ALWAYS_ALLOWED) if (a.equals(pkg)) return true;
-        return pkg.contains("launcher") || pkg.contains("inputmethod") || pkg.contains("keyboard");
-    }
 
-    private String homePackage() {
-        try {
-            Intent i = new Intent(Intent.ACTION_MAIN);
-            i.addCategory(Intent.CATEGORY_HOME);
-            ResolveInfo ri = getPackageManager().resolveActivity(i, PackageManager.MATCH_DEFAULT_ONLY);
-            return ri != null && ri.activityInfo != null ? ri.activityInfo.packageName : "";
-        } catch (Exception e) {
-            return "";
-        }
-    }
 
     /** Latest app that came to the front in the last 30 seconds */
     private String foregroundApp(long now) {
@@ -151,13 +126,6 @@ public class FocusGuardService extends Service {
         return last;
     }
 
-    private void bringBack(String blocked) {
-        Intent i = getPackageManager().getLaunchIntentForPackage(getPackageName());
-        if (i == null) return;
-        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        i.putExtra("focusBlocked", blocked);
-        startActivity(i);
-    }
 
     private Notification buildNotification() {
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
@@ -172,7 +140,7 @@ public class FocusGuardService extends Service {
         return new NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
             .setContentTitle("Focus mode is on")
-            .setContentText("Only allowed apps until " + until)
+            .setContentText("Blocking distractions until " + until)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(pi)
