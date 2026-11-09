@@ -1,5 +1,6 @@
 // Focus mode (Android): during a focus session, opening a blocked app shows a block screen.
-// Best method: the DeepBoost accessibility blocker (instant). Fallback: Usage access + Display over other apps (1-second check).
+// Method: Usage access + Display over other apps (checks the open app about every 0.7 s).
+// (An Accessibility-based blocker is not used: Google Play Protect blocks installing downloaded APKs that declare one.)
 // On the web there is no way to block other apps, so it only reports "not supported".
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { supabase } from './supabase';
@@ -125,7 +126,7 @@ export async function startFocusGuard(endsAt: number, force = false): Promise<st
   if (!p.on && !force) return null;
   if (!focusSupported()) return 'Focus mode works in the Android app only.';
   const st = await focusStatus();
-  if (!focusReady(st)) return 'Focus mode needs the DeepBoost blocker turned on (Focus mode screen → Permissions).';
+  if (!focusReady(st)) return 'Focus mode needs Usage access and Display over other apps (Focus mode screen → permissions).';
   const apps = p.mode === 'allow' ? p.allowed : p.blocked;
   if (p.mode === 'block' && apps.length === 0) return 'Pick the apps to block first (Focus mode screen).';
   try {

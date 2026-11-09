@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ShieldBan, Check, Search, ExternalLink, Pause, Play, Square, Timer } from 'lucide-react';
 import { App as CapApp } from '@capacitor/app';
 import {
-  fetchFocusStats, focusReady, focusStatus, focusSupported, getFocusPrefs, listInstalledApps, openAccessibilitySettings, openAppInfo,
+  fetchFocusStats, focusReady, focusStatus, focusSupported, getFocusPrefs, listInstalledApps, openAppInfo,
   openOverlaySettings, openUsageSettings, pauseFocusGuard, resumeFocusGuard, saveFinishedFocusSession, setFocusPrefs, startFocusGuard, stopFocusGuard,
   type AppInfo, type FocusPrefs, type FocusStats, type FocusStatus,
 } from '../lib/focusGuard';
@@ -138,64 +138,44 @@ export function FocusModeScreen() {
             <p className="text-[12.5px] text-muted">When on, starting a Focus session in the timer also turns on blocking until that session ends. Breaks are not blocked.</p>
           </Card>
 
-          <SectionTitle>1 · Turn on the blocker</SectionTitle>
+          <SectionTitle>1 · Give 2 permissions</SectionTitle>
           <List>
             <ListRow
-              title="DeepBoost blocker (recommended)"
-              subtitle="Settings → Accessibility → Installed apps → DeepBoost Life focus blocker → On"
-              right={st?.accessibility ? <Badge tone="primary">On</Badge> : <Badge tone="amber">Off</Badge>}
+              title="Usage access"
+              subtitle="Lets DeepBoost Life see which app is open"
+              right={st?.usageAccess ? <Badge tone="primary">Allowed</Badge> : <Badge tone="amber">Off</Badge>}
               onClick={() => {
                 suppressBriefly();
-                openAccessibilitySettings();
+                openUsageSettings();
+              }}
+              chevron
+            />
+            <ListRow
+              title="Display over other apps"
+              subtitle="Lets the block screen appear over a blocked app"
+              right={st?.overlay ? <Badge tone="primary">Allowed</Badge> : <Badge tone="amber">Off</Badge>}
+              onClick={() => {
+                suppressBriefly();
+                openOverlaySettings();
               }}
               chevron
             />
           </List>
-          {!st?.accessibility && (
-            <Card className="space-y-2 !p-3.5">
-              <p className="text-[12.5px] text-muted">
-                <b>Switch greyed out / "Restricted setting"?</b> Android 13+ protects this for apps installed from an APK. Open App info → ⋮ (top right) → <b>Allow restricted settings</b>, then come back and switch the blocker on.
-              </p>
-              <Button
-                size="sm"
-                onClick={() => {
-                  suppressBriefly();
-                  openAppInfo();
-                }}
-              >
-                Open App info
-              </Button>
-              <p className="text-[11.5px] text-muted">The blocker only sees the name of the app that opens. It does not read your screen, typing or messages.</p>
-            </Card>
-          )}
-          <details className="glass rounded-[18px] px-3.5 py-2.5">
-            <summary className="cursor-pointer text-[13px] font-semibold">Backup method (if the blocker can't be turned on)</summary>
-            <div className="mt-2 space-y-2">
-              <List>
-                <ListRow
-                  title="Usage access"
-                  subtitle="Lets DeepBoost Life see which app is open"
-                  right={st?.usageAccess ? <Badge tone="primary">Allowed</Badge> : <Badge tone="amber">Off</Badge>}
-                  onClick={() => {
-                    suppressBriefly();
-                    openUsageSettings();
-                  }}
-                  chevron
-                />
-                <ListRow
-                  title="Display over other apps"
-                  subtitle="Lets the block screen appear"
-                  right={st?.overlay ? <Badge tone="primary">Allowed</Badge> : <Badge tone="amber">Off</Badge>}
-                  onClick={() => {
-                    suppressBriefly();
-                    openOverlaySettings();
-                  }}
-                  chevron
-                />
-              </List>
-              <p className="text-[11.5px] text-muted">Slower (checks every second) and some phones (Xiaomi, Vivo, Oppo) may still stop it. Also allow "Autostart" / no battery restriction for DeepBoost Life on those phones.</p>
-            </div>
-          </details>
+          <Card className="space-y-2 !p-3.5">
+            <p className="text-[12px] text-muted">
+              On Xiaomi / Redmi / POCO, Vivo, Oppo and Realme phones also open App info → allow <b>Autostart</b>, set Battery to <b>No restrictions</b>, and (Xiaomi) allow <b>Display pop-up windows while running in the background</b>. Otherwise the phone may stop the blocker.
+            </p>
+            <Button
+              size="sm"
+              onClick={() => {
+                suppressBriefly();
+                openAppInfo();
+              }}
+            >
+              Open App info
+            </Button>
+            <p className="text-[11.5px] text-muted">The blocker only checks which app is open (about every 0.7 s). It never reads your screen, typing or messages.</p>
+          </Card>
 
           <SectionTitle right={<span className="text-[12.5px] text-muted">{chosen.length} selected</span>}>2 · Apps</SectionTitle>
           <Segmented
@@ -258,7 +238,7 @@ export function FocusModeScreen() {
             <Button full onClick={() => nav('/pomodoro')}>
               <ExternalLink size={14} /> Open focus timer
             </Button>
-            {!ready && <p className="text-[12px] text-warn">Turn on the DeepBoost blocker above first.</p>}
+            {!ready && <p className="text-[12px] text-warn">Allow both permissions above first.</p>}
             <p className="text-[11.5px] text-muted">
               On the block screen, "Emergency exit" (hold 5 seconds) ends the session. Android does not let any app stop force-stop or uninstall, so this is a self-control tool, not a lock.
             </p>

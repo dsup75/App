@@ -71,7 +71,7 @@ public class FocusGuardService extends Service {
             } catch (Exception ignored) {
                 // never crash the phone's foreground service
             }
-            handler.postDelayed(this, 1000);
+            handler.postDelayed(this, 700);
         }
     };
 
@@ -113,17 +113,23 @@ public class FocusGuardService extends Service {
 
 
     /** Latest app that came to the front in the last 30 seconds */
+    // Keeps track of the app on screen across checks, so an app that was already open
+    // when the session started is caught too (not only apps opened in the last few seconds).
+    private String currentFg = null;
+    private long lastQuery = 0L;
+
     private String foregroundApp(long now) {
         UsageStatsManager usm = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
-        if (usm == null) return null;
-        UsageEvents events = usm.queryEvents(now - 30000, now);
+        if (usm == null) return currentFg;
+        long from = lastQuery == 0L ? now - 6L * 3600000L : lastQuery - 2000L;
+        UsageEvents events = usm.queryEvents(from, now);
         UsageEvents.Event e = new UsageEvents.Event();
-        String last = null;
         while (events.hasNextEvent()) {
             events.getNextEvent(e);
-            if (e.getEventType() == UsageEvents.Event.MOVE_TO_FOREGROUND) last = e.getPackageName();
+            if (e.getEventType() == UsageEvents.Event.MOVE_TO_FOREGROUND) currentFg = e.getPackageName();
         }
-        return last;
+        lastQuery = now;
+        return currentFg;
     }
 
 

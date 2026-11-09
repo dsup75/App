@@ -42,17 +42,12 @@ final class FocusState {
         return prefs(c).getLong("pausedAt", 0L) > 0L;
     }
 
+    /**
+     * The Accessibility-based blocker was removed: Google Play Protect (fraud protection in India)
+     * blocks installing any downloaded APK that declares an Accessibility service.
+     * Blocking uses Usage access + "Display over other apps" instead.
+     */
     static boolean accessibilityOn(Context c) {
-        try {
-            String enabled = Settings.Secure.getString(c.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-            if (TextUtils.isEmpty(enabled)) return false;
-            ComponentName me = new ComponentName(c, FocusAccessibilityService.class);
-            for (String s : enabled.split(":")) {
-                ComponentName cn = ComponentName.unflattenFromString(s);
-                if (me.equals(cn)) return true;
-            }
-        } catch (Exception ignored) {
-        }
         return false;
     }
 

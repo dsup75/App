@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="focus_blocker_label">DeepBoost Life focus blocker</string>
-    <string name="focus_blocker_description">Only during a focus session you start in DeepBoost Life: when you open an app you chose to block, a block screen appears. It only sees the name of the app that opened — it does not read your screen, typing or messages, and nothing is sent anywhere.</string>
-</resources>
