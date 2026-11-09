@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { formatINR } from '../lib/money';
 import { Card, Chips, FormRow, KV, Page, Segmented } from '../components/ui';
 
-type Calc = 'sip' | 'emi' | 'udhaar' | 'fuel' | 'discount';
+type Calc = 'sip' | 'emi' | 'udhaar' | 'fuel' | 'discount' | 'percent' | 'units';
 
 const n = (v: string) => {
   const x = Number(String(v).replace(/,/g, ''));
@@ -35,6 +35,8 @@ export function CalculatorsScreen() {
           { value: 'udhaar', label: 'Udhaar interest' },
           { value: 'fuel', label: 'Fuel cost' },
           { value: 'discount', label: 'Discount' },
+          { value: 'percent', label: 'Percentage' },
+          { value: 'units', label: 'Unit converter' },
         ]}
       />
       {c === 'sip' && <Sip />}
@@ -42,6 +44,8 @@ export function CalculatorsScreen() {
       {c === 'udhaar' && <Udhaar />}
       {c === 'fuel' && <Fuel />}
       {c === 'discount' && <Discount />}
+      {c === 'percent' && <Percent />}
+      {c === 'units' && <Units />}
       <p className="px-1 text-[11.5px] text-muted">Estimates only. Real returns, bank interest and prices can differ.</p>
     </Page>
   );
@@ -183,6 +187,107 @@ function Discount() {
         <KV label="Effective off" value={`${n(mrp) ? (((n(mrp) - after2) / n(mrp)) * 100).toFixed(1) : '0'}%`} />
         <KV label="You pay" value={rs(final)} />
       </div>
+    </Card>
+  );
+}
+
+const fmt = (x: number, d = 4) => (Number.isFinite(x) ? Number(x.toFixed(d)).toLocaleString('en-IN', { maximumFractionDigits: d }) : '—');
+
+function Percent() {
+  const [a, setA] = useState('18');
+  const [b, setB] = useState('2500');
+  const [x, setX] = useState('450');
+  const [y, setY] = useState('1800');
+  const [o, setO] = useState('40000');
+  const [nw, setNw] = useState('46000');
+  const change = n(o) ? ((n(nw) - n(o)) / n(o)) * 100 : NaN;
+  return (
+    <>
+      <Card className="space-y-3">
+        <p className="text-[13.5px] font-semibold">What is X% of Y?</p>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Percent" value={a} onChange={setA} suffix="%" />
+          <Field label="Of" value={b} onChange={setB} />
+        </div>
+        <KV label="Answer" value={fmt((n(a) / 100) * n(b), 2)} />
+      </Card>
+      <Card className="space-y-3">
+        <p className="text-[13.5px] font-semibold">X is what % of Y?</p>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="X" value={x} onChange={setX} />
+          <Field label="Y" value={y} onChange={setY} />
+        </div>
+        <KV label="Answer" value={n(y) ? `${fmt((n(x) / n(y)) * 100, 2)}%` : '—'} />
+      </Card>
+      <Card className="space-y-3">
+        <p className="text-[13.5px] font-semibold">% change (old → new)</p>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Old" value={o} onChange={setO} />
+          <Field label="New" value={nw} onChange={setNw} />
+        </div>
+        <KV label={change >= 0 ? 'Increase' : 'Decrease'} value={Number.isFinite(change) ? `${fmt(Math.abs(change), 2)}%` : '—'} tone={change >= 0 ? 'income' : 'expense'} />
+      </Card>
+    </>
+  );
+}
+
+type UnitGroup = 'length' | 'weight' | 'area' | 'volume' | 'temp' | 'speed';
+// factor = how many base units in one of this unit (base: metre, kg, m², litre, km/h)
+const UNITS: Record<Exclude<UnitGroup, 'temp'>, Record<string, number>> = {
+  length: { mm: 0.001, cm: 0.01, m: 1, km: 1000, inch: 0.0254, foot: 0.3048, yard: 0.9144, mile: 1609.344 },
+  weight: { g: 0.001, kg: 1, quintal: 100, tonne: 1000, ounce: 0.028349523125, pound: 0.45359237 },
+  area: { 'sq ft': 0.09290304, 'sq m': 1, 'sq yard (gaj)': 0.83612736, acre: 4046.8564224, hectare: 10000, 'bigha (UP, pucca)': 2529.285264 },
+  volume: { ml: 0.001, litre: 1, 'cubic m': 1000, 'gallon (US)': 3.785411784, 'cup (240 ml)': 0.24 },
+  speed: { 'km/h': 1, 'm/s': 3.6, mph: 1.609344, knot: 1.852 },
+};
+const TEMP = ['°C', '°F', 'K'];
+const toC = (v: number, u: string) => (u === '°C' ? v : u === '°F' ? ((v - 32) * 5) / 9 : v - 273.15);
+const fromC = (c: number, u: string) => (u === '°C' ? c : u === '°F' ? (c * 9) / 5 + 32 : c + 273.15);
+
+function Units() {
+  const [g, setG] = useState<UnitGroup>('length');
+  const names = g === 'temp' ? TEMP : Object.keys(UNITS[g]);
+  const [from, setFrom] = useState(names[0]);
+  const [to, setTo] = useState(names[1]);
+  const [v, setV] = useState('1');
+  const pickGroup = (x: UnitGroup) => {
+    setG(x);
+    const ns = x === 'temp' ? TEMP : Object.keys(UNITS[x]);
+    setFrom(ns[0]);
+    setTo(ns[1]);
+  };
+  const f = names.includes(from) ? from : names[0];
+  const t = names.includes(to) ? to : names[1];
+  const out = g === 'temp' ? fromC(toC(n(v), f), t) : (n(v) * UNITS[g][f]) / UNITS[g][t];
+  return (
+    <Card className="space-y-3">
+      <Chips
+        value={g}
+        onChange={pickGroup}
+        options={[
+          { value: 'length', label: 'Length' },
+          { value: 'weight', label: 'Weight' },
+          { value: 'area', label: 'Area / land' },
+          { value: 'volume', label: 'Volume' },
+          { value: 'temp', label: 'Temperature' },
+          { value: 'speed', label: 'Speed' },
+        ]}
+      />
+      <Field label="Value" value={v} onChange={setV} />
+      <div className="grid grid-cols-2 gap-2">
+        <FormRow label="From">
+          <select className="field" value={f} onChange={(e) => setFrom(e.target.value)}>
+            {names.map((u) => <option key={u}>{u}</option>)}
+          </select>
+        </FormRow>
+        <FormRow label="To">
+          <select className="field" value={t} onChange={(e) => setTo(e.target.value)}>
+            {names.map((u) => <option key={u}>{u}</option>)}
+          </select>
+        </FormRow>
+      </div>
+      <KV label={`${fmt(n(v))} ${f} =`} value={`${fmt(out)} ${t}`} />
+      {g === 'area' && <p className="text-[11.5px] text-muted">Bigha size differs by state and even district; this uses the UP "pucca" bigha (≈ 27,225 sq ft). Check your local measure.</p>}
     </Card>
   );
 }

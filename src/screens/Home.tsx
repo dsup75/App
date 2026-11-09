@@ -1,7 +1,7 @@
 import { RecurringDrafts, BudgetWarnings } from './Planning';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Circle, Settings as Gear, Eye, EyeOff, ArrowDownLeft, ArrowUpRight, Timer, Flame, CalendarClock, LayoutGrid, ChevronUp, ChevronDown, Search, RotateCcw } from 'lucide-react';
+import { Check, Circle, Settings as Gear, Eye, EyeOff, ArrowDownLeft, ArrowUpRight, Timer, Flame, CalendarClock, LayoutGrid, ChevronUp, ChevronDown, Search, RotateCcw, Bell, ListTodo } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { supabase } from '../lib/supabase';
@@ -11,6 +11,10 @@ import { formatINR, sumPaise } from '../lib/money';
 import { AREAS, optionLabel, PRIORITIES } from '../lib/tables';
 import { useLookups } from '../lib/useLookups';
 import { RecordLine } from '../components/RecordLine';
+import { HealthCarousel } from '../components/HealthCarousel';
+import { ActivityTimeline } from '../components/ActivityTimeline';
+import { BalanceCarousel } from '../components/BalanceCarousel';
+import { NotificationsSheet, useNotices } from '../components/Notifications';
 import {
   Badge, BarChart, Button, Card, Chips, Empty, ErrorBox, HeroCard, IconBubble, IconButton, List, ListRow, Page, SectionTitle, SeeAll, Sheet, Skeleton, Toggle, cx,
 } from '../components/ui';
@@ -55,6 +59,8 @@ export function Home() {
   const { accounts, loaded: lookupsLoaded } = useLookups();
   const setupNeeded = lookupsLoaded && !accounts.some((a) => !a.deleted_at);
   const [layout, setLayoutState] = useState(loadLayout);
+  const notices = useNotices();
+  const [noticeOpen, setNoticeOpen] = useState(false);
   const [customize, setCustomize] = useState(false);
   const setLayout = (l: typeof DEFAULT_LAYOUT) => {
     setLayoutState(l);
@@ -172,6 +178,7 @@ export function Home() {
   const name = settings?.full_name?.split(' ')[0];
   const dateLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
 
+  const overdueTasks = d ? d.tasks.filter((t) => t.status !== 'completed' && t.due_date && t.due_date < today).length : 0;
   const done = todayTasks.filter((t) => t.status === 'completed').length;
   const pct = todayTasks.length ? Math.round((done / todayTasks.length) * 100) : 0;
 
@@ -234,6 +241,17 @@ export function Home() {
           </div>
           </>
         ),
+        health: (
+          <>
+          <HealthCarousel />
+          </>
+        ),
+        timeline: (
+          <>
+          <SectionTitle>Activity</SectionTitle>
+          <ActivityTimeline compact />
+          </>
+        ),
         drafts: (
           <>
           <RecurringDrafts onChanged={load} />
@@ -260,10 +278,20 @@ export function Home() {
         ),
         attention: (
           <>
-          {(d.toReceive > 0 || d.dueLoans.length > 0 || d.followUps > 0 || d.revisionsDue > 0) && (
+          {(d.toReceive > 0 || d.dueLoans.length > 0 || d.followUps > 0 || d.revisionsDue > 0 || overdueTasks > 0) && (
             <>
               <SectionTitle>Needs attention</SectionTitle>
               <List>
+                {overdueTasks > 0 && (
+                  <ListRow
+                    icon={<IconBubble tone="expense"><ListTodo size={17} /></IconBubble>}
+                    title="Overdue tasks"
+                    subtitle="Past their due date"
+                    right={<Badge tone="danger">{overdueTasks}</Badge>}
+                    onClick={() => nav('/tasks')}
+                    chevron
+                  />
+                )}
                 {d.revisionsDue > 0 && (
                   <ListRow
                     icon={<IconBubble tone="violet"><RotateCcw size={17} /></IconBubble>}
@@ -359,16 +387,51 @@ export function Home() {
           <IconButton label="Search everything" onClick={() => nav('/search')}>
             <Search size={18} />
           </IconButton>
+          <span className="relative">
+            <IconButton
+              label={notices.unread ? `Notifications, ${notices.unread} new` : 'Notifications'}
+              onClick={() => {
+                setNoticeOpen(true);
+                notices.reload();
+              }}
+            >
+              <Bell size={18} />
+            </IconButton>
+            {notices.unread > 0 && (
+              <span className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[10px] font-bold text-[var(--on-primary)]">
+                {notices.unread > 9 ? '9+' : notices.unread}
+              </span>
+            )}
+          </span>
           <IconButton label="Settings" onClick={() => nav('/settings')}>
             <Gear size={18} />
           </IconButton>
+          <button
+            type="button"
+            aria-label="Profile and settings"
+            onClick={() => nav('/settings')}
+            className="ml-0.5 flex h-9 w-9 items-center justify-center rounded-full text-[14px] font-bold text-[var(--on-primary)]"
+            style={{ background: 'var(--primary-2)' }}
+          >
+            {(name || 'D').slice(0, 1).toUpperCase()}
+          </button>
         </>
       }
     >
+      <NotificationsSheet
+        open={noticeOpen}
+        onClose={() => {
+          setNoticeOpen(false);
+          notices.markSeen();
+        }}
+        items={notices.items}
+        seen={notices.seen}
+      />
       {!d ? (
         <Skeleton rows={5} />
       ) : (
         <>
+          <BalanceCarousel hide={hide}>
           <HeroCard onClick={() => nav('/finance')}>
             <div className="flex items-center justify-between">
               <p className="text-[13px] opacity-85">Total balance</p>
@@ -408,6 +471,7 @@ export function Home() {
               </button>
             )}
           </HeroCard>
+          </BalanceCarousel>
 
           <Chips value={filter} onChange={setFilter} options={[{ value: 'all', label: 'All' }, ...(AREAS as { value: Filter; label: string }[])]} />
 
@@ -498,8 +562,10 @@ async function loadDashboard(
   };
 }
 
-type HomeSection = 'summary' | 'drafts' | 'budget' | 'today' | 'attention' | 'spending' | 'upcoming' | 'recent';
+type HomeSection = 'health' | 'summary' | 'drafts' | 'budget' | 'today' | 'attention' | 'spending' | 'upcoming' | 'timeline' | 'recent';
 const SECTION_LABELS: Record<HomeSection, string> = {
+  health: 'Health & connected devices',
+  timeline: 'Activity timeline',
   summary: 'Today summary (tasks, habits, study)',
   drafts: 'Due subscriptions & bills',
   budget: 'Budget alerts',
@@ -510,14 +576,18 @@ const SECTION_LABELS: Record<HomeSection, string> = {
   recent: 'Recent transactions',
 };
 const DEFAULT_LAYOUT: { order: HomeSection[]; hidden: HomeSection[] } = {
-  order: ['summary', 'drafts', 'budget', 'today', 'attention', 'spending', 'upcoming', 'recent'],
+  order: ['health', 'attention', 'upcoming', 'timeline', 'summary', 'drafts', 'today', 'budget', 'spending', 'recent'],
   hidden: [],
 };
 function loadLayout() {
   try {
     const v = JSON.parse(localStorage.getItem('home-layout') || 'null');
     if (v?.order) {
-      const order = [...v.order.filter((k: HomeSection) => k in SECTION_LABELS), ...DEFAULT_LAYOUT.order.filter((k) => !v.order.includes(k))];
+      // layouts saved before Dashboard 2.0: Health goes first, Timeline right after "Next 7 days"
+      const saved: HomeSection[] = v.order.filter((k: HomeSection) => k in SECTION_LABELS);
+      if (!saved.includes('health')) saved.unshift('health');
+      if (!saved.includes('timeline')) saved.splice(saved.includes('upcoming') ? saved.indexOf('upcoming') + 1 : saved.length, 0, 'timeline');
+      const order = [...saved, ...DEFAULT_LAYOUT.order.filter((k) => !saved.includes(k))];
       return { order, hidden: (v.hidden ?? []).filter((k: HomeSection) => k in SECTION_LABELS) } as typeof DEFAULT_LAYOUT;
     }
   } catch {

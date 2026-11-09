@@ -34,6 +34,10 @@ export interface Field {
   hidden?: boolean;
   /** dropdown the user can extend / trim in Settings → Manage lists */
   listKey?: ListKey;
+  /** sensitive: shown masked until tapped */
+  mask?: boolean;
+  /** detail page shows a one-tap copy button */
+  copy?: boolean;
 }
 
 export type ListKey = 'payment_app' | 'payment_method' | 'task_type' | 'platform';
@@ -55,6 +59,8 @@ export const PRIORITIES = o([['low', 'Low'], ['medium', 'Medium'], ['high', 'Hig
 export const TASK_STATUS = o([['pending', 'Pending'], ['in_progress', 'In Progress'], ['waiting', 'Waiting for Client'], ['completed', 'Completed'], ['cancelled', 'Cancelled']]);
 export const TASK_TYPES = o([['task', 'Task'], ['follow_up', 'Follow-up'], ['approval', 'Pending approval'], ['creative', 'Creative requirement'], ['meeting', 'Meeting / call']]);
 export const ACCOUNT_TYPES = o([['cash', 'Cash'], ['bank', 'Bank'], ['upi', 'UPI app'], ['wallet', 'Wallet'], ['custom', 'Custom']]);
+export const BANK_ACCOUNT_TYPES = o([['savings', 'Savings'], ['current', 'Current'], ['salary', 'Salary'], ['jan_dhan', 'Jan Dhan'], ['basic', 'Basic savings (BSBDA)'], ['nre', 'NRE'], ['nro', 'NRO'], ['other', 'Other']]);
+export const CARD_NETWORKS = o([['rupay', 'RuPay'], ['visa', 'Visa'], ['mastercard', 'Mastercard']]);
 export const UPI_APPS = o([['gpay', 'Google Pay'], ['phonepe', 'PhonePe'], ['paytm', 'Paytm'], ['bhim', 'BHIM'], ['amazonpay', 'Amazon Pay'], ['cred', 'CRED'], ['bank_app', 'Bank app'], ['netbanking', 'Net banking'], ['card', 'Card'], ['cash', 'Cash'], ['other', 'Other']]);
 export const FREQUENCIES = o([['weekly', 'Every week'], ['monthly', 'Every month'], ['yearly', 'Every year']]);
 export const SUB_STATUS = o([['active', 'Active'], ['paused', 'Paused'], ['cancelled', 'Cancelled']]);
@@ -155,12 +161,29 @@ export const TABLES: Record<TableName, TableDef> = {
       { key: 'name', label: 'Account name', type: 'text', required: true, placeholder: 'e.g. SBI, GPay, PhonePe' },
       { key: 'type', label: 'Type', type: 'select', options: ACCOUNT_TYPES, default: () => 'bank' },
       { key: 'upi_app', label: 'UPI app (if any)', type: 'select', options: UPI_APPS, listKey: 'payment_app' },
-      { key: 'upi_id', label: 'UPI ID (to receive payments)', type: 'text', placeholder: 'e.g. name@okaxis' },
+      { key: 'upi_id', label: 'UPI ID (to receive payments)', type: 'text', placeholder: 'e.g. name@okaxis', copy: true },
       { key: 'opening_balance_paise', label: 'Opening balance (₹)', type: 'signed_money', default: () => 0 },
       { key: 'opening_date', label: 'Opening balance as on (date)', type: 'date', hint: 'Only entries from this date count. Leave empty to count all entries.' },
+      { key: 'account_holder', label: 'Account holder name (optional)', type: 'text' },
+      { key: 'account_number', label: 'Account number (optional)', type: 'text', mask: true, copy: true, hint: 'Shown masked. Never save ATM PIN, UPI PIN, CVV, OTP or net-banking passwords anywhere in the app.' },
+      { key: 'ifsc', label: 'IFSC (optional)', type: 'text', copy: true, placeholder: 'e.g. SBIN0001234' },
+      { key: 'customer_id', label: 'CIF / customer ID (optional)', type: 'text', mask: true, copy: true },
+      { key: 'branch', label: 'Branch name / address (optional)', type: 'text' },
+      { key: 'bank_account_type', label: 'Account type (optional)', type: 'select', options: BANK_ACCOUNT_TYPES },
+      { key: 'card_network', label: 'Debit card network (only if you know it)', type: 'select', options: CARD_NETWORKS },
+      { key: 'card_color', label: 'Card colour (optional)', type: 'text', placeholder: '#1E5AA8', hint: 'Hex colour for the card. Leave empty for the bank colour.' },
       notes,
     ],
-    validate: (v) => (v.upi_id && !/^[\w.\-]{2,256}@[a-zA-Z][\w.\-]{1,64}$/.test(v.upi_id) ? 'UPI ID looks wrong (example: name@okaxis).' : null),
+    validate: (v) =>
+      v.upi_id && !/^[\w.\-]{2,256}@[a-zA-Z][\w.\-]{1,64}$/.test(v.upi_id)
+        ? 'UPI ID looks wrong (example: name@okaxis).'
+        : v.ifsc && !/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(v.ifsc)
+          ? 'IFSC looks wrong (11 characters, like SBIN0001234).'
+          : v.account_number && !/^[0-9A-Za-z -]{4,34}$/.test(v.account_number)
+            ? 'Account number looks wrong.'
+            : v.card_color && !/^#[0-9A-Fa-f]{6}$/.test(v.card_color)
+              ? 'Card colour must look like #1E5AA8.'
+              : null,
   },
   categories: {
     table: 'categories', label: 'Category', plural: 'Categories', titleField: 'name', financial: false,
@@ -341,6 +364,7 @@ export const TABLES: Record<TableName, TableDef> = {
       { key: 'title', label: 'Name', type: 'text', required: true, placeholder: 'e.g. Netflix, Canva Pro, Rent, Arvia retainer' },
       { key: 'amount_paise', label: 'Amount (₹)', type: 'money', required: true },
       { key: 'frequency', label: 'Billing cycle', type: 'select', options: FREQUENCIES, required: true, default: () => 'monthly' },
+      { key: 'start_date', label: 'Started on (optional)', type: 'date' },
       { key: 'next_date', label: 'Next payment date', type: 'date', required: true, default: todayISO },
       { key: 'account_id', label: 'Paid from / received in', type: 'account', required: true },
       { key: 'payment_app', label: 'App', type: 'select', options: UPI_APPS, listKey: 'payment_app' },
@@ -349,6 +373,7 @@ export const TABLES: Record<TableName, TableDef> = {
       { key: 'status', label: 'Status', type: 'select', options: SUB_STATUS, required: true, default: () => 'active' },
       { key: 'end_date', label: 'Ends on (optional)', type: 'date', hint: 'After this date it shows as Expired' },
       { key: 'remind_days', label: 'Remind me (days before)', type: 'int', default: () => 1 },
+      { key: 'split_group_id', label: 'Share with a split group (optional)', type: 'ref', refTable: 'groups', hint: 'Each payment you log is split equally in that group (paid by you) — e.g. YouTube Premium family plan.' },
       { key: 'payment_mode', label: 'Payment mode', type: 'select', options: PAYMENT_MODES, default: () => 'personal' },
       area,
       notes,

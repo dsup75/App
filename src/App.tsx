@@ -40,6 +40,7 @@ import { RevisionsScreen } from './screens/Revisions';
 import { GadgetDetail, GadgetsHub } from './screens/Gadgets';
 import { WeightScreen } from './screens/Weight';
 import { ScreenTimeScreen } from './screens/ScreenTime';
+import { TimelineScreen } from './screens/Timeline';
 import { SetupScreen } from './screens/Setup';
 import { onReminderTap, scheduleReminders } from './lib/reminders';
 import { saveFinishedFocusSession } from './lib/focusGuard';
@@ -172,6 +173,7 @@ function Gate() {
           <Route path="/gadgets/:id" element={<GadgetDetail />} />
           <Route path="/weight" element={<WeightScreen />} />
           <Route path="/screen-time" element={<ScreenTimeScreen />} />
+          <Route path="/timeline" element={<TimelineScreen />} />
           <Route path="/setup" element={<SetupScreen />} />
           <Route path="/recurring" element={<RecurringScreen />} />
           <Route path="/lists" element={<ListsScreen />} />

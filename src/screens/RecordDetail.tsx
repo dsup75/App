@@ -78,6 +78,7 @@ export function RecordDetail() {
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState<'delete' | 'forever' | null>(null);
   const [iconOpen, setIconOpen] = useState(false);
+  const [revealed, setRevealed] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -183,13 +184,42 @@ export function RecordDetail() {
           .map((f) => {
             const to = linkTarget(f, row);
             const url = f.key === 'payment_link' && /^https?:\/\//i.test(String(row[f.key] ?? '')) ? String(row[f.key]) : null;
+            const raw = String(row[f.key] ?? '');
+            const masked = f.mask && !revealed.includes(f.key);
+            const shownValue = masked ? `•••• ${raw.slice(-4)}` : f.listKey ? labelOf(f.listKey, row[f.key]) : formatValue(f, row[f.key], nameOf);
             return (
               <ListRow
                 key={f.key}
-                title={<span className="text-[12.5px] font-normal text-muted">{f.label}</span>}
-                subtitle={<span className="whitespace-pre-wrap text-[14.5px] text-fg">{f.listKey ? labelOf(f.listKey, row[f.key]) : formatValue(f, row[f.key], nameOf)}</span>}
-                onClick={to ? () => nav(to) : url ? () => window.open(url, '_blank') : undefined}
-                chevron={!!to || !!url}
+                title={<span className="text-[12.5px] font-normal text-muted">{f.label}{f.mask ? (masked ? ' · tap to show' : ' · tap to hide') : ''}</span>}
+                subtitle={<span className="whitespace-pre-wrap text-[14.5px] text-fg">{shownValue}</span>}
+                onClick={
+                  f.mask
+                    ? () => setRevealed((r) => (r.includes(f.key) ? r.filter((x) => x !== f.key) : [...r, f.key]))
+                    : to
+                      ? () => nav(to)
+                      : url
+                        ? () => window.open(url, '_blank')
+                        : undefined
+                }
+                chevron={!f.mask && (!!to || !!url)}
+                right={
+                  f.copy && raw ? (
+                    <button
+                      type="button"
+                      aria-label={`Copy ${f.label}`}
+                      className="rounded-full p-2 text-muted"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigator.clipboard
+                          ?.writeText(raw)
+                          .then(() => toast(`${f.label.replace(/ \(optional\)/, '')} copied`))
+                          .catch(() => toast('Could not copy', 'error'));
+                      }}
+                    >
+                      <Copy size={15} />
+                    </button>
+                  ) : undefined
+                }
               />
             );
           })}

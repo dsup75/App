@@ -1,5 +1,6 @@
 // Summary panels shown at the top of specific record detail screens.
 import { useEffect, useMemo, useState } from 'react';
+import { netBalances } from '../lib/split';
 import { ChapterRevisions } from './ChapterRevisions';
 import { useNavigate } from 'react-router-dom';
 import { FileDown, Plus, Copy } from 'lucide-react';
@@ -628,7 +629,75 @@ function SubscriptionSummary({ row, reloadKey }: { row: Row; reloadKey: number }
           ))
         )}
       </Card>
+      {row.split_group_id && <SubscriptionSplit row={row} reloadKey={reloadKey} />}
     </>
+  );
+}
+
+/** Subscription shared with a split group: each cycle's bill, who owes, and what is settled */
+function SubscriptionSplit({ row, reloadKey }: { row: Row; reloadKey: number }) {
+  const nav = useNavigate();
+  const [data, setData] = useState<{ members: Row[]; bills: Row[]; net: Map<string, number> } | null>(null);
+  useEffect(() => {
+    Promise.all([
+      supabase.from('group_members').select('id,name,is_me').eq('group_id', row.split_group_id).is('deleted_at', null).order('created_at'),
+      supabase.from('group_expenses').select('id,amount_paise,txn_date,due_for,payers,shares,recurring_rule_id').eq('group_id', row.split_group_id).is('deleted_at', null),
+      supabase.from('group_settlements').select('from_member_id,to_member_id,amount_paise').eq('group_id', row.split_group_id).is('deleted_at', null),
+    ]).then(([m, e, st]) => {
+      const members = (m.data ?? []) as Row[];
+      const all = (e.data ?? []) as Row[];
+      const net = netBalances(
+        members.map((x) => x.id),
+        all.map((x) => ({ payers: x.payers ?? [], shares: x.shares ?? [] })),
+        (st.data ?? []) as any[],
+      );
+      setData({ members, bills: all.filter((x) => x.recurring_rule_id === row.id).sort((a, b) => String(b.due_for ?? b.txn_date).localeCompare(String(a.due_for ?? a.txn_date))), net });
+    });
+  }, [row.id, row.split_group_id, reloadKey]);
+  if (!data) return null;
+  const me = data.members.find((m) => m.is_me);
+  const name = (id: string) => data.members.find((m) => m.id === id)?.name ?? 'Member';
+  return (
+    <Card className="space-y-2.5">
+      <div className="flex items-center justify-between">
+        <p className="text-[14px] font-semibold">Shared with group</p>
+        <Button size="sm" onClick={() => nav(`/groups/${row.split_group_id}`)}>Open group</Button>
+      </div>
+      {!me || data.members.length < 2 ? (
+        <p className="text-[12.5px] text-muted">Add yourself ("me") and at least one more person to the group — then each payment is split automatically.</p>
+      ) : (
+        <>
+          <p className="text-[12px] text-muted">Each payment you log is split equally between {data.members.length} people, paid by you.</p>
+          {data.bills.length === 0 ? (
+            <p className="text-[12.5px] text-muted">No cycle split yet.</p>
+          ) : (
+            data.bills.slice(0, 12).map((b) => {
+              const mine = (b.shares ?? []).find((x: any) => x.member_id === me.id)?.amount_paise ?? 0;
+              return (
+                <div key={b.id} className="flex items-center justify-between text-[13px]">
+                  <span>{formatDate(b.due_for ?? b.txn_date)}</span>
+                  <span className="text-muted">
+                    {formatINR(b.amount_paise)} · your share {formatINR(mine)} · others {formatINR(b.amount_paise - mine)}
+                  </span>
+                </div>
+              );
+            })
+          )}
+          <p className="pt-1 text-[12.5px] font-semibold">Group balance now (all group bills & settlements)</p>
+          {data.members
+            .filter((m) => !m.is_me)
+            .map((m) => {
+              const v = data.net.get(m.id) ?? 0;
+              return (
+                <div key={m.id} className="flex items-center justify-between text-[13px]">
+                  <span>{name(m.id)}</span>
+                  {v < 0 ? <Badge tone="amber">Pending · owes {formatINR(-v)}</Badge> : v > 0 ? <Badge tone="blue">You owe {formatINR(v)}</Badge> : <Badge tone="primary">Settled</Badge>}
+                </div>
+              );
+            })}
+        </>
+      )}
+    </Card>
   );
 }
 

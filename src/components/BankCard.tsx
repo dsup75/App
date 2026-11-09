@@ -1,5 +1,6 @@
 // Premium card for an account, coloured like its bank / app. Each card has its own hide/show eye.
-import { useState, type MouseEvent } from 'react';
+import { useEffect, useState, type MouseEvent } from 'react';
+import { supabase } from '../lib/supabase';
 import { useIconStore } from '../lib/icons';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Wifi } from 'lucide-react';
@@ -54,9 +55,19 @@ function readHidden(id: string) {
   }
 }
 
-export function BankCard({ account }: { account: Balance & { opening_date?: string | null } }) {
+export interface CardExtra {
+  account_number?: string | null;
+  account_holder?: string | null;
+  card_network?: 'rupay' | 'visa' | 'mastercard' | null;
+  card_color?: string | null;
+}
+const NETWORK_LABEL = { rupay: 'RuPay', visa: 'VISA', mastercard: 'mastercard' } as const;
+
+export function BankCard({ account, extra }: { account: Balance & { opening_date?: string | null }; extra?: CardExtra }) {
   const nav = useNavigate();
-  const look = cardLook(account);
+  const base = cardLook(account);
+  // a colour chosen by the user wins; it is the user's own design, not an official bank card
+  const look = extra?.card_color ? { ...base, from: extra.card_color, to: '#0b0b0b' } : base;
   const icons = useIconStore();
   const ic = icons.get('accounts', account.id);
   const up = ic?.kind === 'custom' ? icons.upload(ic.custom_icon_id) : null;
@@ -115,10 +126,14 @@ export function BankCard({ account }: { account: Balance & { opening_date?: stri
         <div className="mt-3 flex items-center gap-2">
           <span className="h-7 w-10 rounded-[6px]" style={{ background: 'linear-gradient(135deg,#f5d77a,#b8913a)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.15)' }} />
           <Wifi size={16} className="rotate-90 opacity-70" />
+          {extra?.account_number && (
+            <span className="ml-1 font-mono text-[12.5px] tracking-[0.12em] opacity-90">•••• {hidden ? '••••' : extra.account_number.replace(/\s/g, '').slice(-4)}</span>
+          )}
         </div>
 
         <div className="mt-auto flex items-end justify-between gap-2">
           <div className="min-w-0">
+            {extra?.account_holder && <p className="truncate text-[11px] uppercase tracking-wider opacity-80">{extra.account_holder}</p>}
             <p className="text-[10.5px] uppercase tracking-wider opacity-70">Balance</p>
             <p className="text-[22px] font-bold leading-tight tracking-tight">{hidden ? '₹ • • • • •' : formatINR(account.balance_paise)}</p>
             <p className="truncate text-[11px] opacity-80">
@@ -134,6 +149,9 @@ export function BankCard({ account }: { account: Balance & { opening_date?: stri
           >
             {hidden ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
+          {extra?.card_network && (
+            <span className="absolute bottom-12 right-0 text-[13px] font-black italic tracking-tight opacity-90">{NETWORK_LABEL[extra.card_network]}</span>
+          )}
         </div>
       </div>
     </div>
@@ -141,12 +159,21 @@ export function BankCard({ account }: { account: Balance & { opening_date?: stri
 }
 
 export function BankCardCarousel({ rows }: { rows: Balance[] }) {
+  const [extras, setExtras] = useState<Record<string, CardExtra>>({});
+  useEffect(() => {
+    supabase
+      .from('accounts')
+      .select('id,account_number,account_holder,card_network,card_color')
+      .then(({ data, error }) => {
+        if (!error && data) setExtras(Object.fromEntries((data as any[]).map((r) => [r.id, r])));
+      });
+  }, []);
   if (!rows.length) return null;
   return (
     <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1" style={{ scrollbarWidth: 'none' }}>
       {rows.map((r) => (
         <div key={r.id} className="w-[84%] max-w-[340px] shrink-0 snap-center">
-          <BankCard account={r} />
+          <BankCard account={r} extra={extras[r.id]} />
         </div>
       ))}
     </div>
