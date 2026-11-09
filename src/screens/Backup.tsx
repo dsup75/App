@@ -43,18 +43,31 @@ async function readAll(table: string): Promise<Record<string, unknown>[]> {
   }
 }
 
+/** Older backups from Reports → "Backup all data" keep each table at the top level */
+function normalise(x: any): BackupFile | null {
+  if (!x || typeof x !== 'object') return null;
+  if (x.format === FORMAT) return x as BackupFile;
+  if (x.app === 'DeepBoost Life' && typeof x.exported_at === 'string') {
+    const tables: Record<string, Record<string, unknown>[]> = {};
+    for (const t of BACKUP_TABLES) if (Array.isArray(x[t])) tables[t] = x[t];
+    const owner = Object.values(tables).flat().find((r: any) => typeof r?.user_id === 'string') as any;
+    return { format: FORMAT, version: 1, exported_at: x.exported_at, user_id: owner?.user_id ?? '', tables };
+  }
+  return null;
+}
+
 /** Checks the file before anything is written. Returns an error message, or null when it is fine. */
 export function validateBackup(x: unknown, userId: string): string | null {
-  const b = x as BackupFile;
-  if (!b || typeof b !== 'object') return 'This is not a DeepBoost Life backup file.';
-  if (b.format !== FORMAT) return 'This is not a DeepBoost Life backup file.';
+  const b = normalise(x);
+  if (!b) return 'This is not a DeepBoost Life backup file.';
   if (typeof b.version !== 'number' || b.version > 1) return 'This backup was made by a newer app version. Update the app first.';
   if (!b.tables || typeof b.tables !== 'object') return 'The backup file is damaged (no tables).';
-  if (b.user_id !== userId) return 'This backup belongs to a different account. Sign in with that account to import it.';
+  if (b.user_id && b.user_id !== userId) return 'This backup belongs to a different account. Sign in with that account to import it.';
   for (const [t, rows] of Object.entries(b.tables)) {
     if (!(BACKUP_TABLES as readonly string[]).includes(t)) return `Unknown section "${t}" in the backup.`;
     if (!Array.isArray(rows)) return `Section "${t}" is damaged.`;
     if (rows.some((r) => !r || typeof r !== 'object' || typeof (r as any).id !== 'string')) return `Some rows in "${t}" are damaged.`;
+    if (rows.some((r) => typeof (r as any).user_id === 'string' && (r as any).user_id !== userId)) return 'This backup belongs to a different account.';
   }
   return null;
 }
@@ -100,7 +113,7 @@ export function BackupScreen() {
       }
       const err = validateBackup(json, user.id);
       if (err) throw new Error(err);
-      setPending(json as BackupFile);
+      setPending(normalise(json));
     } catch (e) {
       toast((e as Error).message, 'error');
     } finally {
