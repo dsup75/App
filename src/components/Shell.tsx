@@ -1,17 +1,17 @@
 import { useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  House, BookOpen, Wallet, Briefcase, LayoutGrid, Plus, ListTodo, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Timer,
+  House, BookOpen, Wallet, LayoutGrid, Plus, ListTodo, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Timer,
   FileText, HandCoins, Users, StickyNote, CalendarDays, QrCode, ClipboardList, Wand2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { IconBubble, Sheet, cx, type Tone } from './ui';
 
+// Home · Finance · (Quick add) · Study · More — Clients now lives in More (same screen, nothing removed)
 const TABS = [
   { to: '/', label: 'Home', icon: House },
-  { to: '/study', label: 'Study', icon: BookOpen },
   { to: '/finance', label: 'Finance', icon: Wallet },
-  { to: '/clients', label: 'Clients', icon: Briefcase },
+  { to: '/study', label: 'Study', icon: BookOpen },
   { to: '/more', label: 'More', icon: LayoutGrid },
 ];
 
@@ -28,19 +28,22 @@ export function Shell({ children }: { children: ReactNode }) {
       {children}
       {showBar && (
         <>
-          <button
-            aria-label="Quick add"
-            onClick={() => setQuick(true)}
-            className="liquid liquid-primary fixed right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full"
-            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 84px)' }}
-          >
-            <Plus size={22} strokeWidth={2.5} />
-          </button>
           <nav
             className="glass-strong fixed inset-x-3 z-40 mx-auto flex max-w-md items-center justify-around rounded-[24px] px-1 py-1"
             style={{ bottom: 'calc(env(safe-area-inset-bottom) + 10px)' }}
           >
-            {TABS.map(({ to, label, icon: Icon }) => (
+            {TABS.map(({ to, label, icon: Icon }, i) => [
+              i === 2 && (
+                <button
+                  key="quick"
+                  type="button"
+                  aria-label="Quick add"
+                  onClick={() => setQuick(true)}
+                  className="liquid liquid-primary mx-1 flex h-12 w-12 shrink-0 -translate-y-1 items-center justify-center rounded-full"
+                >
+                  <Plus size={22} strokeWidth={2.5} />
+                </button>
+              ),
               <NavLink
                 key={to}
                 to={to}
@@ -57,8 +60,8 @@ export function Shell({ children }: { children: ReactNode }) {
                     {label}
                   </>
                 )}
-              </NavLink>
-            ))}
+              </NavLink>,
+            ])}
           </nav>
         </>
       )}
