@@ -1,3 +1,4 @@
+import { goBack } from '../lib/nav';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { createRecord, friendlyError, getLines, getLinks, getRecord, isMoneyTable, saveMoneyEntry, updateRecord, type LineInput, type LinkInput, type MoneyTable, type Row } from '../lib/db';
@@ -279,7 +280,7 @@ export function RecordEdit() {
     }
     if (!Object.keys(changed).length) {
       toast('No changes to save');
-      return nav(-1);
+      return goBack(nav);
     }
     // Financial edits: explain the effect before saving
     const moneyChanges = Object.keys(changed).filter((k) => def.financial && MONEY_KEYS.includes(k));

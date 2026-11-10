@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
-import { Lock, Fingerprint, Timer, LogOut, FileSpreadsheet, User, KeyRound, Bell, DatabaseBackup } from 'lucide-react';
+import { Lock, Fingerprint, ScanFace, Smartphone, Timer, LogOut, FileSpreadsheet, User, KeyRound, Bell, DatabaseBackup } from 'lucide-react';
 import { AiSettings } from '../components/AiSettings';
 import { askPermission, getReminderConfig, remindersSupported, saveReminderConfig, scheduleReminders, DEFAULT_REMINDERS, type ReminderConfig } from '../lib/reminders';
 import { useAuth } from '../context/AuthContext';
 import { useLock } from '../context/LockContext';
 import { useToast } from '../context/ToastContext';
 import { friendlyError, saveSettings } from '../lib/db';
-import { biometricAvailable, biometricPrompt, hashPin, verifyPin, LOCK_TIMEOUTS, type LockConfig } from '../lib/lock';
+import { biometricAvailable, biometricInfo, biometricPrompt, bioLabel, hashPin, verifyPin, LOCK_TIMEOUTS, type BioInfo, type LockConfig } from '../lib/lock';
+import { brandLogosOn, setBrandLogosOn } from '../lib/brands';
 import { ACCENTS, STYLES, TEXT_SIZES, THEMES, getThemePrefs, setThemePrefs, type ThemePrefs } from '../lib/theme';
 import { isValidScriptUrl, syncAll, testScript } from '../lib/sheets';
 import { isValidUpiId } from '../lib/upi';
@@ -25,11 +26,13 @@ export function SettingsScreen() {
   const [savingName, setSavingName] = useState(false);
   const [pinFlow, setPinFlow] = useState<null | 'set' | 'change' | 'remove'>(null);
   const [bioOk, setBioOk] = useState(false);
+  const [bio, setBio] = useState<BioInfo | null>(null);
   const [logout, setLogout] = useState(false);
 
   useEffect(() => setName(settings?.full_name ?? ''), [settings?.full_name]);
   useEffect(() => {
     biometricAvailable().then(setBioOk);
+    biometricInfo().then(setBio);
   }, []);
 
   const saveName = async () => {
@@ -50,12 +53,13 @@ export function SettingsScreen() {
     if (!config) return;
     if (on) {
       suppressBriefly();
-      const ok = await biometricPrompt('Confirm to enable fingerprint unlock');
+      const ok = await biometricPrompt('Confirm to turn on face / fingerprint unlock', !bio?.available);
       suppressBriefly();
-      if (!ok) return toast('Fingerprint not confirmed', 'error');
+      if (!ok) return toast('Not confirmed', 'error');
     }
-    await updateConfig({ ...config, biometric: on });
-    toast(on ? 'Fingerprint unlock on' : 'Fingerprint unlock off');
+    // phones that do not offer face/fingerprint to apps can still use the phone's own screen lock
+    await updateConfig({ ...config, biometric: on, deviceCredential: on ? config.deviceCredential ?? !bio?.available : config.deviceCredential });
+    toast(on ? `${bioLabel(bio?.kinds ?? [])} unlock on` : 'Biometric unlock off');
   };
 
   return (
@@ -86,11 +90,27 @@ export function SettingsScreen() {
         {config && (
           <>
             <ListRow
-              icon={<IconBubble tone="blue"><Fingerprint size={18} /></IconBubble>}
-              title="Fingerprint unlock"
-              subtitle={bioOk ? 'Use your phone fingerprint' : Capacitor.isNativePlatform() ? 'Not set up on this phone' : 'Available in the Android app'}
+              icon={<IconBubble tone="blue">{bio?.kinds.includes('face') ? <ScanFace size={18} /> : <Fingerprint size={18} />}</IconBubble>}
+              title="Face / fingerprint unlock"
+              subtitle={
+                !Capacitor.isNativePlatform()
+                  ? 'Available in the Android app'
+                  : bio?.available
+                    ? `Opens by itself, like Face ID · this phone offers: ${bio.kinds.length ? bio.kinds.join(' + ') : 'biometrics'}`
+                    : bioOk
+                      ? 'Uses your phone screen lock (face unlock here is not shared with apps)'
+                      : 'Set up a screen lock / fingerprint in phone Settings first'
+              }
               right={<Toggle checked={config.biometric} disabled={!bioOk} onChange={toggleBio} />}
             />
+            {config.biometric && (
+              <ListRow
+                icon={<IconBubble tone="violet"><Smartphone size={18} /></IconBubble>}
+                title="Also allow phone PIN / pattern"
+                subtitle="If face or finger isn't recognised, unlock with your phone's own screen lock"
+                right={<Toggle checked={!!config.deviceCredential} onChange={(v) => updateConfig({ ...config, deviceCredential: v })} />}
+              />
+            )}
             <div className="flex items-center gap-3 px-4 py-2.5">
               <IconBubble tone="amber"><Timer size={18} /></IconBubble>
               <span className="flex-1 text-[15px] font-medium">Auto-lock</span>
@@ -252,6 +272,7 @@ function PinFlow({ mode, onClose }: { mode: null | 'set' | 'change' | 'remove'; 
 /* ---------------- UPI + business details ---------------- */
 function Appearance() {
   const [p, setP] = useState<ThemePrefs>(getThemePrefs());
+  const [brands, setBrands] = useState(brandLogosOn);
   const set = (patch: Partial<ThemePrefs>) => {
     setThemePrefs(patch);
     setP(getThemePrefs());
@@ -336,6 +357,14 @@ function Appearance() {
           ) : (
             <p className="text-[12.5px] text-muted">{preset?.label ?? 'Midnight'} is always {(preset?.mode ?? 'dark') === 'dark' ? 'dark' : 'light'}.</p>
           )}
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[14.5px] font-medium">Brand logos automatically</p>
+            <p className="text-[12px] text-muted">Type "Netflix", "Spotify", "Jio", "SBI"… and its logo shows (loaded from the internet once, then cached)</p>
+          </div>
+          <Toggle checked={brands} onChange={(v) => { setBrands(v); setBrandLogosOn(v); }} />
         </div>
 
         <div className="space-y-2">

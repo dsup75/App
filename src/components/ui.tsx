@@ -1,4 +1,5 @@
 import { useEffect, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { goBack } from '../lib/nav';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Loader2, CircleAlert, Inbox } from 'lucide-react';
@@ -26,7 +27,7 @@ export function Page({
     <div className="page-in page-wrap relative z-10 mx-auto pb-32 pt-safe">
       <div className="flex h-11 items-center justify-between">
         {back ? (
-          <button onClick={() => nav(-1)} className="-ml-1.5 flex items-center gap-0.5 rounded-full py-1 pr-2 text-primary active:opacity-60">
+          <button onClick={() => goBack(nav)} className="-ml-1.5 flex items-center gap-0.5 rounded-full py-1 pr-2 text-primary active:opacity-60">
             <ChevronLeft size={20} /> <span className="text-[14px] font-medium">Back</span>
           </button>
         ) : (
@@ -349,17 +350,27 @@ export function Donut({ parts, size = 132, center }: { parts: { value: number; c
 export const CHART_COLORS = ['var(--primary-2)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)', 'var(--chart-6)', 'var(--chart-7)', 'var(--chart-8)'];
 
 /* ---------- Bottom sheet ---------- */
+// open sheets, newest last — the phone's Back button closes only the top one
+const sheetStack: (() => void)[] = [];
+if (typeof window !== 'undefined') window.addEventListener('close-top-sheet', () => sheetStack[sheetStack.length - 1]?.());
+
 export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title?: string; children: ReactNode }) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const close = () => onClose();
+    sheetStack.push(close);
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      const i = sheetStack.lastIndexOf(close);
+      if (i >= 0) sheetStack.splice(i, 1);
+    };
   }, [open, onClose]);
   if (!open) return null;
   // rendered at the end of <body> so a parent with blur (glass) can never clip or misplace it
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center" data-sheet-open="">
       <div className="fade-in absolute inset-0 bg-black/30" onClick={onClose} />
       <div
         className="sheet-in sheet-panel relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-t-[26px] px-4 pb-8 pt-2.5 pb-safe"

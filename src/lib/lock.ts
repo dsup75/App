@@ -9,6 +9,8 @@ export interface LockConfig {
   salt: string;
   length: 4 | 6;
   biometric: boolean;
+  /** also accept the phone's own screen lock (PIN / pattern / password) in the system prompt */
+  deviceCredential?: boolean;
   timeoutSec: number; // 0 = lock immediately when app goes to background
   failCount: number;
   lockoutUntil: number;
@@ -63,27 +65,64 @@ export async function verifyPin(pin: string, cfg: LockConfig): Promise<boolean> 
   return diff === 0;
 }
 
-export async function biometricAvailable(): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) return false;
+export type BioKind = 'face' | 'fingerprint' | 'iris';
+export interface BioInfo {
+  available: boolean;
+  kinds: BioKind[];
+  strong: boolean;
+  deviceSecure: boolean;
+}
+
+/** What this phone offers to apps. Face unlock shows here only if the phone maker lets apps use it. */
+export async function biometricInfo(): Promise<BioInfo> {
+  const none: BioInfo = { available: false, kinds: [], strong: false, deviceSecure: false };
+  if (!Capacitor.isNativePlatform()) return none;
   try {
-    const { BiometricAuth } = await import('@aparajita/capacitor-biometric-auth');
+    const { BiometricAuth, BiometryType } = await import('@aparajita/capacitor-biometric-auth');
     const info = await BiometricAuth.checkBiometry();
-    return !!info.isAvailable;
+    const types = (info.biometryTypes?.length ? info.biometryTypes : [info.biometryType]) as number[];
+    const kinds: BioKind[] = [];
+    for (const t of types) {
+      if (t === BiometryType.faceId || t === BiometryType.faceAuthentication) kinds.push('face');
+      else if (t === BiometryType.touchId || t === BiometryType.fingerprintAuthentication) kinds.push('fingerprint');
+      else if (t === BiometryType.irisAuthentication) kinds.push('iris');
+    }
+    return { available: !!info.isAvailable, kinds: [...new Set(kinds)], strong: !!info.strongBiometryIsAvailable, deviceSecure: !!info.deviceIsSecure };
   } catch {
-    return false;
+    return none;
   }
 }
 
-export async function biometricPrompt(reason = 'Unlock DeepBoost Life'): Promise<boolean> {
+export async function biometricAvailable(): Promise<boolean> {
+  const i = await biometricInfo();
+  return i.available || i.deviceSecure;
+}
+
+export function bioLabel(kinds: BioKind[]): string {
+  if (kinds.includes('face') && kinds.includes('fingerprint')) return 'Face or fingerprint';
+  if (kinds.includes('face')) return 'Face unlock';
+  if (kinds.includes('iris')) return 'Iris unlock';
+  return 'Fingerprint';
+}
+
+/**
+ * Shows the phone's own unlock sheet (face / fingerprint, like Face ID on iPhone).
+ * "Weak" biometrics are allowed so face unlock works on phones that offer it to apps,
+ * and no extra "Confirm" tap is needed after the face is recognised.
+ */
+export async function biometricPrompt(reason = 'Unlock DeepBoost Life', allowDeviceCredential = false): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) return false;
   try {
-    const { BiometricAuth } = await import('@aparajita/capacitor-biometric-auth');
+    const { BiometricAuth, AndroidBiometryStrength } = await import('@aparajita/capacitor-biometric-auth');
     await BiometricAuth.authenticate({
       reason,
       cancelTitle: 'Use PIN',
-      allowDeviceCredential: false,
+      allowDeviceCredential,
+      iosFallbackTitle: 'Use PIN',
       androidTitle: 'DeepBoost Life',
       androidSubtitle: reason,
+      androidConfirmationRequired: false,
+      androidBiometryStrength: AndroidBiometryStrength.weak,
     });
     return true;
   } catch {

@@ -4,7 +4,8 @@ import { formatINR } from '../lib/money';
 import { relativeDay } from '../lib/dates';
 import { optionLabel, UPI_APPS } from '../lib/tables';
 import { useUsage } from '../lib/useUsage';
-import { IconBubble, ListRow } from './ui';
+import { ListRow } from './ui';
+import { EntityIcon } from './EntityIcon';
 
 export type MoneyKind = 'incomes' | 'expenses' | 'transfers';
 
@@ -13,14 +14,15 @@ export function MoneyRow({ kind, row, nameOf }: { kind: MoneyKind; row: any; nam
   const usage = useUsage();
   const used = kind === 'incomes' ? usage?.incomeUsed.get(row.id) : kind === 'expenses' ? usage?.expenseFunded.get(row.id) : undefined;
   const left = kind === 'incomes' ? usage?.incomeLeft.get(row.id) : undefined;
-  const icon =
-    kind === 'incomes' ? (
-      <IconBubble tone="income"><ArrowDownLeft size={18} /></IconBubble>
-    ) : kind === 'expenses' ? (
-      <IconBubble tone="expense"><ArrowUpRight size={18} /></IconBubble>
-    ) : (
-      <IconBubble tone="violet"><ArrowLeftRight size={18} /></IconBubble>
-    );
+  const icon = (
+    <EntityIcon
+      table={kind}
+      id={row.id}
+      fallback={kind === 'incomes' ? ArrowDownLeft : kind === 'expenses' ? ArrowUpRight : ArrowLeftRight}
+      fallbackTone={kind === 'incomes' ? 'income' : kind === 'expenses' ? 'expense' : 'violet'}
+      brandName={kind === 'transfers' ? null : row.title}
+    />
+  );
   const multi = Number(row.line_count ?? 1) > 1;
   const sub =
     kind === 'transfers'

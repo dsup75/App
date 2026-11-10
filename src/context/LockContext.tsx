@@ -110,7 +110,7 @@ export function LockProvider({ children }: { children: ReactNode }) {
 
   const unlockWithBiometric = useCallback(async () => {
     suppressBriefly();
-    const ok = await biometricPrompt();
+    const ok = await biometricPrompt('Unlock DeepBoost Life', !!cfgRef.current?.deviceCredential);
     suppressBriefly();
     if (ok) setLocked(false);
     return ok;

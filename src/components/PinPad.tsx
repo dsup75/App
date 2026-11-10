@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Delete, Fingerprint } from 'lucide-react';
+import { Delete, Fingerprint, ScanFace } from 'lucide-react';
 import { cx } from './ui';
 
 export function PinPad({
@@ -8,12 +8,14 @@ export function PinPad({
   error,
   busy,
   onBiometric,
+  bioKind = 'fingerprint',
 }: {
   length: 4 | 6;
   onComplete: (pin: string) => void;
   error?: string;
   busy?: boolean;
   onBiometric?: () => void;
+  bioKind?: 'face' | 'fingerprint';
 }) {
   const [pin, setPin] = useState('');
   const [shake, setShake] = useState(false);
@@ -57,8 +59,8 @@ export function PinPad({
           </Key>
         ))}
         {onBiometric ? (
-          <Key onClick={onBiometric} label="Use fingerprint">
-            <Fingerprint size={28} />
+          <Key onClick={onBiometric} label={bioKind === 'face' ? 'Use face unlock' : 'Use fingerprint'}>
+            {bioKind === 'face' ? <ScanFace size={28} /> : <Fingerprint size={28} />}
           </Key>
         ) : (
           <span />

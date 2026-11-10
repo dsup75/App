@@ -1,3 +1,4 @@
+import { goBack } from '../lib/nav';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Pencil, Copy, Trash2, RotateCcw, History, Plus } from 'lucide-react';
@@ -316,7 +317,7 @@ export function RecordDetail() {
                   })
                   .catch((e) => toast(friendlyError(e), 'error')),
             });
-            nav(-1);
+            goBack(nav);
           } catch (e) {
             toast(friendlyError(e), 'error');
           } finally {
@@ -332,7 +333,7 @@ export function RecordDetail() {
         confirmLabel="Delete forever"
         danger
         loading={busy}
-        onConfirm={() => act(() => deleteForever(t, row.id), 'Deleted permanently', () => nav(-1))}
+        onConfirm={() => act(() => deleteForever(t, row.id), 'Deleted permanently', () => goBack(nav))}
         onClose={() => setConfirm(null)}
       />
     </Page>

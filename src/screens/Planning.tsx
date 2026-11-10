@@ -11,7 +11,8 @@ import { currentMonth, formatDate, monthLabel, relativeDay, todayISO } from '../
 import { formatINR, paiseToInput } from '../lib/money';
 import { useLookups } from '../lib/useLookups';
 import { useToast } from '../context/ToastContext';
-import { Badge, Button, Card, Chips, Empty, ErrorBox, HeroCard, IconBubble, IconButton, List, ListRow, Page, ProgressBar, SectionTitle, Skeleton, Spinner } from '../components/ui';
+import { EntityIcon } from '../components/EntityIcon';
+import { Badge, Button, Card, Chips, Empty, ErrorBox, HeroCard, IconButton, List, ListRow, Page, ProgressBar, SectionTitle, Skeleton, Spinner } from '../components/ui';
 
 export function barColor(pct: number) {
   return pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warn)' : undefined;
@@ -195,9 +196,7 @@ export function RecurringScreen() {
             return (
               <Card key={r.id} className="space-y-1.5" onClick={() => nav(`/r/recurring_rules/${r.id}`)}>
                 <div className="flex items-center gap-3">
-                  <IconBubble tone={r.kind === 'incomes' ? 'income' : 'teal'}>
-                    <CalendarClock size={17} />
-                  </IconBubble>
+                  <EntityIcon table="recurring_rules" id={r.id} fallback={CalendarClock} fallbackTone={r.kind === 'incomes' ? 'income' : 'teal'} brandName={r.title} size={40} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[15px] font-semibold">{r.title}</p>
                     <p className="text-[12.5px] text-muted">
@@ -283,9 +282,7 @@ export function RecurringDrafts({ onChanged }: { onChanged?: () => void }) {
         {rules.map((r) => (
           <div key={r.id} className="space-y-2 px-3.5 py-3">
             <div className="flex items-center gap-3">
-              <IconBubble tone={r.kind === 'incomes' ? 'income' : 'expense'}>
-                <CalendarClock size={17} />
-              </IconBubble>
+              <EntityIcon table="recurring_rules" id={r.id} fallback={CalendarClock} fallbackTone={r.kind === 'incomes' ? 'income' : 'expense'} brandName={r.title} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[14.5px] font-semibold">{r.title}</p>
                 <p className="text-[12.5px] text-muted">

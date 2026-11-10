@@ -14,6 +14,9 @@ import { useUsage } from '../lib/useUsage';
 import { ICONABLE } from '../lib/icons';
 import { EntityIcon } from './EntityIcon';
 
+/** rows whose name can show a brand logo automatically (Netflix, Jio, SBI…) */
+const BRANDABLE = new Set(['expenses', 'incomes', 'recurring_rules', 'accounts', 'payment_requests', 'transfers', 'group_expenses', 'savings_goals']);
+
 export const TABLE_ICON: Record<TableName, { icon: LucideIcon; tone: Tone }> = {
   incomes: { icon: ArrowDownLeft, tone: 'income' },
   expenses: { icon: ArrowUpRight, tone: 'expense' },
@@ -175,7 +178,7 @@ export function RecordLine({ table, row, nameOf }: { table: TableName; row: any;
 
   return (
     <ListRow
-      icon={ICONABLE.has(table) && row.id ? <EntityIcon table={table} id={row.id} fallback={Icon} fallbackTone={tone} /> : <IconBubble tone={tone}><Icon size={17} /></IconBubble>}
+      icon={(ICONABLE.has(table) || BRANDABLE.has(table)) && row.id ? <EntityIcon table={table} id={row.id} fallback={Icon} fallbackTone={tone} brandName={BRANDABLE.has(table) ? row.title ?? row.name : undefined} /> : <IconBubble tone={tone}><Icon size={17} /></IconBubble>}
       title={title}
       subtitle={sub || undefined}
       right={right}

@@ -6,14 +6,57 @@ import {
   ICON_GROUPS, ICON_TONES, LIBRARY, clearEntityIcon, deleteCustomIcon, prepareIcon, setEntityIcon, setKeepColors, uploadIcon, useIconStore, type IconTone,
 } from '../lib/icons';
 import { friendlyError } from '../lib/db';
+import { brandDomain, brandLogoFallback, brandLogoUrl, brandLogosOn } from '../lib/brands';
 import { useToast } from '../context/ToastContext';
 import { Button, IconBubble, Segmented, Sheet, TONES, Toggle, cx, type Tone } from './ui';
 
+/** A brand's own logo (Netflix, Spotify, SBI…) in a rounded tile, like app icons on a phone. */
+export function BrandLogo({ domain, size = 36, fallback }: { domain: string; size?: number; fallback: ReactNode }) {
+  const [src, setSrc] = useState(brandLogoUrl(domain));
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setSrc(brandLogoUrl(domain));
+    setFailed(false);
+  }, [domain]);
+  if (failed) return <>{fallback}</>;
+  return (
+    <div className="brand-tile flex shrink-0 items-center justify-center overflow-hidden" style={{ width: size, height: size, borderRadius: Math.round(size * 0.3) }}>
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        className="themed-img"
+        style={{ width: Math.round(size * 0.66), height: Math.round(size * 0.66), objectFit: 'contain' }}
+        onError={() => (src.includes('gstatic') ? setSrc(brandLogoFallback(domain)) : setFailed(true))}
+        onLoad={(e) => {
+          // the services return a tiny placeholder when they have nothing
+          if ((e.currentTarget.naturalWidth || 0) < 17) {
+            if (src.includes('gstatic')) setSrc(brandLogoFallback(domain));
+            else setFailed(true);
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+function useBrandLogosOn() {
+  const [on, setOn] = useState(brandLogosOn);
+  useEffect(() => {
+    const f = () => setOn(brandLogosOn());
+    window.addEventListener('brand-logos-changed', f);
+    return () => window.removeEventListener('brand-logos-changed', f);
+  }, []);
+  return on;
+}
+
 export function EntityIcon({
-  table, id, fallback: Fallback, fallbackTone = 'primary', size = 36,
-}: { table: string; id: string; fallback: LucideIcon; fallbackTone?: Tone; size?: number }) {
+  table, id, fallback: Fallback, fallbackTone = 'primary', size = 36, brandName,
+}: { table: string; id: string; fallback: LucideIcon; fallbackTone?: Tone; size?: number; brandName?: string | null }) {
   const store = useIconStore();
   const row = store.get(table, id);
+  const brandsOn = useBrandLogosOn();
   const inner = Math.round(size * 0.47);
   if (row?.kind === 'custom') {
     const up = store.upload(row.custom_icon_id);
@@ -41,11 +84,14 @@ export function EntityIcon({
       </IconBubble>
     );
   }
-  return (
+  const fallbackEl = (
     <IconBubble tone={fallbackTone} size={size}>
       <Fallback size={inner} />
     </IconBubble>
   );
+  const domain = brandsOn ? brandDomain(brandName) : null;
+  if (domain) return <BrandLogo domain={domain} size={size} fallback={fallbackEl} />;
+  return fallbackEl;
 }
 
 export function IconPickerSheet({ open, onClose, table, id, title }: { open: boolean; onClose: () => void; table: string; id: string; title?: string }) {

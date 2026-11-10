@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
+import { goBack } from './lib/nav';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -57,18 +58,66 @@ const ROOTS = ['/', '/study', '/finance', '/clients', '/more'];
 function BackButton() {
   const nav = useNavigate();
   const loc = useLocation();
+  // one listener for the whole app (re-adding it on every screen could fire Back twice → blank screen)
+  const path = useRef(loc.pathname);
+  path.current = loc.pathname;
+  const navRef = useRef(nav);
+  navRef.current = nav;
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
+    let busy = false;
     const h = CapApp.addListener('backButton', () => {
-      if (ROOTS.includes(loc.pathname)) {
-        if (loc.pathname === '/') CapApp.exitApp();
-        else nav('/');
-      } else nav(-1);
+      if (busy) return;
+      busy = true;
+      setTimeout(() => (busy = false), 350);
+      const p = path.current;
+      if (document.querySelector('[data-sheet-open]')) {
+        window.dispatchEvent(new Event('close-top-sheet'));
+        return;
+      }
+      if (ROOTS.includes(p)) {
+        if (p === '/') CapApp.exitApp();
+        else navRef.current('/');
+      } else goBack(navRef.current);
     });
     return () => {
       h.then((x) => x.remove());
     };
-  }, [nav, loc.pathname]);
+  }, []);
+  return null;
+}
+
+/** Back returns to the same scroll position (after the list has loaded); new screens start at the top. */
+function ScrollManager() {
+  const loc = useLocation();
+  const type = useNavigationType();
+  const saved = useRef(new Map<string, number>());
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
+  }, []);
+  useEffect(() => {
+    const key = loc.key;
+    let cancelled = false;
+    if (type === 'POP' && saved.current.has(key)) {
+      const y = saved.current.get(key)!;
+      const start = Date.now();
+      const tryRestore = () => {
+        if (cancelled) return;
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        if (max >= y - 4 || Date.now() - start > 1500) window.scrollTo(0, Math.min(y, Math.max(0, max)));
+        else requestAnimationFrame(tryRestore);
+      };
+      requestAnimationFrame(tryRestore);
+    } else {
+      window.scrollTo(0, 0);
+    }
+    const onScroll = () => saved.current.set(key, window.scrollY);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      cancelled = true;
+      window.removeEventListener('scroll', onScroll);
+    };
+  }, [loc.key, type]);
   return null;
 }
 
@@ -134,6 +183,7 @@ function Gate() {
   return (
     <>
       <BackButton />
+      <ScrollManager />
       <AutoSync />
       <ReminderSync />
       <Shell>
