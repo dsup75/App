@@ -6,7 +6,7 @@ export type TableName =
   | 'clients' | 'projects' | 'campaigns' | 'invoices' | 'allocations' | 'loans' | 'loan_repayments'
   | 'savings_goals' | 'savings_entries' | 'groups' | 'group_members' | 'group_expenses' | 'group_settlements'
   | 'habits' | 'events' | 'notes' | 'shopping_items' | 'subjects' | 'chapters' | 'study_sessions' | 'mock_tests' | 'exams'
-  | 'client_contacts' | 'custom_options' | 'budgets' | 'recurring_rules';
+  | 'client_contacts' | 'custom_options' | 'budgets' | 'recurring_rules' | 'insurance_policies' | 'credit_scores';
 
 export type FieldType =
   | 'text' | 'textarea' | 'money' | 'signed_money' | 'date' | 'time' | 'select'
@@ -38,6 +38,8 @@ export interface Field {
   mask?: boolean;
   /** detail page shows a one-tap copy button */
   copy?: boolean;
+  /** only show this field when the condition holds (e.g. card fields only for credit cards) */
+  showIf?: (v: Record<string, any>) => boolean;
 }
 
 export type ListKey = 'payment_app' | 'payment_method' | 'task_type' | 'platform';
@@ -58,9 +60,30 @@ export const AREAS = o([['personal', 'Personal'], ['study', 'Study'], ['business
 export const PRIORITIES = o([['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['urgent', 'Urgent']]);
 export const TASK_STATUS = o([['pending', 'Pending'], ['in_progress', 'In Progress'], ['waiting', 'Waiting for Client'], ['completed', 'Completed'], ['cancelled', 'Cancelled']]);
 export const TASK_TYPES = o([['task', 'Task'], ['follow_up', 'Follow-up'], ['approval', 'Pending approval'], ['creative', 'Creative requirement'], ['meeting', 'Meeting / call']]);
-export const ACCOUNT_TYPES = o([['cash', 'Cash'], ['bank', 'Bank'], ['upi', 'UPI app'], ['wallet', 'Wallet'], ['custom', 'Custom']]);
+export const ACCOUNT_TYPES = o([
+  ['cash', 'Cash'], ['bank', 'Bank'], ['upi', 'UPI app'], ['wallet', 'Wallet'],
+  ['credit_card', 'Credit card'], ['pay_later', 'Pay Later (BNPL)'], ['loan', 'Loan (EMI)'], ['investment', 'Investment'], ['custom', 'Custom'],
+]);
+/** money you can spend (counted in "Total balance") */
+export const SPENDABLE_TYPES = ['cash', 'bank', 'upi', 'wallet', 'custom'];
+/** you owe this money — balance below zero = due */
+export const LIABILITY_TYPES = ['credit_card', 'pay_later', 'loan'];
+export const isSpendable = (type?: string | null) => SPENDABLE_TYPES.includes(type ?? 'custom');
+export const isLiability = (type?: string | null) => LIABILITY_TYPES.includes(type ?? '');
+export const LOAN_KINDS = o([
+  ['personal', 'Personal loan'], ['home', 'Home loan'], ['car', 'Car loan'], ['two_wheeler', 'Two-wheeler loan'], ['education', 'Education loan'],
+  ['gold', 'Gold loan'], ['business', 'Business loan'], ['consumer', 'Consumer durable (phone, TV…)'], ['mobile', 'Mobile / app loan'], ['card_emi', 'Credit card EMI'], ['other', 'Other'],
+]);
+export const INVESTMENT_KINDS = o([
+  ['fd', 'Fixed deposit (FD)'], ['rd', 'Recurring deposit (RD)'], ['sip', 'SIP'], ['mutual_fund', 'Mutual fund (lump sum)'], ['stocks', 'Stocks'],
+  ['gold', 'Gold / SGB'], ['ppf', 'PPF'], ['nps', 'NPS'], ['epf', 'EPF / PF'], ['bonds', 'Bonds'], ['crypto', 'Crypto'], ['other', 'Other'],
+]);
+export const POLICY_TYPES = o([['health', 'Health'], ['term', 'Term life'], ['life', 'Life / endowment'], ['vehicle', 'Vehicle'], ['accident', 'Personal accident'], ['home', 'Home'], ['travel', 'Travel'], ['other', 'Other']]);
+export const PREMIUM_FREQ = o([['monthly', 'Monthly'], ['quarterly', 'Quarterly'], ['half_yearly', 'Half-yearly'], ['yearly', 'Yearly'], ['single', 'One time']]);
+export const POLICY_STATUS = o([['active', 'Active'], ['lapsed', 'Lapsed'], ['matured', 'Matured'], ['closed', 'Closed']]);
+export const BUREAUS = o([['cibil', 'CIBIL'], ['experian', 'Experian'], ['equifax', 'Equifax'], ['crif', 'CRIF High Mark'], ['other', 'Other']]);
 export const BANK_ACCOUNT_TYPES = o([['savings', 'Savings'], ['current', 'Current'], ['salary', 'Salary'], ['jan_dhan', 'Jan Dhan'], ['basic', 'Basic savings (BSBDA)'], ['nre', 'NRE'], ['nro', 'NRO'], ['other', 'Other']]);
-export const CARD_NETWORKS = o([['rupay', 'RuPay'], ['visa', 'Visa'], ['mastercard', 'Mastercard']]);
+export const CARD_NETWORKS = o([['rupay', 'RuPay'], ['visa', 'Visa'], ['mastercard', 'Mastercard'], ['amex', 'American Express'], ['diners', 'Diners Club']]);
 export const UPI_APPS = o([['gpay', 'Google Pay'], ['phonepe', 'PhonePe'], ['paytm', 'Paytm'], ['bhim', 'BHIM'], ['amazonpay', 'Amazon Pay'], ['cred', 'CRED'], ['bank_app', 'Bank app'], ['netbanking', 'Net banking'], ['card', 'Card'], ['cash', 'Cash'], ['other', 'Other']]);
 export const FREQUENCIES = o([['weekly', 'Every week'], ['monthly', 'Every month'], ['yearly', 'Every year']]);
 export const SUB_STATUS = o([['active', 'Active'], ['paused', 'Paused'], ['cancelled', 'Cancelled']]);
@@ -158,19 +181,40 @@ export const TABLES: Record<TableName, TableDef> = {
   accounts: {
     table: 'accounts', label: 'Account', plural: 'Accounts', titleField: 'name', financial: true,
     fields: [
-      { key: 'name', label: 'Account name', type: 'text', required: true, placeholder: 'e.g. SBI, GPay, PhonePe' },
+      { key: 'name', label: 'Account name', type: 'text', required: true, placeholder: 'e.g. SBI, GPay, SBI Card, Bike loan' },
       { key: 'type', label: 'Type', type: 'select', options: ACCOUNT_TYPES, default: () => 'bank' },
-      { key: 'upi_app', label: 'UPI app (if any)', type: 'select', options: UPI_APPS, listKey: 'payment_app' },
-      { key: 'upi_id', label: 'UPI ID (to receive payments)', type: 'text', placeholder: 'e.g. name@okaxis', copy: true },
-      { key: 'opening_balance_paise', label: 'Opening balance (₹)', type: 'signed_money', default: () => 0 },
+      { key: 'upi_app', label: 'UPI app (if any)', type: 'select', options: UPI_APPS, listKey: 'payment_app', showIf: (v) => isSpendable(v.type) },
+      { key: 'upi_id', label: 'UPI ID (to receive payments)', type: 'text', placeholder: 'e.g. name@okaxis', copy: true, showIf: (v) => isSpendable(v.type) },
+      { key: 'opening_balance_paise', label: 'Opening balance (₹)', type: 'signed_money', default: () => 0, hint: 'Card / loan / pay later: enter what you owe with a minus, e.g. -5000.' },
       { key: 'opening_date', label: 'Opening balance as on (date)', type: 'date', hint: 'Only entries from this date count. Leave empty to count all entries.' },
-      { key: 'account_holder', label: 'Account holder name (optional)', type: 'text' },
-      { key: 'account_number', label: 'Account number (optional)', type: 'text', mask: true, copy: true, hint: 'Shown masked. Never save ATM PIN, UPI PIN, CVV, OTP or net-banking passwords anywhere in the app.' },
-      { key: 'ifsc', label: 'IFSC (optional)', type: 'text', copy: true, placeholder: 'e.g. SBIN0001234' },
-      { key: 'customer_id', label: 'CIF / customer ID (optional)', type: 'text', mask: true, copy: true },
-      { key: 'branch', label: 'Branch name / address (optional)', type: 'text' },
-      { key: 'bank_account_type', label: 'Account type (optional)', type: 'select', options: BANK_ACCOUNT_TYPES },
-      { key: 'card_network', label: 'Debit card network (only if you know it)', type: 'select', options: CARD_NETWORKS },
+      // credit card / pay later
+      { key: 'lender', label: 'Bank / lender / provider', type: 'text', placeholder: 'e.g. SBI Card, HDFC, Simpl, Groww', showIf: (v) => !isSpendable(v.type) },
+      { key: 'card_last4', label: 'Card last 4 digits (optional)', type: 'text', placeholder: '4589', hint: 'Only the last 4 digits. Never save the full card number, CVV or PIN.', showIf: (v) => v.type === 'credit_card' },
+      { key: 'credit_limit_paise', label: 'Credit limit (₹)', type: 'money', showIf: (v) => v.type === 'credit_card' || v.type === 'pay_later' },
+      { key: 'statement_day', label: 'Bill (statement) day of month', type: 'int', placeholder: 'e.g. 15', showIf: (v) => v.type === 'credit_card' || v.type === 'pay_later' },
+      { key: 'due_day', label: 'Payment due day of month', type: 'int', placeholder: 'e.g. 5', showIf: (v) => v.type === 'credit_card' || v.type === 'pay_later' },
+      // loan
+      { key: 'loan_kind', label: 'Loan type', type: 'select', options: LOAN_KINDS, showIf: (v) => v.type === 'loan' },
+      { key: 'principal_paise', label: 'Loan amount taken (₹)', type: 'money', showIf: (v) => v.type === 'loan' },
+      { key: 'tenure_months', label: 'Tenure (months)', type: 'int', placeholder: 'e.g. 24', showIf: (v) => v.type === 'loan' || v.type === 'investment' },
+      // investment
+      { key: 'investment_kind', label: 'Investment type', type: 'select', options: INVESTMENT_KINDS, showIf: (v) => v.type === 'investment' },
+      { key: 'interest_rate_bp', label: 'Interest rate (% per year)', type: 'rate', showIf: (v) => !isSpendable(v.type) },
+      { key: 'installment_paise', label: 'EMI / SIP / RD amount (₹)', type: 'money', showIf: (v) => v.type === 'loan' || v.type === 'investment' },
+      { key: 'installment_day', label: 'EMI / SIP day of month', type: 'int', placeholder: 'e.g. 5', showIf: (v) => v.type === 'loan' || v.type === 'investment' },
+      { key: 'plan_start_date', label: 'Start date', type: 'date', showIf: (v) => v.type === 'loan' || v.type === 'investment' },
+      { key: 'maturity_date', label: 'Maturity / end date', type: 'date', showIf: (v) => v.type === 'investment' || v.type === 'loan' },
+      { key: 'market_value_paise', label: 'Current value today (₹)', type: 'money', hint: 'What it is worth now (from your app/statement). Money you put in is tracked by transfers.', showIf: (v) => v.type === 'investment' },
+      { key: 'market_value_at', label: 'Current value as on', type: 'date', showIf: (v) => v.type === 'investment' },
+      { key: 'autopay_account_id', label: 'Auto-pay / EMI from account (optional)', type: 'account', showIf: (v) => !isSpendable(v.type) },
+      // bank details
+      { key: 'account_holder', label: 'Account holder name (optional)', type: 'text', showIf: (v) => v.type === 'bank' || v.type === 'credit_card' },
+      { key: 'account_number', label: 'Account / loan number (optional)', type: 'text', mask: true, copy: true, hint: 'Shown masked. Never save ATM PIN, UPI PIN, CVV, OTP or net-banking passwords anywhere in the app.', showIf: (v) => v.type !== 'cash' && v.type !== 'credit_card' },
+      { key: 'ifsc', label: 'IFSC (optional)', type: 'text', copy: true, placeholder: 'e.g. SBIN0001234', showIf: (v) => v.type === 'bank' },
+      { key: 'customer_id', label: 'CIF / customer ID (optional)', type: 'text', mask: true, copy: true, showIf: (v) => v.type === 'bank' || v.type === 'loan' || v.type === 'credit_card' },
+      { key: 'branch', label: 'Branch name / address (optional)', type: 'text', showIf: (v) => v.type === 'bank' || v.type === 'loan' },
+      { key: 'bank_account_type', label: 'Account type (optional)', type: 'select', options: BANK_ACCOUNT_TYPES, showIf: (v) => v.type === 'bank' },
+      { key: 'card_network', label: 'Card network (only if you know it)', type: 'select', options: CARD_NETWORKS, showIf: (v) => v.type === 'bank' || v.type === 'credit_card' },
       { key: 'card_color', label: 'Card colour (optional)', type: 'text', placeholder: '#1E5AA8', hint: 'Hex colour for the card. Leave empty for the bank colour.' },
       notes,
     ],
@@ -183,7 +227,11 @@ export const TABLES: Record<TableName, TableDef> = {
             ? 'Account number looks wrong.'
             : v.card_color && !/^#[0-9A-Fa-f]{6}$/.test(v.card_color)
               ? 'Card colour must look like #1E5AA8.'
-              : null,
+              : v.card_last4 && !/^[0-9]{4}$/.test(v.card_last4)
+                ? 'Card: enter only the last 4 digits.'
+                : [v.statement_day, v.due_day, v.installment_day].some((d) => d != null && (d < 1 || d > 31))
+                  ? 'Days must be between 1 and 31.'
+                  : null,
   },
   categories: {
     table: 'categories', label: 'Category', plural: 'Categories', titleField: 'name', financial: false,
@@ -549,6 +597,36 @@ export const TABLES: Record<TableName, TableDef> = {
       { key: 'results', label: 'Performance / results', type: 'textarea', placeholder: 'e.g. 120 leads, ₹35 CPL' },
       notes,
     ],
+  },
+  insurance_policies: {
+    table: 'insurance_policies', label: 'Insurance policy', plural: 'Insurance', titleField: 'name', financial: false,
+    fields: [
+      { key: 'name', label: 'Policy name', type: 'text', required: true, placeholder: 'e.g. Family health cover' },
+      { key: 'policy_type', label: 'Type', type: 'select', options: POLICY_TYPES, default: () => 'health' },
+      { key: 'insurer', label: 'Insurance company', type: 'text', placeholder: 'e.g. LIC, Star Health, HDFC Ergo' },
+      { key: 'policy_number', label: 'Policy number (optional)', type: 'text', mask: true, copy: true },
+      { key: 'insured_person', label: 'Insured person', type: 'text' },
+      { key: 'sum_assured_paise', label: 'Cover / sum assured (₹)', type: 'money' },
+      { key: 'premium_paise', label: 'Premium (₹)', type: 'money' },
+      { key: 'premium_frequency', label: 'Premium paid', type: 'select', options: PREMIUM_FREQ, default: () => 'yearly' },
+      { key: 'next_due_date', label: 'Next premium due', type: 'date', hint: 'You get a reminder before this date.' },
+      { key: 'start_date', label: 'Start date', type: 'date' },
+      { key: 'end_date', label: 'Policy end / maturity', type: 'date' },
+      { key: 'nominee', label: 'Nominee', type: 'text' },
+      { key: 'account_id', label: 'Premium paid from (optional)', type: 'account' },
+      { key: 'status', label: 'Status', type: 'select', options: POLICY_STATUS, default: () => 'active' },
+      notes,
+    ],
+  },
+  credit_scores: {
+    table: 'credit_scores', label: 'Credit score', plural: 'Credit scores', titleField: 'score', financial: false,
+    fields: [
+      { key: 'score', label: 'Score (300–900)', type: 'int', required: true, placeholder: 'e.g. 760' },
+      { key: 'bureau', label: 'Bureau', type: 'select', options: BUREAUS, default: () => 'cibil' },
+      { key: 'checked_on', label: 'Checked on', type: 'date', required: true, default: todayISO },
+      notes,
+    ],
+    validate: (v) => (v.score != null && (v.score < 300 || v.score > 900) ? 'Score must be between 300 and 900.' : null),
   },
 };
 

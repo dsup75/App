@@ -179,7 +179,7 @@ export function RecordDetail() {
 
       <List>
         {def.fields
-          .filter((f) => !(showAmount && f === amountField) && f.key !== def.titleField && !f.hidden)
+          .filter((f) => !(showAmount && f === amountField) && f.key !== def.titleField && !f.hidden && (!f.showIf || f.showIf(row)))
           .filter((f) => !isMoneyTable(t) || f.key === 'interest_paise' || f.key === amountField?.key || !(LINE_FIELDS[t].includes(f.key) || f.key === 'sources'))
           .filter((f) => f.required || (row[f.key] !== null && row[f.key] !== undefined && row[f.key] !== '' && !(Array.isArray(row[f.key]) && !row[f.key].length)))
           .map((f) => {

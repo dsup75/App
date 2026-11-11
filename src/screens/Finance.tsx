@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Landmark, Tag, Plus, QrCode, FileText, HandCoins, Target, Users, Wand2, Smartphone, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Landmark, Tag, Plus, QrCode, FileText, HandCoins, Target, Users, Wand2, Smartphone, CreditCard, Gauge, Search, SlidersHorizontal, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchBalances, fetchMoney, friendlyError, type Balance, type Row } from '../lib/db';
 import { currentMonth, monthLabel, monthRange, shiftMonth, toISODate, todayISO } from '../lib/dates';
 import { useCustomOptions } from '../lib/options';
 import { BankCardCarousel } from '../components/BankCard';
 import { formatINR, sumPaise } from '../lib/money';
-import { ACCOUNT_TYPES, UPI_APPS, optionLabel } from '../lib/tables';
+import { ACCOUNT_TYPES, UPI_APPS, optionLabel, isSpendable } from '../lib/tables';
 import { useLookups } from '../lib/useLookups';
 import { MoneyRow, type MoneyKind } from '../components/MoneyRow';
 import {
@@ -79,12 +79,14 @@ function useMonthData(month: string) {
 }
 
 const TOOLS = [
+  { label: 'Credit', to: '/credit', icon: CreditCard, tone: 'blue' as const },
   { label: 'Smart add', to: '/smart', icon: Wand2, tone: 'primary' as const },
   { label: 'Requests', to: '/requests', icon: QrCode, tone: 'teal' as const },
   { label: 'Invoices', to: '/invoices', icon: FileText, tone: 'blue' as const },
   { label: 'Udhaar', to: '/loans', icon: HandCoins, tone: 'amber' as const },
   { label: 'Goals', to: '/goals', icon: Target, tone: 'pink' as const },
   { label: 'Split', to: '/groups', icon: Users, tone: 'violet' as const },
+  { label: 'Budgets', to: '/budgets', icon: Gauge, tone: 'amber' as const },
 ];
 
 function Overview({ month }: { month: string }) {
@@ -121,7 +123,7 @@ function Overview({ month }: { month: string }) {
 
   const inc = sumPaise(data.incomes);
   const exp = sumPaise(data.expenses);
-  const total = (balances ?? []).reduce((s, b) => s + Number(b.balance_paise), 0);
+  const total = (balances ?? []).filter((b) => isSpendable(b.type)).reduce((s, b) => s + Number(b.balance_paise), 0);
   const recent = [
     ...data.incomes.map((r) => ({ kind: 'incomes' as MoneyKind, r })),
     ...data.expenses.map((r) => ({ kind: 'expenses' as MoneyKind, r })),
@@ -156,13 +158,13 @@ function Overview({ month }: { month: string }) {
         </div>
       </HeroCard>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         {TOOLS.map(({ label, to, icon: Icon, tone }) => (
           <button key={to} onClick={() => nav(to)} className="glass flex flex-col items-center gap-1.5 rounded-[16px] py-3 transition-transform active:scale-95">
             <IconBubble tone={tone} size={34}>
               <Icon size={17} />
             </IconBubble>
-            <span className="text-[12px] font-semibold">{label}</span>
+            <span className="text-[11.5px] font-semibold">{label}</span>
           </button>
         ))}
       </div>
@@ -531,15 +533,27 @@ function Accounts() {
 
   if (error) return <ErrorBox message={error} onRetry={load} />;
   if (!rows) return <Spinner />;
-  const upi = rows.filter((r) => r.upi_app || r.type === 'upi');
-  const other = rows.filter((r) => !(r.upi_app || r.type === 'upi'));
+  const spendable = rows.filter((r) => isSpendable(r.type));
+  const upi = spendable.filter((r) => r.upi_app || r.type === 'upi');
+  const other = spendable.filter((r) => !(r.upi_app || r.type === 'upi'));
+  const credit = rows.filter((r) => r.type === 'credit_card' || r.type === 'pay_later');
+  const loans = rows.filter((r) => r.type === 'loan');
+  const invest = rows.filter((r) => r.type === 'investment');
+  const dues = [...credit, ...loans].reduce((s, r) => s + Math.max(0, -Number(r.balance_paise)), 0);
   return (
     <>
       <HeroCard>
-        <p className="text-[13px] opacity-80">All accounts</p>
-        <p className="mt-1 text-[28px] font-bold tracking-tight">{formatINR(rows.reduce((s, r) => s + Number(r.balance_paise), 0))}</p>
+        <p className="text-[13px] opacity-80">Money in your accounts</p>
+        <p className="mt-1 text-[28px] font-bold tracking-tight">{formatINR(spendable.reduce((s, r) => s + Number(r.balance_paise), 0))}</p>
+        {(dues > 0 || invest.length > 0) && (
+          <p className="mt-1 text-[12.5px] opacity-85">
+            {dues > 0 ? `Cards & loans due ${formatINR(dues)}` : ''}
+            {dues > 0 && invest.length ? ' · ' : ''}
+            {invest.length ? `Invested ${formatINR(invest.reduce((s, r) => s + Number(r.balance_paise), 0))}` : ''}
+          </p>
+        )}
       </HeroCard>
-      <BankCardCarousel rows={rows} />
+      <BankCardCarousel rows={[...spendable, ...credit]} />
       {upi.length > 0 && (
         <>
           <SectionTitle>UPI apps</SectionTitle>
@@ -548,6 +562,12 @@ function Accounts() {
       )}
       <SectionTitle>Bank, cash & wallets</SectionTitle>
       {other.length ? <AccountList rows={other} /> : <p className="px-1 text-[13px] text-muted">None</p>}
+      {(credit.length > 0 || loans.length > 0 || invest.length > 0) && (
+        <>
+          <SectionTitle right={<button type="button" className="text-[13px] font-semibold text-primary" onClick={() => nav('/credit')}>Open Credit & Loans</button>}>Cards, loans & investments</SectionTitle>
+          <AccountList rows={[...credit, ...loans, ...invest]} />
+        </>
+      )}
       <p className="px-1 text-[12px] text-muted">Balance = opening + income − expenses ± transfers ± udhaar. Add each UPI app (GPay, PhonePe, Paytm…) as its own account to track it separately.</p>
       <div className="grid grid-cols-2 gap-2">
         <Button onClick={() => nav('/r/accounts/new?type=upi&upi_app=gpay')}>

@@ -2,11 +2,13 @@
 // bank cards fanned out on the right. Everything is worked out from your own entries.
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, Eye, EyeOff, ArrowUp, ArrowDown, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, ArrowUp, ArrowDown, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { fetchBalances, type Balance } from '../lib/db';
+import { fetchCreditAccounts, type CreditAccount } from '../lib/credit';
+import { isSpendable } from '../lib/tables';
 import { formatINR } from '../lib/money';
-import { cardLook } from './BankCard';
+import { cardLook, CardChip, NetworkMark } from './BankCard';
+import { Glyph } from './Glyph';
 
 function splitAmount(paise: number) {
   const s = formatINR(paise);
@@ -40,39 +42,52 @@ function Sparkline({ points }: { points: number[] }) {
   );
 }
 
-function MiniCard({ a, style }: { a: Balance; style: CSSProperties }) {
-  const look = cardLook(a);
+function MiniCard({ a, style }: { a: CreditAccount; style: CSSProperties }) {
+  const base = cardLook(a);
+  const look = a.card_color ? { ...base, from: a.card_color, to: '#0b0b0b' } : base;
+  const last4 = a.card_last4 || (a.account_number ? a.account_number.replace(/\s/g, '').slice(-4) : null);
   return (
     <div
-      className="bank-card absolute h-[72px] w-[112px] overflow-hidden rounded-[12px] p-2 text-white"
-      style={{ background: `linear-gradient(135deg, ${look.from}, ${look.to})`, boxShadow: '0 10px 24px rgba(0,0,0,.35)', ...style }}
+      className="bank-card absolute h-[80px] w-[124px] overflow-hidden rounded-[13px] px-2 py-1.5 text-white"
+      style={{ background: `linear-gradient(135deg, ${look.from}, ${look.to})`, boxShadow: '0 10px 24px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.3)', ...style }}
     >
       <span className="card-sheen" />
-      <p className="truncate text-right text-[10px] font-black italic" style={{ color: look.accent }}>{look.mark}</p>
-      <span className="mt-1.5 block h-3.5 w-5 rounded-[3px]" style={{ background: 'linear-gradient(135deg,#f5d77a,#b8913a)' }} />
-      <p className="mt-1 truncate text-[8.5px] font-semibold opacity-90">{a.name}</p>
+      <p className="truncate text-right text-[11px] font-black italic leading-tight" style={{ color: look.accent }}>{look.mark}</p>
+      <div className="mt-1 flex items-center gap-1">
+        <CardChip w={19} />
+        <span className="text-[8px] opacity-80">)))</span>
+      </div>
+      <p className="mt-0.5 truncate font-mono text-[8.5px] tracking-wider opacity-90">{last4 ? `•••• •••• ${last4}` : a.name}</p>
+      {a.card_network && (
+        <span className="absolute bottom-1 right-1.5">
+          <NetworkMark network={a.card_network} size={9} />
+        </span>
+      )}
     </div>
   );
 }
 
 export function BalanceHero({ total, monthIn, monthOut, hide, onToggleHide }: { total: number; monthIn: number; monthOut: number; hide: boolean; onToggleHide: () => void }) {
   const nav = useNavigate();
-  const [accounts, setAccounts] = useState<Balance[]>([]);
+  const [accounts, setAccounts] = useState<CreditAccount[]>([]);
   const [line, setLine] = useState<number[]>([]);
 
   useEffect(() => {
-    fetchBalances()
-      .then((r) => setAccounts(r))
+    fetchCreditAccounts()
+      .then((r) => setAccounts(r.filter((a) => isSpendable(a.type) || a.type === 'credit_card')))
       .catch(() => {});
     const from = new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10);
     Promise.all([
       supabase.from('account_movements').select('account_id,txn_date,signed_paise').gte('txn_date', from).limit(5000),
-      supabase.from('accounts').select('id,opening_date').is('deleted_at', null),
+      supabase.from('accounts').select('id,opening_date,type').is('deleted_at', null),
     ]).then(([m, a]) => {
       if (m.error) return;
       const opening = new Map(((a.data ?? []) as any[]).map((x) => [x.id, x.opening_date as string | null]));
+      // the line follows spendable money only (same as the big number)
+      const spend = new Set(((a.data ?? []) as any[]).filter((x) => isSpendable(x.type)).map((x) => x.id));
       const byDay = new Map<string, number>();
       for (const r of (m.data ?? []) as any[]) {
+        if (!spend.has(r.account_id)) continue;
         const od = opening.get(r.account_id);
         if (od && r.txn_date < od) continue;
         byDay.set(r.txn_date, (byDay.get(r.txn_date) ?? 0) + Number(r.signed_paise));
@@ -93,14 +108,16 @@ export function BalanceHero({ total, monthIn, monthOut, hide, onToggleHide }: { 
   const startOfMonth = total - net;
   const pct = startOfMonth > 0 ? Math.round((net / startOfMonth) * 1000) / 10 : null;
   const [whole, dec] = splitAmount(total);
-  const top = useMemo(() => [...accounts].sort((x, y) => y.balance_paise - x.balance_paise).slice(0, 3), [accounts]);
+  // cards with a known bank first (they look like real cards), then by balance
+  const top = useMemo(
+    () => [...accounts].sort((x, y) => Number(!!(y.card_network || y.card_last4)) - Number(!!(x.card_network || x.card_last4)) || y.balance_paise - x.balance_paise).slice(0, 3),
+    [accounts],
+  );
 
   return (
     <div className="hero relative overflow-hidden rounded-[24px] p-4" onClick={() => nav('/finance')}>
       <div className="flex items-center gap-2">
-        <span className="flex h-9 w-9 items-center justify-center rounded-[11px]" style={{ background: 'linear-gradient(135deg,#4f8cff,#2a5bd7)', boxShadow: '0 6px 14px rgba(42,91,215,.45)' }}>
-          <Wallet size={18} className="text-white" />
-        </span>
+        <Glyph name="wallet" size={36} />
         <p className="text-[16px] font-semibold">Total Balance</p>
         <button
           type="button"
@@ -139,7 +156,7 @@ export function BalanceHero({ total, monthIn, monthOut, hide, onToggleHide }: { 
           )}
         </div>
         {top.length > 0 && (
-          <div className="relative h-[100px] w-[150px] shrink-0" aria-hidden>
+          <div className="relative h-[108px] w-[158px] shrink-0" aria-hidden>
             {top
               .slice()
               .reverse()

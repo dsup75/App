@@ -6,6 +6,7 @@ import { supabase } from './supabase';
 import { currentMonth, todayISO, toISODate } from './dates';
 import { formatINR } from './money';
 import { budgetStatus } from './budgets';
+import { upcomingMoneyDates } from './credit';
 
 export interface ReminderConfig {
   on: boolean;
@@ -155,6 +156,20 @@ export async function scheduleReminders(uid: string): Promise<number> {
       const d = addDays(today, i);
       const n = byDay.get(d) ?? 0;
       list.push({ title: 'Good morning 👋', body: n ? `${n} task${n > 1 ? 's' : ''} due today. Study + work plan ready?` : 'Plan your day: study slots, client work, habits.', when: at(d, cfg.time), url: '/' });
+    }
+  }
+
+  // Card bills, EMIs, SIPs and insurance premiums: 2 days before + on the day
+  if (cfg.payments) {
+    try {
+      for (const m of await upcomingMoneyDates(30)) {
+        const amt = m.amount ? formatINR(m.amount) : '';
+        const early = addDays(m.date, -2);
+        if (early >= today) list.push({ title: `${m.kind}: ${m.title} in 2 days`, body: `${amt}${amt ? ' · ' : ''}due ${m.date.split('-').reverse().join('-')}`, when: at(early, cfg.time), url: m.to });
+        list.push({ title: `${m.kind} due today: ${m.title}`, body: m.kind === 'SIP' ? `${amt} — keep money in the bank account` : `${amt} — pay on time to avoid late fees`, when: at(m.date, cfg.time), url: m.to });
+      }
+    } catch {
+      /* credit features are optional */
     }
   }
 

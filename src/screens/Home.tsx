@@ -1,18 +1,20 @@
 import { RecurringDrafts, BudgetWarnings } from './Planning';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Circle, Timer, Flame, CalendarClock, LayoutGrid, ChevronUp, ChevronDown, RotateCcw, ListTodo, ReceiptIndianRupee, HandCoins, AlertTriangle, ChevronRight, CalendarDays, ArrowRight, GraduationCap, FileText, CircleCheck } from 'lucide-react';
+import { Check, Circle, Timer, Flame, CalendarClock, LayoutGrid, ChevronUp, ChevronDown, AlertTriangle, ChevronRight, CalendarDays, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { supabase } from '../lib/supabase';
 import { fetchBalances, friendlyError, updateRecord, type Row } from '../lib/db';
 import { currentMonth, monthRange, shiftMonth, todayISO, relativeDay, toISODate } from '../lib/dates';
 import { formatINR, sumPaise } from '../lib/money';
-import { AREAS, optionLabel, PRIORITIES } from '../lib/tables';
+import { AREAS, optionLabel, PRIORITIES, isSpendable } from '../lib/tables';
+import { upcomingMoneyDates, type MoneyDate } from '../lib/credit';
 import { useLookups } from '../lib/useLookups';
 import { RecordLine } from '../components/RecordLine';
 import { HealthCarousel } from '../components/HealthCarousel';
 import { HomeHeader } from '../components/HomeHeader';
+import { Glyph, type GlyphName } from '../components/Glyph';
 import { BalanceHero } from '../components/BalanceHero';
 import { ActivityTimeline } from '../components/ActivityTimeline';
 import { BalanceCarousel } from '../components/BalanceCarousel';
@@ -37,6 +39,7 @@ interface Dash {
   invoiceCount: number;
   dueLoans: Row[];
   upcoming: { date: string; title: string; kind: string; to: string }[];
+  billsDue: number;
   followUps: number;
   nextExam: Row | null;
   revisionsDue: number;
@@ -137,7 +140,14 @@ export function Home() {
       } catch {
         /* revisions are optional on Home */
       }
+      let moneyDates: MoneyDate[] = [];
+      try {
+        moneyDates = await upcomingMoneyDates(7);
+      } catch {
+        /* credit features are optional on Home */
+      }
       const upcoming = [
+        ...moneyDates.map((m) => ({ date: m.date, title: m.amount ? `${m.title} · ${formatINR(m.amount)}` : m.title, kind: m.kind, to: m.to })),
         ...revs.filter((r) => r.due_date > today).map((r) => ({ date: r.due_date, title: `Revise ${r.chapter_name}`, kind: r.subject_name ? `Revision · ${r.subject_name}` : 'Revision', to: '/revisions' })),
         ...(weekTasks.data ?? []).map((t: any) => ({ date: t.due_date, title: t.title, kind: 'Task', to: `/r/tasks/${t.id}` })),
         ...(events.data ?? []).map((e: any) => ({ date: e.event_date, title: e.title, kind: 'Event', to: `/r/events/${e.id}` })),
@@ -151,7 +161,8 @@ export function Home() {
         expenses: exp.data ?? [],
         sixMonths: six.data ?? [],
         transfers,
-        balance: balances.reduce((s: number, b: any) => s + Number(b.balance_paise), 0),
+        balance: balances.filter((b: any) => isSpendable(b.type)).reduce((s: number, b: any) => s + Number(b.balance_paise), 0),
+        billsDue: moneyDates.filter((m) => m.kind !== 'SIP' && m.date <= toISODate(new Date(Date.now() + 3 * 86400000))).length,
         habits: habits.data ?? [],
         habitLogs: logs.data ?? [],
         studyMinutes: (study.data ?? []).reduce((s: number, x: any) => s + x.minutes, 0),
@@ -280,11 +291,12 @@ export function Home() {
           <>
           {(() => {
             const chips = [
-              { n: d.invoiceCount, label: 'Pending Payments', icon: <ReceiptIndianRupee size={18} />, tint: 'var(--tone-blue)', to: '/invoices' },
-              { n: overdueTasks, label: 'Overdue Tasks', icon: <ListTodo size={18} />, tint: 'var(--tone-amber)', to: '/tasks' },
-              { n: d.revisionsDue, label: 'Due Revisions', icon: <RotateCcw size={18} />, tint: 'var(--tone-violet)', to: '/revisions' },
-              { n: d.dueLoans.length, label: 'Udhaar Due', icon: <HandCoins size={18} />, tint: 'var(--tone-pink)', to: '/loans' },
-              { n: d.followUps, label: 'Follow-ups', icon: <CalendarClock size={18} />, tint: 'var(--tone-teal)', to: '/clients?tab=tasks' },
+              { n: d.billsDue, label: 'Bills & EMIs Due', glyph: 'card' as GlyphName, tint: 'var(--tone-expense)', to: '/credit' },
+              { n: d.invoiceCount, label: 'Pending Payments', glyph: 'calendar' as GlyphName, tint: 'var(--tone-blue)', to: '/invoices' },
+              { n: overdueTasks, label: 'Overdue Tasks', glyph: 'check' as GlyphName, tint: 'var(--tone-amber)', to: '/tasks' },
+              { n: d.revisionsDue, label: 'Due Revisions', glyph: 'book' as GlyphName, tint: 'var(--tone-violet)', to: '/revisions' },
+              { n: d.dueLoans.length, label: 'Udhaar Due', glyph: 'handshake' as GlyphName, tint: 'var(--tone-pink)', to: '/loans' },
+              { n: d.followUps, label: 'Follow-ups', glyph: 'bell' as GlyphName, tint: 'var(--tone-teal)', to: '/clients?tab=tasks' },
             ].filter((c) => c.n > 0);
             if (!chips.length) return null;
             const total = chips.reduce((t, c) => t + c.n, 0);
@@ -299,7 +311,7 @@ export function Home() {
                 <div className="grid grid-cols-2 gap-2 min-[400px]:grid-cols-3">
                   {chips.map((c) => (
                     <button key={c.label} type="button" onClick={() => nav(c.to)} className="tint-card press flex items-center gap-2 rounded-[16px] p-2.5 text-left" style={{ ['--tint' as string]: c.tint }}>
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] text-white" style={{ background: c.tint }}>{c.icon}</span>
+                      <Glyph name={c.glyph} size={34} />
                       <span className="text-[19px] font-bold" style={{ color: c.tint }}>{c.n}</span>
                       <span className="min-w-0 text-[11.5px] font-medium leading-tight">{c.label}</span>
                     </button>
@@ -338,13 +350,12 @@ export function Home() {
               </div>
               <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
                 {d.upcoming.slice(0, 10).map((u, i) => {
-                  const k = /revision/i.test(u.kind) ? 'var(--tone-violet)' : /exam|test/i.test(u.kind) ? 'var(--tone-blue)' : /event|birthday/i.test(u.kind) ? 'var(--tone-pink)' : /task/i.test(u.kind) ? 'var(--tone-income)' : 'var(--tone-amber)';
-                  const I = /revision/i.test(u.kind) ? GraduationCap : /exam|test/i.test(u.kind) ? FileText : /event|birthday/i.test(u.kind) ? CalendarDays : /task/i.test(u.kind) ? CircleCheck : CalendarClock;
+                  const isMoney = /bill|emi|premium|sip|pay later/i.test(u.kind);
+                  const k = isMoney ? (/sip/i.test(u.kind) ? 'var(--tone-income)' : 'var(--tone-expense)') : /revision/i.test(u.kind) ? 'var(--tone-violet)' : /exam|test/i.test(u.kind) ? 'var(--tone-blue)' : /event|birthday/i.test(u.kind) ? 'var(--tone-pink)' : /task/i.test(u.kind) ? 'var(--tone-income)' : 'var(--tone-amber)';
+                  const g: GlyphName = isMoney ? (/sip/i.test(u.kind) ? 'chart' : /premium/i.test(u.kind) ? 'shield' : 'card') : /revision/i.test(u.kind) ? 'cap' : /exam|test/i.test(u.kind) ? 'chart' : /birthday/i.test(u.kind) ? 'gift' : /event/i.test(u.kind) ? 'calendar' : /task/i.test(u.kind) ? 'check' : /invoice|payment/i.test(u.kind) ? 'receipt' : 'clock';
                   return (
                     <button key={i} type="button" onClick={() => nav(u.to)} className="tint-card press w-[44%] min-w-[140px] shrink-0 rounded-[18px] p-3 text-left" style={{ ['--tint' as string]: k }}>
-                      <span className="flex h-9 w-9 items-center justify-center rounded-[11px] text-white" style={{ background: k }}>
-                        <I size={18} />
-                      </span>
+                      <Glyph name={g} size={36} />
                       <p className="mt-2 line-clamp-2 text-[14px] font-semibold leading-tight">{u.title}</p>
                       <p className="mt-0.5 truncate text-[11.5px] text-muted">{u.kind} · {relativeDay(u.date)}</p>
                     </button>

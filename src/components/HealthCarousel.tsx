@@ -1,12 +1,13 @@
 // Home: "Health & connected devices" — one configurable carousel. Shows only data the app really has.
 import { useCallback, useEffect, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Footprints, Moon, Scale, HeartPulse, Flame, Activity, MonitorSmartphone, Headphones, Watch, Settings2, GripVertical, RotateCcw, Heart, Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Footprints, Moon, Scale, HeartPulse, Flame, Activity, MonitorSmartphone, Headphones, Watch, Settings2, GripVertical, RotateCcw, Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { todayISO } from '../lib/dates';
 import { healthAvailable, readToday, saveHealthSnapshot } from '../lib/health';
 import { fmtMinutes, hasUsageAccess, usageForDay } from '../lib/screenTime';
 import { Button, Segmented, Sheet, Toggle, cx } from './ui';
+import { Glyph, type GlyphName } from './Glyph';
 
 type SlideId = 'steps' | 'sleep' | 'weight' | 'body' | 'heart' | 'calories' | 'activity' | 'screen' | 'earbuds' | 'watch';
 const LABEL: Record<SlideId, string> = {
@@ -17,9 +18,8 @@ const ICON: Record<SlideId, ReactNode> = {
   steps: <Footprints size={16} />, sleep: <Moon size={16} />, weight: <Scale size={16} />, body: <Scale size={16} />, heart: <HeartPulse size={16} />,
   calories: <Flame size={16} />, activity: <Activity size={16} />, screen: <MonitorSmartphone size={16} />, earbuds: <Headphones size={16} />, watch: <Watch size={16} />,
 };
-const BIG_ICON: Record<SlideId, ReactNode> = {
-  steps: <Footprints size={26} />, sleep: <Moon size={26} />, weight: <Scale size={26} />, body: <Activity size={26} />, heart: <HeartPulse size={26} />,
-  calories: <Flame size={26} />, activity: <Activity size={26} />, screen: <MonitorSmartphone size={26} />, earbuds: <Headphones size={26} />, watch: <Watch size={26} />,
+const BIG_ICON: Record<SlideId, GlyphName> = {
+  steps: 'shoe', sleep: 'moon', weight: 'scale', body: 'body', heart: 'heart', calories: 'flame', activity: 'activity', screen: 'phone', earbuds: 'earbuds', watch: 'watch',
 };
 const TILE: Record<SlideId, string> = {
   steps: 'var(--tone-blue)', sleep: 'var(--tone-violet)', weight: 'var(--tone-teal)', body: 'var(--tone-teal)', heart: 'var(--tone-pink)',
@@ -193,7 +193,7 @@ export function HealthCarousel() {
   return (
     <>
       <div className="flex items-center gap-2 px-1">
-        <Heart size={20} className="shrink-0" style={{ color: 'var(--tone-pink)', fill: 'var(--tone-pink)' }} />
+        <Glyph name="heart" size={26} />
         <p className="min-w-0 flex-1 text-[16px] font-semibold">Health &amp; Connected Devices</p>
         <button
           type="button"
@@ -234,7 +234,9 @@ export function HealthCarousel() {
                 className="health-tile press flex w-[31%] min-w-[104px] shrink-0 flex-col items-center rounded-[18px] px-2 py-3 text-center"
                 style={{ ['--tile' as string]: TILE[s.id] }}
               >
-                <span className="health-icon flex h-12 w-12 items-center justify-center rounded-[15px]">{BIG_ICON[s.id]}</span>
+                <span className="flex h-[50px] w-[50px] items-center justify-center">
+                  <Glyph name={BIG_ICON[s.id]} size={48} />
+                </span>
                 <span className="mt-1.5 block w-full truncate text-[12px] font-medium opacity-85">{LABEL[s.id]}</span>
                 <span className="block w-full truncate text-[17px] font-bold tracking-tight">{s.value}</span>
                 <span className="block w-full truncate text-[10.5px]" style={{ color: TILE[s.id] }}>{s.sub}</span>

@@ -26,6 +26,13 @@ function toFormString(f: Field, raw: unknown): string {
   }
 }
 
+/** showIf conditions compare small numbers (days) — give them numbers, not strings */
+function numericView(form: Record<string, string>): Record<string, any> {
+  const out: Record<string, any> = {};
+  for (const k of ['statement_day', 'due_day', 'installment_day']) if (form[k]) out[k] = Number(form[k]);
+  return out;
+}
+
 /** Build editable string state from a DB row (or defaults for a new record). */
 export function initialFormState(table: TableName, row?: Values | null, prefill?: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
@@ -44,6 +51,7 @@ export function toDbValues(table: TableName, form: Record<string, string>, omit:
   const errors: Record<string, string> = {};
   for (const f of def.fields) {
     if (f.type === 'json' || omit.includes(f.key)) continue; // edited elsewhere
+    if (f.showIf && !f.showIf({ ...form, ...numericView(form) })) continue; // not shown for this kind of record
     const s = (form[f.key] ?? '').trim();
     if (f.type === 'bool') {
       values[f.key] = s === 'true';
@@ -310,6 +318,7 @@ export function RecordForm({
       <Card className="space-y-3.5">
         {def.fields
           .filter((f) => !f.hidden && f.type !== 'json' && !omit.includes(f.key))
+          .filter((f) => !f.showIf || f.showIf(form))
           .filter((f) => !(table === 'loans' && f.key === 'interest_rate_bp' && form.interest_type !== 'simple'))
           .map((f) => (
             <FormRow key={f.key} label={f.label} error={errors[f.key]} hint={f.hint}>

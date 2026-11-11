@@ -21,7 +21,7 @@ export const BACKUP_TABLES = [
   'reconciliation_adjustments', 'entry_reversals', 'checklist_items',
   // added Nov 2026
   'focus_sessions', 'revision_settings', 'revisions', 'gadgets', 'health_profile', 'body_measurements', 'activity_daily', 'screen_time_daily',
-  'custom_icons', 'entity_icons', 'timer_sessions',
+  'custom_icons', 'entity_icons', 'timer_sessions', 'insurance_policies', 'credit_scores',
 ] as const;
 
 /** Tables keyed by user (+ day / record) instead of an "id" column */

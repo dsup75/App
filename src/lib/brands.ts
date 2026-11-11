@@ -18,6 +18,13 @@ const BRANDS: [RegExp, string][] = [
   [/whatsapp/i, 'whatsapp.com'], [/telegram/i, 'telegram.org'], [/google\s*ads/i, 'ads.google.com'], [/upwork/i, 'upwork.com'], [/fiverr/i, 'fiverr.com'],
   // telecom & bills
   [/\bjio\b|jio\s*fiber/i, 'jio.com'], [/airtel/i, 'airtel.in'], [/\bvi\b|vodafone/i, 'myvi.in'], [/bsnl/i, 'bsnl.co.in'], [/tata\s*play/i, 'tataplay.com'],
+  // credit, loans, investing & insurance
+  [/sbi\s*card/i, 'sbicard.com'], [/\bsimpl\b/i, 'getsimpl.com'], [/lazy\s*pay/i, 'lazypay.in'], [/\bslice\b/i, 'sliceit.com'], [/one\s*card/i, 'getonecard.app'],
+  [/bajaj\s*fin/i, 'bajajfinserv.in'], [/postpaid/i, 'paytm.com'], [/flipkart\s*pay\s*later/i, 'flipkart.com'], [/kreditbee/i, 'kreditbee.in'], [/moneyview|money\s*view/i, 'moneyview.in'],
+  [/navi\b/i, 'navi.com'], [/groww/i, 'groww.in'], [/zerodha|kite/i, 'zerodha.com'], [/upstox/i, 'upstox.com'], [/angel\s*one/i, 'angelone.in'], [/kuvera/i, 'kuvera.in'],
+  [/et\s*money/i, 'etmoney.com'], [/coin\s*dcx|coindcx/i, 'coindcx.com'], [/star\s*health/i, 'starhealth.in'], [/hdfc\s*ergo/i, 'hdfcergo.com'], [/icici\s*lombard/i, 'icicilombard.com'],
+  [/niva\s*bupa/i, 'nivabupa.com'], [/care\s*health/i, 'careinsurance.com'], [/policy\s*bazaar/i, 'policybazaar.com'], [/acko/i, 'acko.com'], [/digit\s*insurance|go\s*digit/i, 'godigit.com'],
+  [/cibil/i, 'cibil.com'], [/experian/i, 'experian.in'], [/muthoot/i, 'muthootfinance.com'], [/manappuram/i, 'manappuram.com'], [/hero\s*fincorp/i, 'herofincorp.com'], [/tata\s*capital/i, 'tatacapital.com'],
   // payments & banks
   [/google\s*pay|\bg\s*pay\b/i, 'pay.google.com'], [/phone\s*pe/i, 'phonepe.com'], [/paytm/i, 'paytm.com'], [/bhim/i, 'bhimupi.org.in'], [/\bcred\b/i, 'cred.club'],
   [/amazon\s*pay/i, 'amazon.in'], [/mobikwik/i, 'mobikwik.com'], [/super\.?money/i, 'super.money'],

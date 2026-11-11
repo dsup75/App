@@ -10,7 +10,7 @@ import { useToast } from '../context/ToastContext';
 import { friendlyError, saveSettings } from '../lib/db';
 import { biometricAvailable, biometricInfo, biometricPrompt, bioLabel, hashPin, verifyPin, LOCK_TIMEOUTS, type BioInfo, type LockConfig } from '../lib/lock';
 import { brandLogosOn, setBrandLogosOn } from '../lib/brands';
-import { ACCENTS, STYLES, TEXT_SIZES, THEMES, getThemePrefs, setThemePrefs, type ThemePrefs } from '../lib/theme';
+import { ACCENTS, STYLES, TEXT_SIZES, THEMES, getThemePrefs, setThemePrefs, type CustomColors, type ThemePrefs } from '../lib/theme';
 import { isValidScriptUrl, syncAll, testScript } from '../lib/sheets';
 import { isValidUpiId } from '../lib/upi';
 import { formatDateTime } from '../lib/dates';
@@ -269,6 +269,95 @@ function PinFlow({ mode, onClose }: { mode: null | 'set' | 'change' | 'remove'; 
   );
 }
 
+/* ---------------- Custom theme editor ---------------- */
+const CUSTOM_PRESETS: { label: string; c: CustomColors }[] = [
+  { label: 'Ocean night', c: { bg: '#06101f', primary: '#3b82f6', hero: '#1d3a8a' } },
+  { label: 'Royal', c: { bg: '#0d0820', primary: '#8b5cf6', hero: '#3b1a7a' } },
+  { label: 'Emerald', c: { bg: '#04140f', primary: '#10b981', hero: '#065f46' } },
+  { label: 'Sunrise', c: { bg: '#fff7ef', primary: '#ea580c', hero: '#c2410c' } },
+  { label: 'Rose', c: { bg: '#fff1f4', primary: '#e11d48', hero: '#9f1239' } },
+  { label: 'Sky', c: { bg: '#eef6ff', primary: '#0284c7', hero: '#075985' } },
+];
+
+function ColorRow({ label, hint, value, fallback, onChange }: { label: string; hint: string; value?: string; fallback: string; onChange: (v: string | undefined) => void }) {
+  const [txt, setTxt] = useState(value ?? '');
+  useEffect(() => setTxt(value ?? ''), [value]);
+  return (
+    <div className="flex items-center gap-3">
+      <label className="relative h-10 w-10 shrink-0 overflow-hidden rounded-[12px]" style={{ background: value ?? fallback, boxShadow: 'inset 0 0 0 1px var(--hairline)' }}>
+        <input type="color" aria-label={label} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" value={value ?? fallback} onChange={(e) => onChange(e.target.value)} />
+      </label>
+      <div className="min-w-0 flex-1">
+        <p className="text-[14px] font-medium">{label}</p>
+        <p className="truncate text-[11.5px] text-muted">{hint}</p>
+      </div>
+      <input
+        className="field w-[92px] px-2 py-1.5 font-mono text-[12.5px]"
+        value={txt}
+        placeholder="Auto"
+        onChange={(e) => {
+          setTxt(e.target.value);
+          if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) onChange(e.target.value);
+        }}
+      />
+      {value && (
+        <button type="button" className="text-[12px] font-semibold text-muted" onClick={() => onChange(undefined)}>
+          Auto
+        </button>
+      )}
+    </div>
+  );
+}
+
+function CustomThemeEditor({ p, set }: { p: ThemePrefs; set: (patch: Partial<ThemePrefs>) => void }) {
+  const c = p.custom ?? {};
+  const put = (k: keyof CustomColors, v: string | boolean | undefined) => set({ custom: { ...c, [k]: v } });
+  return (
+    <div className="space-y-3 rounded-[16px] p-3" style={{ background: 'var(--card-2)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}>
+      <p className="text-[13px] font-semibold">Your colours</p>
+      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+        {CUSTOM_PRESETS.map((x) => (
+          <button key={x.label} type="button" onClick={() => set({ custom: { ...x.c, glow: c.glow } })} className="press flex shrink-0 items-center gap-1.5 rounded-full py-1 pl-1 pr-3 text-[12px] font-semibold" style={{ background: 'var(--field)' }}>
+            <span className="h-6 w-6 rounded-full" style={{ background: `linear-gradient(135deg, ${x.c.bg} 50%, ${x.c.primary} 50%)`, boxShadow: 'inset 0 0 0 1px rgba(128,128,128,.3)' }} />
+            {x.label}
+          </button>
+        ))}
+      </div>
+      <ColorRow label="Background" hint="Dark colour = dark app, light colour = light app" value={c.bg} fallback="#0b1020" onChange={(v) => put('bg', v)} />
+      <ColorRow label="Cards" hint="Boxes and lists (Auto matches the background)" value={c.card} fallback="#18203a" onChange={(v) => put('card', v)} />
+      <ColorRow label="Buttons & highlights" hint="Accent colour for buttons, links, charts" value={c.primary} fallback={ACCENTS.find((a) => a.value === p.accent)?.color ?? '#2f6bd6'} onChange={(v) => put('primary', v)} />
+      <ColorRow label="Header card" hint="Total balance and big cards" value={c.hero} fallback={c.primary ?? '#1d3a8a'} onChange={(v) => put('hero', v)} />
+      <ColorRow label="Text" hint="Auto picks black or white for best reading" value={c.text} fallback="#f2f5ff" onChange={(v) => put('text', v)} />
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-[14px] font-medium">Background glow</p>
+          <p className="text-[11.5px] text-muted">Soft coloured light behind the screens</p>
+        </div>
+        <Toggle checked={c.glow !== false} onChange={(v) => put('glow', v)} />
+      </div>
+      <div className="space-y-2">
+        <p className="text-[13px] font-semibold text-muted">Card style</p>
+        <Segmented value={p.style} onChange={(v) => set({ style: v })} options={STYLES.map((st) => ({ value: st.value, label: st.label }))} />
+        <p className="text-[12px] text-muted">{STYLES.find((x) => x.value === p.style)?.hint}</p>
+      </div>
+      {!c.primary && (
+        <div className="space-y-2">
+          <p className="text-[13px] font-semibold text-muted">Quick accent</p>
+          <div className="flex flex-wrap gap-2.5">
+            {ACCENTS.map((a) => (
+              <button key={a.value} aria-label={a.label} onClick={() => set({ accent: a.value })} className="press flex flex-col items-center gap-1">
+                <span className="block h-8 w-8 rounded-full" style={{ background: a.color, boxShadow: p.accent === a.value ? `0 0 0 2px var(--bg), 0 0 0 4px ${a.color}` : 'inset 0 0 0 1px rgba(0,0,0,.1)' }} />
+                <span className="text-[10.5px] text-muted">{a.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <Button size="sm" onClick={() => set({ custom: {} })}>Reset colours</Button>
+    </div>
+  );
+}
+
 /* ---------------- UPI + business details ---------------- */
 function Appearance() {
   const [p, setP] = useState<ThemePrefs>(getThemePrefs());
@@ -278,7 +367,7 @@ function Appearance() {
     setP(getThemePrefs());
   };
   const preset = THEMES.find((t) => t.value === p.theme);
-  const followsMode = p.theme === 'custom' ? p.style !== 'midnight' : !preset?.mode;
+  const followsMode = p.theme === 'custom' ? p.style !== 'midnight' && !p.custom?.bg : !preset?.mode;
   return (
     <>
       <SectionTitle>Appearance</SectionTitle>
@@ -315,32 +404,10 @@ function Appearance() {
               <span className="block truncate text-[11px] font-semibold">Custom</span>
             </button>
           </div>
-          <p className="text-[12px] text-muted">{preset ? preset.hint : 'Your own mix of style and accent colour.'}</p>
+          <p className="text-[12px] text-muted">{preset ? preset.hint : 'Fully yours — pick every colour below: background, cards, buttons, text and the header card.'}</p>
         </div>
 
-        {p.theme === 'custom' && (
-          <>
-            <div className="space-y-2">
-              <p className="text-[13px] font-semibold text-muted">Style</p>
-              <Segmented value={p.style} onChange={(v) => set({ style: v })} options={STYLES.map((st) => ({ value: st.value, label: st.label }))} />
-              <p className="text-[12px] text-muted">{STYLES.find((x) => x.value === p.style)?.hint}</p>
-            </div>
-            <div className="space-y-2">
-              <p className="text-[13px] font-semibold text-muted">Accent colour</p>
-              <div className="flex flex-wrap gap-2.5">
-                {ACCENTS.map((a) => (
-                  <button key={a.value} aria-label={a.label} onClick={() => set({ accent: a.value })} className="press flex flex-col items-center gap-1">
-                    <span
-                      className="block h-9 w-9 rounded-full"
-                      style={{ background: a.color, boxShadow: p.accent === a.value ? `0 0 0 2px var(--bg), 0 0 0 4px ${a.color}` : 'inset 0 0 0 1px rgba(0,0,0,.1)' }}
-                    />
-                    <span className="text-[11px] text-muted">{a.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
+        {p.theme === 'custom' && <CustomThemeEditor p={p} set={set} />}
 
         <div className="space-y-2">
           <p className="text-[13px] font-semibold text-muted">Light / dark</p>
@@ -355,7 +422,9 @@ function Appearance() {
               ]}
             />
           ) : (
-            <p className="text-[12.5px] text-muted">{preset?.label ?? 'Midnight'} is always {(preset?.mode ?? 'dark') === 'dark' ? 'dark' : 'light'}.</p>
+            <p className="text-[12.5px] text-muted">
+              {p.theme === 'custom' && p.custom?.bg ? 'Your background colour decides light or dark.' : `${preset?.label ?? 'Midnight'} is always ${(preset?.mode ?? 'dark') === 'dark' ? 'dark' : 'light'}.`}
+            </p>
           )}
         </div>
 
@@ -400,7 +469,7 @@ function Appearance() {
 const REMINDER_KINDS: { key: keyof ReminderConfig; label: string }[] = [
   { key: 'daily', label: 'Morning plan (tasks due today)' },
   { key: 'udhaar', label: 'Udhaar due dates' },
-  { key: 'payments', label: 'Invoice & payment request due' },
+  { key: 'payments', label: 'Invoices, card bills, EMIs & premiums due' },
   { key: 'exams', label: 'Exams (7 days & 1 day before)' },
   { key: 'recurring', label: 'Recurring entries due' },
   { key: 'budget', label: 'Budget crossed' },

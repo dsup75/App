@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowDownLeft, ArrowUpRight, ArrowLeftRight, ListTodo, FileText, Briefcase, Megaphone, Link2, HandCoins,
   PiggyBank, BookOpen, Timer, ClipboardCheck, CalendarDays, StickyNote, ShoppingCart, Users, Repeat, QrCode,
-  Landmark, Tag, GraduationCap, Flame, Gauge, CalendarClock,
+  Landmark, Tag, GraduationCap, Flame, Gauge, CalendarClock, ShieldCheck, TrendingUp,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { formatINR } from '../lib/money';
 import { formatDate, relativeDay } from '../lib/dates';
-import { optionLabel, UPI_APPS, TASK_STATUS, CHAPTER_STATUS, PROJECT_STATUS, CAMPAIGN_STATUS, PLATFORMS, CLIENT_STATUS, FREQUENCIES, type TableName } from '../lib/tables';
+import { optionLabel, POLICY_TYPES, PREMIUM_FREQ, BUREAUS, UPI_APPS, TASK_STATUS, CHAPTER_STATUS, PROJECT_STATUS, CAMPAIGN_STATUS, PLATFORMS, CLIENT_STATUS, FREQUENCIES, type TableName } from '../lib/tables';
 import { IconBubble, ListRow, Badge, type Tone } from './ui';
 import { useUsage } from '../lib/useUsage';
 import { ICONABLE } from '../lib/icons';
@@ -51,6 +51,8 @@ export const TABLE_ICON: Record<TableName, { icon: LucideIcon; tone: Tone }> = {
   custom_options: { icon: Tag, tone: 'muted' },
   budgets: { icon: Gauge, tone: 'amber' },
   recurring_rules: { icon: CalendarClock, tone: 'teal' },
+  insurance_policies: { icon: ShieldCheck, tone: 'blue' },
+  credit_scores: { icon: TrendingUp, tone: 'income' },
 };
 
 /** One generic row for any record type */
@@ -167,6 +169,15 @@ export function RecordLine({ table, row, nameOf }: { table: TableName; row: any;
       title = row.category_id ? nameOf(row.category_id) : 'All spending';
       sub = [row.month ?? 'Every month', row.area].filter(Boolean).join(' · ');
       right = money(row.amount_paise);
+      break;
+    case 'insurance_policies':
+      sub = [optionLabel(POLICY_TYPES, row.policy_type), row.insurer, row.next_due_date && `due ${relativeDay(row.next_due_date)}`].filter(Boolean).join(' · ');
+      if (row.premium_paise) right = <span className="flex flex-col items-end">{money(row.premium_paise)}<span className="text-[11px] text-muted">{optionLabel(PREMIUM_FREQ, row.premium_frequency)}</span></span>;
+      break;
+    case 'credit_scores':
+      title = `Score ${row.score}`;
+      sub = `${optionLabel(BUREAUS, row.bureau)} · ${formatDate(row.checked_on)}`;
+      right = <Badge tone={row.score >= 750 ? 'primary' : row.score >= 650 ? 'amber' : 'danger'}>{row.score >= 750 ? 'Excellent' : row.score >= 700 ? 'Good' : row.score >= 650 ? 'Fair' : 'Poor'}</Badge>;
       break;
     case 'payment_requests':
       sub = [row.client_name, row.status].filter(Boolean).join(' · ');

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { formatINR } from '../lib/money';
 import { Card, Chips, FormRow, KV, Page, Segmented } from '../components/ui';
 
-type Calc = 'sip' | 'emi' | 'udhaar' | 'fuel' | 'discount' | 'percent' | 'units';
+type Calc = 'sip' | 'emi' | 'fd' | 'rd' | 'card' | 'prepay' | 'udhaar' | 'fuel' | 'discount' | 'percent' | 'units';
 
 const n = (v: string) => {
   const x = Number(String(v).replace(/,/g, ''));
@@ -32,6 +32,10 @@ export function CalculatorsScreen() {
         options={[
           { value: 'sip', label: 'SIP' },
           { value: 'emi', label: 'EMI' },
+          { value: 'prepay', label: 'Loan prepayment' },
+          { value: 'fd', label: 'FD' },
+          { value: 'rd', label: 'RD' },
+          { value: 'card', label: 'Card interest' },
           { value: 'udhaar', label: 'Udhaar interest' },
           { value: 'fuel', label: 'Fuel cost' },
           { value: 'discount', label: 'Discount' },
@@ -41,6 +45,10 @@ export function CalculatorsScreen() {
       />
       {c === 'sip' && <Sip />}
       {c === 'emi' && <Emi />}
+      {c === 'prepay' && <Prepay />}
+      {c === 'fd' && <Fd />}
+      {c === 'rd' && <Rd />}
+      {c === 'card' && <CardInterest />}
       {c === 'udhaar' && <Udhaar />}
       {c === 'fuel' && <Fuel />}
       {c === 'discount' && <Discount />}
@@ -95,6 +103,135 @@ function Emi() {
         <KV label="Total interest" value={rs(total - n(p))} tone="expense" />
         <KV label="Total to pay" value={rs(total)} />
       </div>
+    </Card>
+  );
+}
+
+/** Bank FDs in India compound every quarter */
+function Fd() {
+  const [p, setP] = useState('50000');
+  const [r, setR] = useState('7');
+  const [y, setY] = useState('1');
+  const value = n(p) * Math.pow(1 + n(r) / 400, 4 * n(y));
+  return (
+    <Card className="space-y-3">
+      <Field label="Deposit" value={p} onChange={setP} suffix="₹" />
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Interest" value={r} onChange={setR} suffix="% / yr" />
+        <Field label="Time" value={y} onChange={setY} suffix="years" />
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <KV label="You deposit" value={rs(n(p))} />
+        <KV label="Interest" value={rs(value - n(p))} tone="income" />
+        <KV label="On maturity" value={rs(value)} />
+      </div>
+      <p className="text-[11.5px] text-muted">Quarterly compounding, before tax (TDS may apply above the yearly limit).</p>
+    </Card>
+  );
+}
+
+/** RD: each monthly deposit grows with quarterly compounding until maturity */
+function Rd() {
+  const [p, setP] = useState('2000');
+  const [r, setR] = useState('6.7');
+  const [m, setM] = useState('60');
+  const months = Math.max(0, Math.round(n(m)));
+  let value = 0;
+  for (let k = 0; k < months; k++) value += n(p) * Math.pow(1 + n(r) / 400, (4 * (months - k)) / 12);
+  const put = n(p) * months;
+  return (
+    <Card className="space-y-3">
+      <Field label="Monthly deposit" value={p} onChange={setP} suffix="₹" />
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Interest" value={r} onChange={setR} suffix="% / yr" />
+        <Field label="Time" value={m} onChange={setM} suffix="months" />
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <KV label="You deposit" value={rs(put)} />
+        <KV label="Interest" value={rs(value - put)} tone="income" />
+        <KV label="On maturity" value={rs(value)} />
+      </div>
+    </Card>
+  );
+}
+
+/** What paying only the minimum due costs on a credit card */
+function CardInterest() {
+  const [b, setB] = useState('20000');
+  const [r, setR] = useState('42');
+  const [pay, setPay] = useState('1000');
+  const i = n(r) / 12 / 100;
+  let left = n(b);
+  let months = 0;
+  let interest = 0;
+  while (left > 0 && months < 600) {
+    const it = left * i;
+    if (n(pay) <= it) break;
+    interest += it;
+    left = left + it - n(pay);
+    months++;
+  }
+  const never = left > 0;
+  return (
+    <Card className="space-y-3">
+      <Field label="Card bill not paid" value={b} onChange={setB} suffix="₹" />
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Card interest" value={r} onChange={setR} suffix="% / yr" />
+        <Field label="You pay each month" value={pay} onChange={setPay} suffix="₹" />
+      </div>
+      {never ? (
+        <p className="text-[13.5px] font-semibold text-expense">This payment is less than the monthly interest — the bill never finishes. Pay more.</p>
+      ) : (
+        <div className="grid grid-cols-3 gap-2">
+          <KV label="Months to clear" value={String(months)} />
+          <KV label="Interest paid" value={rs(interest)} tone="expense" />
+          <KV label="Total paid" value={rs(n(b) + interest)} />
+        </div>
+      )}
+      <p className="text-[11.5px] text-muted">Cards usually charge 36–48% a year on unpaid bills. Paying the full bill by the due date means zero interest.</p>
+    </Card>
+  );
+}
+
+/** How much a one-time prepayment saves on a loan (same EMI, shorter loan) */
+function Prepay() {
+  const [o, setO] = useState('500000');
+  const [r, setR] = useState('9');
+  const [emi, setEmi] = useState('10000');
+  const [extra, setExtra] = useState('50000');
+  const run = (start: number) => {
+    const i = n(r) / 12 / 100;
+    let left = start;
+    let months = 0;
+    let interest = 0;
+    while (left > 0 && months < 600) {
+      const it = left * i;
+      if (n(emi) <= it) return null;
+      interest += it;
+      left = left + it - n(emi);
+      months++;
+    }
+    return { months, interest };
+  };
+  const a = run(n(o));
+  const b = run(Math.max(0, n(o) - n(extra)));
+  return (
+    <Card className="space-y-3">
+      <Field label="Loan left to pay" value={o} onChange={setO} suffix="₹" />
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Interest" value={r} onChange={setR} suffix="% / yr" />
+        <Field label="EMI" value={emi} onChange={setEmi} suffix="₹" />
+      </div>
+      <Field label="Prepay now" value={extra} onChange={setExtra} suffix="₹" />
+      {!a || !b ? (
+        <p className="text-[13.5px] font-semibold text-expense">EMI is less than the monthly interest — check the numbers.</p>
+      ) : (
+        <div className="grid grid-cols-3 gap-2">
+          <KV label="Interest saved" value={rs(a.interest - b.interest)} tone="income" />
+          <KV label="EMIs fewer" value={String(a.months - b.months)} />
+          <KV label="Finishes in" value={`${b.months} mo`} />
+        </div>
+      )}
     </Card>
   );
 }
