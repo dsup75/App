@@ -54,6 +54,7 @@ function savePrefs(p: Prefs) {
 
 interface Slide {
   id: SlideId;
+  label?: string;
   value: string;
   sub: string;
   to: string;
@@ -122,9 +123,9 @@ async function loadSlides(): Promise<Slide[]> {
   }
   const g = (gadgets.data ?? []) as any[];
   const ear = g.find((x) => x.kind === 'earbuds');
-  if (ear) out.push({ id: 'earbuds', value: ear.name, sub: `${ear.last_status ?? 'Status not checked'} · ${ago(ear.last_sync_at)}`, to: `/gadgets/${ear.id}` });
+  if (ear) out.push({ id: 'earbuds', label: ear.name, value: ear.last_status ?? 'Not checked', sub: ago(ear.last_sync_at), to: `/gadgets/${ear.id}` });
   const w = g.find((x) => x.kind === 'watch');
-  if (w) out.push({ id: 'watch', value: w.name, sub: `${w.last_status ?? 'Not synced yet'} · ${ago(w.last_sync_at)}`, to: `/gadgets/${w.id}` });
+  if (w) out.push({ id: 'watch', label: w.name, value: w.last_status ?? 'Not synced', sub: ago(w.last_sync_at), to: `/gadgets/${w.id}` });
   return out;
 }
 
@@ -194,7 +195,7 @@ export function HealthCarousel() {
     <>
       <div className="flex items-center gap-2 px-1">
         <Glyph name="heart" size={26} />
-        <p className="min-w-0 flex-1 text-[16px] font-semibold">Health &amp; Connected Devices</p>
+        <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold">Health &amp; Devices</p>
         <button
           type="button"
           onClick={() => set({ ...prefs, auto: !prefs.auto })}
@@ -237,8 +238,8 @@ export function HealthCarousel() {
                 <span className="flex h-[50px] w-[50px] items-center justify-center">
                   <Glyph name={BIG_ICON[s.id]} size={48} />
                 </span>
-                <span className="mt-1.5 block w-full truncate text-[12px] font-medium opacity-85">{LABEL[s.id]}</span>
-                <span className="block w-full truncate text-[17px] font-bold tracking-tight">{s.value}</span>
+                <span className="mt-1.5 block w-full truncate text-[12px] font-medium opacity-85">{s.label ?? LABEL[s.id]}</span>
+                <span className={cx('block w-full truncate font-bold tracking-tight', s.value.length > 9 ? 'text-[14.5px]' : 'text-[17px]')}>{s.value}</span>
                 <span className="block w-full truncate text-[10.5px]" style={{ color: TILE[s.id] }}>{s.sub}</span>
               </button>
             ))}

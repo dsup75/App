@@ -325,7 +325,7 @@ function CustomThemeEditor({ p, set }: { p: ThemePrefs; set: (patch: Partial<The
       </div>
       <ColorRow label="Background" hint="Dark colour = dark app, light colour = light app" value={c.bg} fallback="#0b1020" onChange={(v) => put('bg', v)} />
       <ColorRow label="Cards" hint="Boxes and lists (Auto matches the background)" value={c.card} fallback="#18203a" onChange={(v) => put('card', v)} />
-      <ColorRow label="Buttons & highlights" hint="Accent colour for buttons, links, charts" value={c.primary} fallback={ACCENTS.find((a) => a.value === p.accent)?.color ?? '#2f6bd6'} onChange={(v) => put('primary', v)} />
+      <ColorRow label="Accent" hint="Accent colour for buttons, links, charts" value={c.primary} fallback={ACCENTS.find((a) => a.value === p.accent)?.color ?? '#2f6bd6'} onChange={(v) => put('primary', v)} />
       <ColorRow label="Header card" hint="Total balance and big cards" value={c.hero} fallback={c.primary ?? '#1d3a8a'} onChange={(v) => put('hero', v)} />
       <ColorRow label="Text" hint="Auto picks black or white for best reading" value={c.text} fallback="#f2f5ff" onChange={(v) => put('text', v)} />
       <div className="flex items-center gap-3">

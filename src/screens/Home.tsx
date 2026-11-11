@@ -291,7 +291,7 @@ export function Home() {
           <>
           {(() => {
             const chips = [
-              { n: d.billsDue, label: 'Bills & EMIs Due', glyph: 'card' as GlyphName, tint: 'var(--tone-expense)', to: '/credit' },
+              { n: d.billsDue, label: 'Bills / EMI Due', glyph: 'card' as GlyphName, tint: 'var(--tone-expense)', to: '/credit' },
               { n: d.invoiceCount, label: 'Pending Payments', glyph: 'calendar' as GlyphName, tint: 'var(--tone-blue)', to: '/invoices' },
               { n: overdueTasks, label: 'Overdue Tasks', glyph: 'check' as GlyphName, tint: 'var(--tone-amber)', to: '/tasks' },
               { n: d.revisionsDue, label: 'Due Revisions', glyph: 'book' as GlyphName, tint: 'var(--tone-violet)', to: '/revisions' },
@@ -310,8 +310,8 @@ export function Home() {
                 </button>
                 <div className="grid grid-cols-2 gap-2 min-[400px]:grid-cols-3">
                   {chips.map((c) => (
-                    <button key={c.label} type="button" onClick={() => nav(c.to)} className="tint-card press flex items-center gap-2 rounded-[16px] p-2.5 text-left" style={{ ['--tint' as string]: c.tint }}>
-                      <Glyph name={c.glyph} size={34} />
+                    <button key={c.label} type="button" onClick={() => nav(c.to)} className="tint-card press flex items-center gap-1.5 rounded-[16px] px-2 py-2.5 text-left" style={{ ['--tint' as string]: c.tint }}>
+                      <Glyph name={c.glyph} size={30} />
                       <span className="text-[19px] font-bold" style={{ color: c.tint }}>{c.n}</span>
                       <span className="min-w-0 text-[11.5px] font-medium leading-tight">{c.label}</span>
                     </button>
