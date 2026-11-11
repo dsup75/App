@@ -309,9 +309,8 @@
   border-color: rgba(190, 200, 255, 0.35) !important;
   box-shadow: 0 8px 24px rgba(109, 92, 255, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
 }
-[data-theme='signature'] .app-bg {
-  animation: aurora 18s ease-in-out infinite alternate;
-}
+/* (the moving aurora was removed: a full-screen animated layer under blurred glass made
+   low-memory phones stop painting — the screen went white) */
 @keyframes aurora {
   0% { filter: hue-rotate(0deg) saturate(1); transform: translate3d(0, 0, 0) scale(1); }
   100% { filter: hue-rotate(-25deg) saturate(1.25); transform: translate3d(0, -2%, 0) scale(1.06); }
@@ -841,15 +840,20 @@ select {
 .page-in {
   animation: pageIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
+/* No opacity here: if the WebView skips or pauses an animation, the screen must still be visible
+   (an opacity-0 start frame was one way Back could leave a blank screen). */
 @keyframes pageIn {
   from {
-    opacity: 0;
     transform: translateY(6px);
   }
   to {
-    opacity: 1;
     transform: none;
   }
+}
+/* Coming Back to a screen: show it instantly, no animation */
+html[data-nav='pop'] .page-in,
+html[data-nav='pop'] .list-in > * {
+  animation: none !important;
 }
 .sheet-in {
   animation: sheetIn 0.38s cubic-bezier(0.32, 1.2, 0.5, 1);
@@ -953,7 +957,7 @@ select {
   }
 }
 .list-in > * {
-  animation: fadeUp 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: fadeUp 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .list-in > *:nth-child(2) { animation-delay: 30ms; }
 .list-in > *:nth-child(3) { animation-delay: 60ms; }
@@ -962,7 +966,6 @@ select {
 .list-in > *:nth-child(n + 6) { animation-delay: 150ms; }
 @keyframes fadeUp {
   from {
-    opacity: 0;
     transform: translateY(6px);
   }
 }

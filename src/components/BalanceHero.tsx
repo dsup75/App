@@ -35,7 +35,7 @@ function Sparkline({ points }: { points: number[] }) {
         </linearGradient>
       </defs>
       <path d={area} fill="url(#spark-fill)" />
-      <path d={d} fill="none" stroke={c} strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round" style={{ filter: `drop-shadow(0 0 6px ${c})` }} />
+      <path d={d} fill="none" stroke={c} strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
 }

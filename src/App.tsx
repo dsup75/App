@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { goBack } from './lib/nav';
 import { Capacitor } from '@capacitor/core';
@@ -87,7 +88,8 @@ function BackButton() {
   return null;
 }
 
-/** Back returns to the same scroll position (after the list has loaded); new screens start at the top. */
+/** Back returns to the same scroll position (after the list has loaded); new screens start at the top.
+ *  A watchdog then makes sure the screen is never left blank (scrolled past the content, etc.). */
 function ScrollManager() {
   const loc = useLocation();
   const type = useNavigationType();
@@ -98,27 +100,53 @@ function ScrollManager() {
   useEffect(() => {
     const key = loc.key;
     let cancelled = false;
+    const timers: number[] = [];
+    // Back = show the old screen instantly (no entry animation)
+    document.documentElement.dataset.nav = type === 'POP' ? 'pop' : 'push';
+    const maxScroll = () => Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
     if (type === 'POP' && saved.current.has(key)) {
       const y = saved.current.get(key)!;
       const start = Date.now();
       const tryRestore = () => {
         if (cancelled) return;
-        const max = document.documentElement.scrollHeight - window.innerHeight;
-        if (max >= y - 4 || Date.now() - start > 1500) window.scrollTo(0, Math.min(y, Math.max(0, max)));
+        const max = maxScroll();
+        if (max >= y - 4 || Date.now() - start > 1200) window.scrollTo(0, Math.min(y, max));
         else requestAnimationFrame(tryRestore);
       };
       requestAnimationFrame(tryRestore);
     } else {
       window.scrollTo(0, 0);
     }
+    // Watchdog: if the screen's content is not on screen, bring it back.
+    const check = () => {
+      if (cancelled) return;
+      const page = document.querySelector('.page-wrap');
+      if (!page) return;
+      const r = page.getBoundingClientRect();
+      if (r.bottom < 40 || r.top > window.innerHeight - 40) window.scrollTo(0, r.bottom < 40 ? maxScroll() : 0);
+      if (window.scrollY > maxScroll() + 2) window.scrollTo(0, maxScroll());
+    };
+    timers.push(window.setTimeout(check, 400), window.setTimeout(check, 1400));
     const onScroll = () => saved.current.set(key, window.scrollY);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => {
       cancelled = true;
+      timers.forEach((t) => clearTimeout(t));
       window.removeEventListener('scroll', onScroll);
     };
   }, [loc.key, type]);
   return null;
+}
+
+/** A crash on one screen shows a message with "Go Home" instead of a blank page. */
+function RouteBoundary({ children }: { children: ReactNode }) {
+  const loc = useLocation();
+  const nav = useNavigate();
+  return (
+    <ErrorBoundary resetKey={loc.key} onHome={() => nav('/', { replace: true })}>
+      {children}
+    </ErrorBoundary>
+  );
 }
 
 /** Quietly copies data to the user's Google Sheet when the last sync is older than 6 hours. */
@@ -187,6 +215,7 @@ function Gate() {
       <AutoSync />
       <ReminderSync />
       <Shell>
+        <RouteBoundary>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/study" element={<StudyHub />} />
@@ -249,6 +278,7 @@ function Gate() {
           <Route path="/r/:table/:id" element={<RecordDetail />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </RouteBoundary>
       </Shell>
       {locked && <LockScreen />}
     </>
@@ -271,6 +301,7 @@ function ConfigMissing() {
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <BrowserRouter>
       <ToastProvider>
         <AuthProvider>
@@ -280,5 +311,6 @@ export default function App() {
         </AuthProvider>
       </ToastProvider>
     </BrowserRouter>
+    </ErrorBoundary>
   );
 }
