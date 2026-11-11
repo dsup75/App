@@ -1,22 +1,24 @@
 import { RecurringDrafts, BudgetWarnings } from './Planning';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Circle, Settings as Gear, Eye, EyeOff, ArrowDownLeft, ArrowUpRight, Timer, Flame, CalendarClock, LayoutGrid, ChevronUp, ChevronDown, Search, RotateCcw, Bell, ListTodo } from 'lucide-react';
+import { Check, Circle, Timer, Flame, CalendarClock, LayoutGrid, ChevronUp, ChevronDown, RotateCcw, ListTodo, ReceiptIndianRupee, HandCoins, AlertTriangle, ChevronRight, CalendarDays, ArrowRight, GraduationCap, FileText, CircleCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { supabase } from '../lib/supabase';
 import { fetchBalances, friendlyError, updateRecord, type Row } from '../lib/db';
-import { currentMonth, greeting, monthRange, shiftMonth, todayISO, relativeDay, toISODate } from '../lib/dates';
+import { currentMonth, monthRange, shiftMonth, todayISO, relativeDay, toISODate } from '../lib/dates';
 import { formatINR, sumPaise } from '../lib/money';
 import { AREAS, optionLabel, PRIORITIES } from '../lib/tables';
 import { useLookups } from '../lib/useLookups';
 import { RecordLine } from '../components/RecordLine';
 import { HealthCarousel } from '../components/HealthCarousel';
+import { HomeHeader } from '../components/HomeHeader';
+import { BalanceHero } from '../components/BalanceHero';
 import { ActivityTimeline } from '../components/ActivityTimeline';
 import { BalanceCarousel } from '../components/BalanceCarousel';
 import { NotificationsSheet, useNotices } from '../components/Notifications';
 import {
-  Badge, BarChart, Button, Card, Chips, Empty, ErrorBox, HeroCard, IconBubble, IconButton, List, ListRow, Page, SectionTitle, SeeAll, Sheet, Skeleton, Toggle, cx,
+  Badge, BarChart, Button, Card, Chips, Empty, ErrorBox, List, Page, SectionTitle, SeeAll, Sheet, Skeleton, Toggle, cx,
 } from '../components/ui';
 
 type Filter = 'all' | 'personal' | 'study' | 'business';
@@ -176,7 +178,6 @@ export function Home() {
   if (error) return <Page title="Home"><ErrorBox message={error} onRetry={load} /></Page>;
 
   const name = settings?.full_name?.split(' ')[0];
-  const dateLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
 
   const overdueTasks = d ? d.tasks.filter((t) => t.status !== 'completed' && t.due_date && t.due_date < today).length : 0;
   const done = todayTasks.filter((t) => t.status === 'completed').length;
@@ -248,7 +249,6 @@ export function Home() {
         ),
         timeline: (
           <>
-          <SectionTitle>Activity</SectionTitle>
           <ActivityTimeline compact />
           </>
         ),
@@ -278,62 +278,41 @@ export function Home() {
         ),
         attention: (
           <>
-          {(d.toReceive > 0 || d.dueLoans.length > 0 || d.followUps > 0 || d.revisionsDue > 0 || overdueTasks > 0) && (
-            <>
-              <SectionTitle>Needs attention</SectionTitle>
-              <List>
-                {overdueTasks > 0 && (
-                  <ListRow
-                    icon={<IconBubble tone="expense"><ListTodo size={17} /></IconBubble>}
-                    title="Overdue tasks"
-                    subtitle="Past their due date"
-                    right={<Badge tone="danger">{overdueTasks}</Badge>}
-                    onClick={() => nav('/tasks')}
-                    chevron
-                  />
-                )}
-                {d.revisionsDue > 0 && (
-                  <ListRow
-                    icon={<IconBubble tone="violet"><RotateCcw size={17} /></IconBubble>}
-                    title="Revisions due"
-                    subtitle="Revise and tell how it felt"
-                    right={<Badge tone="amber">{d.revisionsDue}</Badge>}
-                    onClick={() => nav('/revisions')}
-                    chevron
-                  />
-                )}
+          {(() => {
+            const chips = [
+              { n: d.invoiceCount, label: 'Pending Payments', icon: <ReceiptIndianRupee size={18} />, tint: 'var(--tone-blue)', to: '/invoices' },
+              { n: overdueTasks, label: 'Overdue Tasks', icon: <ListTodo size={18} />, tint: 'var(--tone-amber)', to: '/tasks' },
+              { n: d.revisionsDue, label: 'Due Revisions', icon: <RotateCcw size={18} />, tint: 'var(--tone-violet)', to: '/revisions' },
+              { n: d.dueLoans.length, label: 'Udhaar Due', icon: <HandCoins size={18} />, tint: 'var(--tone-pink)', to: '/loans' },
+              { n: d.followUps, label: 'Follow-ups', icon: <CalendarClock size={18} />, tint: 'var(--tone-teal)', to: '/clients?tab=tasks' },
+            ].filter((c) => c.n > 0);
+            if (!chips.length) return null;
+            const total = chips.reduce((t, c) => t + c.n, 0);
+            return (
+              <div className="glass space-y-3 rounded-[24px] p-3.5">
+                <button type="button" className="flex w-full items-center gap-2" onClick={() => { setNoticeOpen(true); notices.reload(); }}>
+                  <AlertTriangle size={22} className="shrink-0" style={{ color: 'var(--tone-amber-solid)', fill: 'var(--tone-amber-bg)' }} />
+                  <span className="min-w-0 flex-1 text-left text-[17px] font-bold">Need Attention</span>
+                  <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-[var(--danger)] px-2 text-[13px] font-bold text-white">{total}</span>
+                  <ChevronRight size={18} className="text-muted" />
+                </button>
+                <div className="grid grid-cols-2 gap-2 min-[400px]:grid-cols-3">
+                  {chips.map((c) => (
+                    <button key={c.label} type="button" onClick={() => nav(c.to)} className="tint-card press flex items-center gap-2 rounded-[16px] p-2.5 text-left" style={{ ['--tint' as string]: c.tint }}>
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] text-white" style={{ background: c.tint }}>{c.icon}</span>
+                      <span className="text-[19px] font-bold" style={{ color: c.tint }}>{c.n}</span>
+                      <span className="min-w-0 text-[11.5px] font-medium leading-tight">{c.label}</span>
+                    </button>
+                  ))}
+                </div>
                 {d.toReceive > 0 && (
-                  <ListRow
-                    icon={<IconBubble tone="teal"><ArrowDownLeft size={17} /></IconBubble>}
-                    title="To receive from clients"
-                    subtitle={`${d.invoiceCount} pending invoices / requests`}
-                    right={<span className="text-[14px] font-semibold">{money(d.toReceive)}</span>}
-                    onClick={() => nav('/invoices')}
-                    chevron
-                  />
+                  <p className="px-1 text-[12px] text-muted">
+                    To receive from clients: <b className="text-fg">{money(d.toReceive)}</b>
+                  </p>
                 )}
-                {d.followUps > 0 && (
-                  <ListRow
-                    icon={<IconBubble tone="blue"><CalendarClock size={17} /></IconBubble>}
-                    title="Client follow-ups & approvals"
-                    right={<Badge tone="blue">{d.followUps}</Badge>}
-                    onClick={() => nav('/clients?tab=tasks')}
-                    chevron
-                  />
-                )}
-                {d.dueLoans.map((l: any) => (
-                  <ListRow
-                    key={l.id}
-                    icon={<IconBubble tone="amber"><CalendarClock size={17} /></IconBubble>}
-                    title={l.direction === 'lent' ? `${l.person} owes you` : `Pay ${l.person}`}
-                    subtitle={`${l.due_date < today ? 'Overdue · ' : 'Due '}${relativeDay(l.due_date)}`}
-                    right={<span className={cx('text-[14px] font-semibold', l.direction === 'lent' ? 'text-income' : 'text-expense')}>{money(l.remaining)}</span>}
-                    onClick={() => nav(`/r/loans/${l.id}`)}
-                  />
-                ))}
-              </List>
-            </>
-          )}
+              </div>
+            );
+          })()}
           </>
         ),
         spending: (
@@ -347,14 +326,32 @@ export function Home() {
         upcoming: (
           <>
           {d.upcoming.length > 0 && (
-            <>
-              <SectionTitle right={<SeeAll onClick={() => nav('/calendar')} label="Calendar" />}>Next 7 days</SectionTitle>
-              <List>
-                {d.upcoming.slice(0, 6).map((u, i) => (
-                  <ListRow key={i} title={u.title} subtitle={`${u.kind} · ${relativeDay(u.date)}`} onClick={() => nav(u.to)} chevron />
-                ))}
-              </List>
-            </>
+            <div className="glass space-y-3 rounded-[24px] p-3.5">
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-[10px] text-white" style={{ background: 'var(--tone-blue)' }}>
+                  <CalendarDays size={17} />
+                </span>
+                <p className="min-w-0 flex-1 text-[17px] font-bold">Upcoming</p>
+                <button type="button" onClick={() => nav('/calendar')} className="glass press flex items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] font-semibold">
+                  See All <ArrowRight size={13} />
+                </button>
+              </div>
+              <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+                {d.upcoming.slice(0, 10).map((u, i) => {
+                  const k = /revision/i.test(u.kind) ? 'var(--tone-violet)' : /exam|test/i.test(u.kind) ? 'var(--tone-blue)' : /event|birthday/i.test(u.kind) ? 'var(--tone-pink)' : /task/i.test(u.kind) ? 'var(--tone-income)' : 'var(--tone-amber)';
+                  const I = /revision/i.test(u.kind) ? GraduationCap : /exam|test/i.test(u.kind) ? FileText : /event|birthday/i.test(u.kind) ? CalendarDays : /task/i.test(u.kind) ? CircleCheck : CalendarClock;
+                  return (
+                    <button key={i} type="button" onClick={() => nav(u.to)} className="tint-card press w-[44%] min-w-[140px] shrink-0 rounded-[18px] p-3 text-left" style={{ ['--tint' as string]: k }}>
+                      <span className="flex h-9 w-9 items-center justify-center rounded-[11px] text-white" style={{ background: k }}>
+                        <I size={18} />
+                      </span>
+                      <p className="mt-2 line-clamp-2 text-[14px] font-semibold leading-tight">{u.title}</p>
+                      <p className="mt-0.5 truncate text-[11.5px] text-muted">{u.kind} · {relativeDay(u.date)}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
           </>
         ),
@@ -380,42 +377,16 @@ export function Home() {
 
   return (
     <Page
-      title={`${greeting()}${name ? `, ${name}` : ''}`}
-      subtitle={dateLabel}
-      right={
-        <>
-          <IconButton label="Search everything" onClick={() => nav('/search')}>
-            <Search size={18} />
-          </IconButton>
-          <span className="relative">
-            <IconButton
-              label={notices.unread ? `Notifications, ${notices.unread} new` : 'Notifications'}
-              onClick={() => {
-                setNoticeOpen(true);
-                notices.reload();
-              }}
-            >
-              <Bell size={18} />
-            </IconButton>
-            {notices.unread > 0 && (
-              <span className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[10px] font-bold text-[var(--on-primary)]">
-                {notices.unread > 9 ? '9+' : notices.unread}
-              </span>
-            )}
-          </span>
-          <IconButton label="Settings" onClick={() => nav('/settings')}>
-            <Gear size={18} />
-          </IconButton>
-          <button
-            type="button"
-            aria-label="Profile and settings"
-            onClick={() => nav('/settings')}
-            className="ml-0.5 flex h-9 w-9 items-center justify-center rounded-full text-[14px] font-bold text-[var(--on-primary)]"
-            style={{ background: 'var(--primary-2)' }}
-          >
-            {(name || 'D').slice(0, 1).toUpperCase()}
-          </button>
-        </>
+      title="Home"
+      header={
+        <HomeHeader
+          name={name}
+          unread={notices.unread}
+          onBell={() => {
+            setNoticeOpen(true);
+            notices.reload();
+          }}
+        />
       }
     >
       <NotificationsSheet
@@ -432,45 +403,7 @@ export function Home() {
       ) : (
         <>
           <BalanceCarousel hide={hide}>
-          <HeroCard onClick={() => nav('/finance')}>
-            <div className="flex items-center justify-between">
-              <p className="text-[13px] opacity-85">Total balance</p>
-              <button
-                aria-label={hide ? 'Show amounts' : 'Hide amounts'}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleHide();
-                }}
-                className="rounded-full bg-white/15 p-1.5"
-              >
-                {hide ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-            </div>
-            <p className="mt-1 text-[30px] font-bold tracking-tight">{money(d.balance)}</p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <div className="rounded-[14px] p-2.5" style={{ background: 'rgba(255,255,255,.12)' }}>
-                <p className="flex items-center gap-1 text-[11.5px] opacity-85"><ArrowDownLeft size={13} /> Income this month</p>
-                <p className="text-[16px] font-bold">{money(sumPaise(byArea(d.incomes)))}</p>
-              </div>
-              <div className="rounded-[14px] p-2.5" style={{ background: 'rgba(255,255,255,.12)' }}>
-                <p className="flex items-center gap-1 text-[11.5px] opacity-85"><ArrowUpRight size={13} /> Spent this month</p>
-                <p className="text-[16px] font-bold">{money(sumPaise(byArea(d.expenses)))}</p>
-              </div>
-            </div>
-            {d.transfers.length > 0 && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  nav('/finance?tab=transactions&type=transfers');
-                }}
-                className="mt-2 flex w-full items-center justify-between rounded-[14px] px-2.5 py-2 text-[12.5px]"
-                style={{ background: 'rgba(255,255,255,.12)' }}
-              >
-                <span className="opacity-85">Moved between accounts ({d.transfers.length})</span>
-                <span className="font-bold">{money(sumPaise(d.transfers))}</span>
-              </button>
-            )}
-          </HeroCard>
+          <BalanceHero total={d.balance} monthIn={sumPaise(byArea(d.incomes))} monthOut={sumPaise(byArea(d.expenses))} hide={hide} onToggleHide={toggleHide} />
           </BalanceCarousel>
 
           <Chips value={filter} onChange={setFilter} options={[{ value: 'all', label: 'All' }, ...(AREAS as { value: Filter; label: string }[])]} />

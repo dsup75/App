@@ -14,15 +14,25 @@ export function Page({
   subtitle,
   back,
   right,
+  header,
   children,
 }: {
   title: string;
   subtitle?: string;
   back?: boolean;
   right?: ReactNode;
+  /** replaces the whole title area (used by Home) */
+  header?: ReactNode;
   children: ReactNode;
 }) {
   const nav = useNavigate();
+  if (header)
+    return (
+      <div className="page-in page-wrap relative z-10 mx-auto pb-32 pt-safe">
+        <div className="pt-3">{header}</div>
+        <div className="mt-4 space-y-3.5">{children}</div>
+      </div>
+    );
   return (
     <div className="page-in page-wrap relative z-10 mx-auto pb-32 pt-safe">
       <div className="flex h-11 items-center justify-between">

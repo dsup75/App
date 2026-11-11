@@ -1,6 +1,6 @@
 // Focus timer with your own photo. Works in portrait and as a landscape desk timer.
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Play, Pause, Square, RotateCcw, ImagePlus, Maximize2, Minimize2, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { Play, Pause, Square, RotateCcw, ImagePlus, Maximize2, Minimize2, X, GraduationCap, Briefcase, Heart } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { createRecord, friendlyError } from '../lib/db';
@@ -17,6 +17,20 @@ import { useLock } from '../context/LockContext';
 import { Button, Card, FormRow, IconButton, Page, Segmented, cx } from '../components/ui';
 
 type Phase = 'focus' | 'short' | 'long';
+type Purpose = 'study' | 'business' | 'personal';
+
+const PURPOSE: Record<Purpose, { label: string; color: string; soft: string; hint: string; labels: string[] }> = {
+  study: { label: 'Study', color: 'var(--primary-2)', soft: 'var(--primary-soft)', hint: 'Saved to your study log (subject, chapter, revision)', labels: [] },
+  business: {
+    label: 'Business', color: 'var(--tone-teal)', soft: 'var(--tone-teal-bg)', hint: 'Saved as work time for the client / project',
+    labels: ['Ads', 'Content', 'Design', 'Reels', 'Calls', 'Reporting', 'Admin', 'Learning'],
+  },
+  personal: {
+    label: 'Personal', color: 'var(--tone-pink)', soft: 'var(--tone-pink-bg)', hint: 'Saved as personal focus time',
+    labels: ['Reading', 'Workout', 'Planning', 'Chores', 'Hobby', 'Meditation', 'Family'],
+  },
+};
+const PURPOSE_ICON: Record<Purpose, typeof GraduationCap> = { study: GraduationCap, business: Briefcase, personal: Heart };
 const KEY = 'pomodoro-state';
 const IMG_KEY = 'pomodoro-image';
 const NOTIF_ID = 900;
@@ -28,8 +42,14 @@ interface TimerState {
   remainingMs: number; // paused → ms left
   startedAt: number | null; // when this focus block started
   focusedMs: number; // focus time already counted before pauses
+  /** what this timer is for — decides fields, colours and where time is saved */
+  purpose: Purpose;
   subjectId: string;
   chapterId: string;
+  clientId: string;
+  projectId: string;
+  label: string;
+  title: string;
   rounds: number;
   showRing: boolean;
 }
@@ -41,8 +61,13 @@ const defaultState = (): TimerState => ({
   remainingMs: 25 * 60000,
   startedAt: null,
   focusedMs: 0,
+  purpose: 'study',
   subjectId: '',
   chapterId: '',
+  clientId: '',
+  projectId: '',
+  label: '',
+  title: '',
   rounds: 0,
   showRing: true,
 });
@@ -123,6 +148,7 @@ export function Pomodoro() {
   const { suppressBriefly } = useLock();
   const { refs } = useLookups();
   const [s, setS] = useState<TimerState>(loadState);
+  const [logTick, setLogTick] = useState(0);
   const [img, setImg] = useState<string | null>(loadImage);
   const [now, setNow] = useState(Date.now());
   const [desk, setDesk] = useState(false);
@@ -161,27 +187,43 @@ export function Pomodoro() {
       if (minutes < 1 || saving.current) return;
       saving.current = true;
       try {
-        await createRecord('study_sessions', {
-          title: 'Pomodoro focus',
-          minutes,
-          kind: 'pomodoro',
-          session_date: todayISO(),
-          subject_id: s.subjectId || null,
-          chapter_id: s.chapterId || null,
-        });
-        let extra = '';
-        if (s.chapterId) {
-          const { data } = await supabase.from('revisions').select('due_date').eq('chapter_id', s.chapterId).eq('status', 'pending').is('deleted_at', null).maybeSingle();
-          if (data?.due_date) extra = ` · revision ${relativeDay(data.due_date)}`;
+        if (s.purpose === 'study') {
+          await createRecord('study_sessions', {
+            title: s.title.trim() || 'Pomodoro focus',
+            minutes,
+            kind: 'pomodoro',
+            session_date: todayISO(),
+            subject_id: s.subjectId || null,
+            chapter_id: s.chapterId || null,
+          });
+          let extra = '';
+          if (s.chapterId) {
+            const { data } = await supabase.from('revisions').select('due_date').eq('chapter_id', s.chapterId).eq('status', 'pending').is('deleted_at', null).maybeSingle();
+            if (data?.due_date) extra = ` · revision ${relativeDay(data.due_date)}`;
+          }
+          toast(`Saved ${minutes} min of study${extra}`);
+        } else {
+          const { error } = await supabase.from('timer_sessions').insert({
+            purpose: s.purpose,
+            title: (s.title.trim() || s.label || PURPOSE[s.purpose].label).slice(0, 120),
+            minutes,
+            session_date: todayISO(),
+            started_at: new Date(Date.now() - ms).toISOString(),
+            client_id: s.purpose === 'business' ? s.clientId || null : null,
+            project_id: s.purpose === 'business' ? s.projectId || null : null,
+            label: s.label || null,
+          });
+          if (error) throw error;
+          toast(`Saved ${minutes} min of ${PURPOSE[s.purpose].label.toLowerCase()} time`);
         }
-        toast(`Saved ${minutes} min of study${extra}`);
+        setLogTick((t) => t + 1);
       } catch (e) {
         toast(friendlyError(e), 'error');
       } finally {
         saving.current = false;
       }
     },
-    [s.subjectId, s.chapterId, toast],
+    [s.purpose, s.subjectId, s.chapterId, s.clientId, s.projectId, s.label, s.title, toast],
   );
 
   // Phase finished (also runs when you come back to the app after it ended)
@@ -287,8 +329,14 @@ export function Pomodoro() {
   const pct = Math.min(1, Math.max(0, 1 - remaining / total));
   const mm = String(Math.floor(remaining / 60000)).padStart(2, '0');
   const ss = String(Math.floor((remaining % 60000) / 1000)).padStart(2, '0');
-  const ringColor = s.phase === 'focus' ? 'var(--primary-2)' : 'var(--tone-blue)';
-  const phaseLabel = `${s.phase === 'focus' ? 'Focus' : s.phase === 'short' ? 'Short break' : 'Long break'} · round ${s.rounds + (s.phase === 'focus' ? 1 : 0)}`;
+  const ringColor = s.phase === 'focus' ? PURPOSE[s.purpose].color : 'var(--tone-blue)';
+  const forWhat =
+    s.purpose === 'study'
+      ? (refs.subjects ?? []).find((x) => x.id === s.subjectId)?.label ?? 'Study'
+      : s.purpose === 'business'
+        ? (refs.clients ?? []).find((x) => x.id === s.clientId)?.label ?? (s.label || 'Business')
+        : s.label || 'Personal';
+  const phaseLabel = `${s.phase === 'focus' ? `${PURPOSE[s.purpose].label} · ${forWhat}` : s.phase === 'short' ? 'Short break' : 'Long break'} · round ${s.rounds + (s.phase === 'focus' ? 1 : 0)}`;
   const subjects = (refs.subjects ?? []).filter((x) => !x.deleted_at);
   const chapters = (refs.chapters ?? []).filter((x) => !x.deleted_at && (!s.subjectId || x.subject_id === s.subjectId));
 
@@ -362,7 +410,7 @@ export function Pomodoro() {
   return (
     <Page
       title="Focus"
-      subtitle="Only real focus time is saved to your study log"
+      subtitle={PURPOSE[s.purpose].hint}
       back
       right={
         <IconButton label="Desk mode" onClick={() => setDesk(true)}>
@@ -371,6 +419,25 @@ export function Pomodoro() {
       }
     >
       {fileInput}
+      <div className="grid grid-cols-3 gap-2">
+        {(Object.keys(PURPOSE) as Purpose[]).map((p) => {
+          const I = PURPOSE_ICON[p];
+          const on = s.purpose === p;
+          return (
+            <button
+              key={p}
+              type="button"
+              disabled={running}
+              onClick={() => setS((x) => ({ ...x, purpose: p }))}
+              className={cx('press glass flex flex-col items-center gap-1 rounded-[18px] px-2 py-2.5 disabled:opacity-60', on && 'ring-2')}
+              style={on ? ({ boxShadow: `0 0 0 2px ${PURPOSE[p].color}`, background: PURPOSE[p].soft } as CSSProperties) : undefined}
+            >
+              <I size={19} style={{ color: PURPOSE[p].color }} />
+              <span className="text-[12.5px] font-semibold">{PURPOSE[p].label}</span>
+            </button>
+          );
+        })}
+      </div>
       <Segmented
         value={s.phase}
         onChange={switchPhase}
@@ -409,21 +476,65 @@ export function Pomodoro() {
             Progress ring
           </label>
         </div>
-        <FormRow label="Subject">
-          <select className="field" value={s.subjectId} onChange={(e) => setS((x) => ({ ...x, subjectId: e.target.value, chapterId: '' }))}>
-            <option value="">Any</option>
-            {subjects.map((x) => (
-              <option key={x.id} value={x.id}>{x.label}</option>
-            ))}
-          </select>
-        </FormRow>
-        <FormRow label="Chapter">
-          <select className="field" value={s.chapterId} onChange={(e) => setS((x) => ({ ...x, chapterId: e.target.value }))}>
-            <option value="">Any</option>
-            {chapters.map((x) => (
-              <option key={x.id} value={x.id}>{x.label}</option>
-            ))}
-          </select>
+        {s.purpose === 'study' && (
+          <>
+            <FormRow label="Subject">
+              <select className="field" value={s.subjectId} onChange={(e) => setS((x) => ({ ...x, subjectId: e.target.value, chapterId: '' }))}>
+                <option value="">Any</option>
+                {subjects.map((x) => (
+                  <option key={x.id} value={x.id}>{x.label}</option>
+                ))}
+              </select>
+            </FormRow>
+            <FormRow label="Chapter">
+              <select className="field" value={s.chapterId} onChange={(e) => setS((x) => ({ ...x, chapterId: e.target.value }))}>
+                <option value="">Any</option>
+                {chapters.map((x) => (
+                  <option key={x.id} value={x.id}>{x.label}</option>
+                ))}
+              </select>
+            </FormRow>
+          </>
+        )}
+        {s.purpose === 'business' && (
+          <>
+            <FormRow label="Client">
+              <select className="field" value={s.clientId} onChange={(e) => setS((x) => ({ ...x, clientId: e.target.value, projectId: '' }))}>
+                <option value="">No client (own business)</option>
+                {(refs.clients ?? []).filter((x) => !x.deleted_at).map((x) => (
+                  <option key={x.id} value={x.id}>{x.label}</option>
+                ))}
+              </select>
+            </FormRow>
+            <FormRow label="Project (optional)">
+              <select className="field" value={s.projectId} onChange={(e) => setS((x) => ({ ...x, projectId: e.target.value }))}>
+                <option value="">None</option>
+                {(refs.projects ?? []).filter((x) => !x.deleted_at && (!s.clientId || x.client_id === s.clientId)).map((x) => (
+                  <option key={x.id} value={x.id}>{x.label}</option>
+                ))}
+              </select>
+            </FormRow>
+          </>
+        )}
+        {s.purpose !== 'study' && (
+          <FormRow label="Type of work">
+            <div className="flex flex-wrap gap-1.5">
+              {PURPOSE[s.purpose].labels.map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setS((x) => ({ ...x, label: x.label === l ? '' : l }))}
+                  className="press rounded-full px-3 py-1.5 text-[12.5px] font-medium"
+                  style={s.label === l ? { background: PURPOSE[s.purpose].color, color: 'var(--on-primary)' } : { background: 'var(--card-2)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+          </FormRow>
+        )}
+        <FormRow label="What are you working on? (optional)">
+          <input className="field" value={s.title} maxLength={120} onChange={(e) => setS((x) => ({ ...x, title: e.target.value }))} placeholder={s.purpose === 'study' ? 'e.g. Modern Physics PYQs' : s.purpose === 'business' ? 'e.g. Nirog Care reel scripts' : 'e.g. Read 20 pages'} />
         </FormRow>
         <div className="grid grid-cols-3 gap-2">
           {(['focus', 'short', 'long'] as Phase[]).map((p) => (
@@ -433,7 +544,53 @@ export function Pomodoro() {
           ))}
         </div>
       </Card>
+      <TodayLog tick={logTick} />
     </Page>
+  );
+}
+
+/** Today's focus time by purpose + latest sessions */
+function TodayLog({ tick }: { tick: number }) {
+  const [rows, setRows] = useState<{ purpose: Purpose; title: string; minutes: number; at: string }[] | null>(null);
+  useEffect(() => {
+    const day = todayISO();
+    Promise.all([
+      supabase.from('study_sessions').select('title,minutes,created_at').is('deleted_at', null).eq('session_date', day),
+      supabase.from('timer_sessions').select('purpose,title,minutes,created_at').is('deleted_at', null).eq('session_date', day),
+    ]).then(([a, b]) => {
+      const list = [
+        ...((a.data ?? []) as any[]).map((r) => ({ purpose: 'study' as Purpose, title: r.title, minutes: r.minutes, at: r.created_at })),
+        ...((b.data ?? []) as any[]).map((r) => ({ purpose: r.purpose as Purpose, title: r.title, minutes: r.minutes, at: r.created_at })),
+      ].sort((x, y) => y.at.localeCompare(x.at));
+      setRows(list);
+    });
+  }, [tick]);
+  if (!rows) return null;
+  const sum = (p: Purpose) => rows.filter((r) => r.purpose === p).reduce((t, r) => t + r.minutes, 0);
+  const fmt = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`);
+  return (
+    <Card className="space-y-3">
+      <p className="text-[14px] font-semibold">Today's focus time</p>
+      <div className="grid grid-cols-3 gap-2">
+        {(Object.keys(PURPOSE) as Purpose[]).map((p) => {
+          const I = PURPOSE_ICON[p];
+          return (
+            <div key={p} className="rounded-[14px] p-2.5 text-center" style={{ background: PURPOSE[p].soft }}>
+              <I size={16} className="mx-auto" style={{ color: PURPOSE[p].color }} />
+              <p className="mt-1 text-[15px] font-bold">{fmt(sum(p))}</p>
+              <p className="text-[11px] text-muted">{PURPOSE[p].label}</p>
+            </div>
+          );
+        })}
+      </div>
+      {rows.slice(0, 6).map((r, i) => (
+        <div key={i} className="flex items-center gap-2 text-[13px]">
+          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: PURPOSE[r.purpose].color }} />
+          <span className="min-w-0 flex-1 truncate">{r.title}</span>
+          <span className="text-muted">{fmt(r.minutes)} · {new Date(r.at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
+      ))}
+    </Card>
   );
 }
 

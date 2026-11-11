@@ -39,9 +39,9 @@ export function Shell({ children }: { children: ReactNode }) {
                   type="button"
                   aria-label="Quick add"
                   onClick={() => setQuick(true)}
-                  className="liquid liquid-primary mx-1 flex h-12 w-12 shrink-0 -translate-y-1 items-center justify-center rounded-full"
+                  className="liquid liquid-primary fab-glow mx-1 flex h-14 w-14 shrink-0 -translate-y-3 items-center justify-center rounded-full"
                 >
-                  <Plus size={22} strokeWidth={2.5} />
+                  <Plus size={26} strokeWidth={2.6} />
                 </button>
               ),
               <NavLink
@@ -58,6 +58,7 @@ export function Shell({ children }: { children: ReactNode }) {
                       <Icon size={20} strokeWidth={isActive ? 2.3 : 1.9} />
                     </span>
                     {label}
+                    <span className={cx('mt-0.5 h-[3px] rounded-full transition-all', isActive ? 'w-6 bg-[var(--primary-2)]' : 'w-0')} style={isActive ? { boxShadow: '0 0 8px rgba(var(--acc), .8)' } : undefined} />
                   </>
                 )}
               </NavLink>,

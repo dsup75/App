@@ -2,11 +2,11 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Link2, Timer, RotateCcw, ShieldBan, Scale, Footprints, Watch, CircleCheck, Flame, Briefcase, FolderKanban, Search,
+  History, ArrowRight, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Link2, Timer, RotateCcw, ShieldBan, Scale, Footprints, Watch, CircleCheck, Flame, Briefcase, FolderKanban, Search,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatINR } from '../lib/money';
-import { Button, Chips, IconBubble, Spinner, type Tone } from './ui';
+import { Button, Chips, IconBubble, Spinner, TONES, type Tone } from './ui';
 
 type Kind = 'money' | 'study' | 'health' | 'tasks' | 'business';
 export interface TimelineItem {
@@ -36,7 +36,7 @@ async function fetchTimeline(days: number): Promise<TimelineItem[]> {
   const f = iso(from);
   const fd = day(from);
   const L = 120;
-  const [inc, exp, tr, links, study, revs, focus, body, act, gadgets, tasks, habits, clients, projects] = await Promise.all([
+  const [inc, exp, tr, links, study, revs, focus, body, act, gadgets, tasks, habits, clients, projects, timers] = await Promise.all([
     safe<any>(supabase.from('incomes').select('id,title,amount_paise,txn_date,created_at').is('deleted_at', null).gte('txn_date', fd).order('txn_date', { ascending: false }).limit(L)),
     safe<any>(supabase.from('expenses').select('id,title,amount_paise,txn_date,created_at').is('deleted_at', null).gte('txn_date', fd).order('txn_date', { ascending: false }).limit(L)),
     safe<any>(supabase.from('transfers').select('id,title,amount_paise,txn_date,created_at').is('deleted_at', null).gte('txn_date', fd).order('txn_date', { ascending: false }).limit(L)),
@@ -51,6 +51,7 @@ async function fetchTimeline(days: number): Promise<TimelineItem[]> {
     safe<any>(supabase.from('habit_logs').select('id,habit_id,log_date,created_at').gte('log_date', fd).limit(L)),
     safe<any>(supabase.from('clients').select('id,name,created_at').is('deleted_at', null).gte('created_at', f).limit(L)),
     safe<any>(supabase.from('projects').select('id,name,created_at').is('deleted_at', null).gte('created_at', f).limit(L)),
+    safe<any>(supabase.from('timer_sessions').select('id,purpose,title,minutes,label,session_date,created_at').is('deleted_at', null).gte('session_date', fd).limit(L)),
   ]);
   // created_at gives the time of day; the txn date decides the day
   const when = (date: string, created: string) => (created && created.slice(0, 10) === date ? created : `${date}T12:00:00`);
@@ -69,6 +70,12 @@ async function fetchTimeline(days: number): Promise<TimelineItem[]> {
   for (const r of habits) out.push({ key: `h${r.id}`, at: when(r.log_date, r.created_at), kind: 'tasks', title: 'Habit done', sub: r.log_date, icon: <Flame size={15} />, tone: 'amber', to: '/habits' });
   for (const r of clients) out.push({ key: `c${r.id}`, at: r.created_at, kind: 'business', title: `New client: ${r.name}`, sub: 'Client added', icon: <Briefcase size={15} />, tone: 'teal', to: `/r/clients/${r.id}` });
   for (const r of projects) out.push({ key: `p${r.id}`, at: r.created_at, kind: 'business', title: `New project: ${r.name}`, sub: 'Project added', icon: <FolderKanban size={15} />, tone: 'blue', to: `/r/projects/${r.id}` });
+  for (const r of timers)
+    out.push({
+      key: `ts${r.id}`, at: r.created_at, kind: r.purpose === 'business' ? 'business' : 'tasks',
+      title: `${r.purpose === 'business' ? 'Work' : 'Personal'} focus · ${r.title}`, sub: `${r.minutes} min${r.label ? ` · ${r.label}` : ''}`,
+      icon: <Timer size={15} />, tone: r.purpose === 'business' ? 'teal' : 'pink', to: '/pomodoro',
+    });
   return out.filter((x) => x.at).sort((a, b) => b.at.localeCompare(a.at));
 }
 
@@ -105,6 +112,49 @@ export function ActivityTimeline({ compact = false }: { compact?: boolean }) {
   }, [items, filter, q]);
 
   if (items === null) return <Spinner />;
+
+  if (compact) {
+    const KIND_LABEL: Record<Kind, string> = { money: 'Money', study: 'Study', health: 'Health', tasks: 'Tasks', business: 'Business' };
+    const top = list.slice(0, 5);
+    return (
+      <div className="glass rounded-[24px] p-3.5">
+        <div className="mb-2 flex items-center gap-2">
+          <History size={20} className="text-primary" />
+          <p className="min-w-0 flex-1 text-[17px] font-bold">Activity Timeline</p>
+          <button type="button" onClick={() => nav('/timeline')} className="glass press flex items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] font-semibold">
+            See All <ArrowRight size={13} />
+          </button>
+        </div>
+        {top.length === 0 ? (
+          <p className="py-2 text-[13px] text-muted">Nothing in the last {days} days.</p>
+        ) : (
+          <div className="relative">
+            <span className="absolute bottom-3 left-[7px] top-3 w-[2px] rounded-full" style={{ background: 'linear-gradient(var(--tone-income), var(--tone-violet), var(--tone-expense))', opacity: 0.6 }} />
+            {top.map((x) => {
+              const c = TONES[x.tone].solid;
+              const d = new Date(x.at);
+              const sameDay = d.toDateString() === new Date().toDateString();
+              return (
+                <button key={x.key} type="button" onClick={() => x.to && nav(x.to)} className="relative flex w-full items-center gap-3 py-2 text-left">
+                  <span className="relative z-10 ml-[2px] h-3 w-3 shrink-0 rounded-full ring-2 ring-[var(--bg)]" style={{ background: c, boxShadow: `0 0 8px ${c}` }} />
+                  <IconBubble tone={x.tone} size={34}>{x.icon}</IconBubble>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[14px] font-semibold">{x.title}</span>
+                    <span className="block truncate text-[11.5px] text-muted">
+                      {sameDay ? 'Today' : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} • {d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </span>
+                  <span className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: TONES[x.tone].bg, color: TONES[x.tone].fg }}>
+                    {KIND_LABEL[x.kind]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   let lastDay = '';
   return (

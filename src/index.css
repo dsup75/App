@@ -395,6 +395,80 @@
   box-shadow: 0 6px 14px rgba(40, 40, 90, 0.12), inset 0 0 0 1px rgba(0, 0, 0, 0.04);
 }
 
+
+/* ---------- Nebula: deep navy space, neon-blue glass, glowing gradient edges ---------- */
+.dark[data-theme='nebula'],
+[data-theme='nebula'] {
+  --bg: #040818;
+  --card: rgba(16, 26, 62, 0.58);
+  --card-2: rgba(120, 150, 255, 0.07);
+  --solid: #0b1433;
+  --text: #f1f5ff;
+  --muted: #93a0c3;
+  --hairline: rgba(120, 150, 255, 0.14);
+  --edge: rgba(120, 160, 255, 0.22);
+  --edge-hi: rgba(255, 255, 255, 0.1);
+  --field: rgba(120, 150, 255, 0.08);
+  --nav: rgba(10, 18, 46, 0.82);
+  --sheet: rgba(8, 14, 38, 0.97);
+  --shadow: 0 14px 36px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(110, 150, 255, 0.08);
+  --primary: #7fb0ff;
+  --primary-2: #4c8dff;
+  --primary-soft: rgba(76, 141, 255, 0.18);
+  --acc: 76, 141, 255;
+  --acc2: 168, 85, 247;
+  --hero-1: #0f2266;
+  --hero-2: #070f2e;
+  --income: #34e39a;
+  --expense: #ff5c7a;
+  --danger: #ff4d6a;
+  --tone-income: #34e39a;
+  --tone-income-bg: rgba(52, 227, 154, 0.16);
+  --tone-expense: #ff5c7a;
+  --tone-blue: #4c8dff;
+  --tone-violet: #a78bfa;
+  --tone-pink: #f472b6;
+  --tone-teal: #2dd4bf;
+  --tone-amber: #fbbf24;
+  --tone-amber-solid: #f59e0b;
+  --warn: #fbbf24;
+  --chart-2: #38bdf8;
+  --blob1: rgba(56, 120, 255, 0.42);
+  --blob2: rgba(124, 58, 237, 0.28);
+  --blob3: rgba(14, 165, 233, 0.2);
+  --blob4: rgba(236, 72, 153, 0.12);
+  --hero-bar: #38bdf8;
+  --logo-1: #4c8dff;
+  --logo-2: #7c3aed;
+  --on-primary: #ffffff;
+}
+[data-theme='nebula'] .glass {
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(150deg, rgba(110, 160, 255, 0.55), rgba(110, 160, 255, 0.06) 45%, rgba(168, 85, 247, 0.4)) border-box;
+  border: 1px solid transparent;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+[data-theme='nebula'] .hero {
+  background:
+    radial-gradient(20rem 10rem at 100% 0%, rgba(76, 141, 255, 0.45), transparent 65%),
+    radial-gradient(16rem 9rem at 0% 100%, rgba(52, 227, 154, 0.12), transparent 65%),
+    linear-gradient(160deg, #102463, #070f2e);
+  border: 1px solid rgba(120, 165, 255, 0.4);
+  box-shadow: 0 18px 46px rgba(20, 60, 200, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+[data-theme='nebula'] .liquid-primary {
+  background: linear-gradient(135deg, #4c8dff 0%, #6d5bff 55%, #a855f7 100%) !important;
+  border-color: rgba(190, 210, 255, 0.4) !important;
+  box-shadow: 0 10px 26px rgba(76, 110, 255, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+}
+[data-theme='nebula'] .app-bg {
+  background:
+    radial-gradient(60% 35% at 85% 0%, rgba(56, 120, 255, 0.45), transparent 70%),
+    radial-gradient(45% 30% at 0% 35%, rgba(124, 58, 237, 0.25), transparent 70%),
+    radial-gradient(50% 30% at 100% 70%, rgba(14, 165, 233, 0.16), transparent 70%);
+}
+
 /* ---------- Black & White: pure monochrome ---------- */
 [data-theme='mono'] {
   --bg: #ffffff;
@@ -910,4 +984,40 @@ select {
 .brand-tile {
   background: #ffffff;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+/* ===== Home 2.0 pieces (all themes) ===== */
+.health-tile {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tile) 14%, transparent), color-mix(in srgb, var(--tile) 4%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tile) 22%, transparent);
+}
+.health-icon {
+  color: var(--tile);
+  background: color-mix(in srgb, var(--tile) 16%, transparent);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--tile) 30%, transparent);
+}
+@supports not (background: color-mix(in srgb, red 10%, transparent)) {
+  .health-tile { background: var(--card-2); box-shadow: inset 0 0 0 1px var(--hairline); }
+  .health-icon { background: var(--primary-soft); }
+}
+.avatar-ring {
+  background: conic-gradient(from 200deg, var(--primary-2), var(--tone-teal), var(--tone-pink), var(--primary-2));
+  box-shadow: 0 0 18px rgba(var(--acc), 0.45);
+}
+/* glossy light sweep on bank cards */
+.card-sheen {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.06) 32%, transparent 48%, rgba(255, 255, 255, 0.08) 78%, transparent 100%);
+}
+.tint-card {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--tint) 20%, var(--card)), var(--card));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tint) 35%, transparent);
+}
+@supports not (background: color-mix(in srgb, red 10%, transparent)) {
+  .tint-card { background: var(--card-2); box-shadow: inset 0 0 0 1px var(--hairline); }
+}
+.fab-glow {
+  box-shadow: 0 0 0 4px var(--bg), 0 0 0 6px rgba(var(--acc), 0.45), 0 10px 26px rgba(var(--acc), 0.55) !important;
 }

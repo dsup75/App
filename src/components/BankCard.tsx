@@ -96,9 +96,10 @@ export function BankCard({ account, extra }: { account: Balance & { opening_date
       className="bank-card press relative aspect-[1.586] w-full shrink-0 snap-center overflow-hidden rounded-[22px] p-4 text-white"
       style={{
         background: `linear-gradient(135deg, ${look.from}, ${look.to})`,
-        boxShadow: '0 14px 30px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.25)',
+        boxShadow: '0 18px 36px rgba(0,0,0,.32), 0 0 0 1px rgba(255,255,255,.12), inset 0 1px 0 rgba(255,255,255,.3)',
       }}
     >
+      <span className="card-sheen" />
       {/* glossy shapes */}
       <span className="pointer-events-none absolute -right-10 -top-16 h-44 w-44 rounded-full" style={{ background: 'rgba(255,255,255,.12)' }} />
       <span className="pointer-events-none absolute -bottom-20 -left-8 h-44 w-56 rounded-full" style={{ background: 'rgba(0,0,0,.12)' }} />
@@ -128,7 +129,9 @@ export function BankCard({ account, extra }: { account: Balance & { opening_date
           <span className="h-7 w-10 rounded-[6px]" style={{ background: 'linear-gradient(135deg,#f5d77a,#b8913a)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.15)' }} />
           <Wifi size={16} className="rotate-90 opacity-70" />
           {extra?.account_number && (
-            <span className="ml-1 font-mono text-[12.5px] tracking-[0.12em] opacity-90">•••• {hidden ? '••••' : extra.account_number.replace(/\s/g, '').slice(-4)}</span>
+            <span className="ml-1 font-mono text-[13px] tracking-[0.14em] opacity-95" style={{ textShadow: '0 1px 1px rgba(0,0,0,.35)' }}>
+              •••• •••• {hidden ? '••••' : extra.account_number.replace(/\s/g, '').slice(-4)}
+            </span>
           )}
         </div>
 

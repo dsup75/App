@@ -1,7 +1,7 @@
 // Home: "Health & connected devices" — one configurable carousel. Shows only data the app really has.
 import { useCallback, useEffect, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Footprints, Moon, Scale, HeartPulse, Flame, Activity, MonitorSmartphone, Headphones, Watch, Settings2, GripVertical, RotateCcw } from 'lucide-react';
+import { Footprints, Moon, Scale, HeartPulse, Flame, Activity, MonitorSmartphone, Headphones, Watch, Settings2, GripVertical, RotateCcw, Heart, Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { todayISO } from '../lib/dates';
 import { healthAvailable, readToday, saveHealthSnapshot } from '../lib/health';
@@ -16,6 +16,14 @@ const LABEL: Record<SlideId, string> = {
 const ICON: Record<SlideId, ReactNode> = {
   steps: <Footprints size={16} />, sleep: <Moon size={16} />, weight: <Scale size={16} />, body: <Scale size={16} />, heart: <HeartPulse size={16} />,
   calories: <Flame size={16} />, activity: <Activity size={16} />, screen: <MonitorSmartphone size={16} />, earbuds: <Headphones size={16} />, watch: <Watch size={16} />,
+};
+const BIG_ICON: Record<SlideId, ReactNode> = {
+  steps: <Footprints size={26} />, sleep: <Moon size={26} />, weight: <Scale size={26} />, body: <Activity size={26} />, heart: <HeartPulse size={26} />,
+  calories: <Flame size={26} />, activity: <Activity size={26} />, screen: <MonitorSmartphone size={26} />, earbuds: <Headphones size={26} />, watch: <Watch size={26} />,
+};
+const TILE: Record<SlideId, string> = {
+  steps: 'var(--tone-blue)', sleep: 'var(--tone-violet)', weight: 'var(--tone-teal)', body: 'var(--tone-teal)', heart: 'var(--tone-pink)',
+  calories: 'var(--tone-amber)', activity: 'var(--tone-income)', screen: 'var(--chart-2)', earbuds: 'var(--primary-2)', watch: 'var(--tone-income)',
 };
 const ALL: SlideId[] = ['steps', 'sleep', 'weight', 'body', 'heart', 'calories', 'activity', 'screen', 'earbuds', 'watch'];
 
@@ -138,11 +146,18 @@ export function HealthCarousel() {
 
   const shown = (slides ?? []).filter((s) => !prefs.off.includes(s.id)).sort((a, b) => prefs.order.indexOf(a.id) - prefs.order.indexOf(b.id));
 
+  // tiles: one "step" = one tile; pages = how many tiles fit
+  const step = () => {
+    const el = track.current;
+    const first = el?.firstElementChild as HTMLElement | null;
+    return first ? first.offsetWidth + 10 : 120;
+  };
   const go = (i: number) => {
     const el = track.current;
     if (!el || !shown.length) return;
-    const n = ((i % shown.length) + shown.length) % shown.length;
-    el.scrollTo({ left: n * el.clientWidth, behavior: 'smooth' });
+    const maxIdx = Math.max(0, Math.ceil((el.scrollWidth - el.clientWidth) / step()));
+    const n = i > maxIdx ? 0 : i < 0 ? maxIdx : i;
+    el.scrollTo({ left: n * step(), behavior: 'smooth' });
   };
   // auto-slide (pauses while touched)
   useEffect(() => {
@@ -177,10 +192,19 @@ export function HealthCarousel() {
 
   return (
     <>
-      <div className="flex items-center justify-between px-1">
-        <p className="text-[15px] font-semibold">Health &amp; devices</p>
+      <div className="flex items-center gap-2 px-1">
+        <Heart size={20} className="shrink-0" style={{ color: 'var(--tone-pink)', fill: 'var(--tone-pink)' }} />
+        <p className="min-w-0 flex-1 text-[16px] font-semibold">Health &amp; Connected Devices</p>
+        <button
+          type="button"
+          onClick={() => set({ ...prefs, auto: !prefs.auto })}
+          className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-semibold"
+          style={prefs.auto ? { background: 'var(--tone-income-bg)', color: 'var(--tone-income)' } : { background: 'var(--card-2)', color: 'var(--muted)' }}
+        >
+          Auto slide {prefs.auto ? <Play size={11} fill="currentColor" /> : <Pause size={11} />}
+        </button>
         <button type="button" aria-label="Health carousel settings" onClick={() => setSetup(true)} className="p-1 text-muted">
-          <Settings2 size={16} />
+          <Settings2 size={17} />
         </button>
       </div>
       {shown.length === 0 ? (
@@ -190,33 +214,46 @@ export function HealthCarousel() {
           <Button size="sm" onClick={() => nav('/gadgets')}>Set up</Button>
         </div>
       ) : (
-        <div onPointerDown={() => setTouching(true)} onPointerUp={() => setTouching(false)} onPointerCancel={() => setTouching(false)} onPointerLeave={() => setTouching(false)}>
+        <div
+          className="glass rounded-[24px] p-3"
+          onPointerDown={() => setTouching(true)}
+          onPointerUp={() => setTouching(false)}
+          onPointerCancel={() => setTouching(false)}
+          onPointerLeave={() => setTouching(false)}
+        >
           <div
             ref={track}
-            className="flex snap-x snap-mandatory overflow-x-auto [scrollbar-width:none]"
-            onScroll={(e) => {
-              const el = e.currentTarget;
-              setIdx(Math.round(el.scrollLeft / Math.max(1, el.clientWidth)));
-            }}
+            className="flex gap-2.5 overflow-x-auto scroll-smooth [scrollbar-width:none]"
+            onScroll={(e) => setIdx(Math.round(e.currentTarget.scrollLeft / step()))}
           >
             {shown.map((s) => (
-              <button key={s.id} type="button" onClick={() => nav(s.to)} className="w-full shrink-0 snap-center px-0.5 text-left">
-                <div className="glass flex items-center gap-3 rounded-[22px] p-4">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[var(--primary-soft)] text-primary">{ICON[s.id]}</span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[12px] text-muted">{LABEL[s.id]}</span>
-                    <span className="block truncate text-[20px] font-bold tracking-tight">{s.value}</span>
-                    <span className="block truncate text-[11.5px] text-muted">{s.sub}</span>
-                  </span>
-                </div>
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => nav(s.to)}
+                className="health-tile press flex w-[31%] min-w-[104px] shrink-0 flex-col items-center rounded-[18px] px-2 py-3 text-center"
+                style={{ ['--tile' as string]: TILE[s.id] }}
+              >
+                <span className="health-icon flex h-12 w-12 items-center justify-center rounded-[15px]">{BIG_ICON[s.id]}</span>
+                <span className="mt-1.5 block w-full truncate text-[12px] font-medium opacity-85">{LABEL[s.id]}</span>
+                <span className="block w-full truncate text-[17px] font-bold tracking-tight">{s.value}</span>
+                <span className="block w-full truncate text-[10.5px]" style={{ color: TILE[s.id] }}>{s.sub}</span>
               </button>
             ))}
           </div>
-          {shown.length > 1 && (
-            <div className="mt-1.5 flex justify-center gap-1.5">
-              {shown.map((s, i) => (
-                <button key={s.id} type="button" aria-label={`Show ${LABEL[s.id]}`} onClick={() => go(i)} className={cx('h-1.5 rounded-full transition-all', i === idx ? 'w-4 bg-[var(--primary-2)]' : 'w-1.5 bg-[var(--hairline)]')} />
-              ))}
+          {shown.length > 3 && (
+            <div className="mt-2.5 flex items-center justify-between">
+              <button type="button" aria-label="Previous" onClick={() => go(idx - 1)} className="glass press flex h-8 w-8 items-center justify-center rounded-full">
+                <ChevronLeft size={16} />
+              </button>
+              <div className="flex gap-1.5">
+                {Array.from({ length: Math.max(1, shown.length - 2) }).map((_, i) => (
+                  <button key={i} type="button" aria-label={`Go to ${i + 1}`} onClick={() => go(i)} className={cx('h-1.5 rounded-full transition-all', i === idx ? 'w-4 bg-[var(--primary-2)]' : 'w-1.5 bg-[var(--hairline)]')} />
+                ))}
+              </div>
+              <button type="button" aria-label="Next" onClick={() => go(idx + 1)} className="glass press flex h-8 w-8 items-center justify-center rounded-full">
+                <ChevronRight size={16} />
+              </button>
             </div>
           )}
         </div>

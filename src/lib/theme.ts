@@ -4,7 +4,7 @@ export type ThemeMode = 'system' | 'light' | 'dark';
 export type ThemeStyle = 'glass' | 'midnight' | 'clean';
 export type Accent = 'green' | 'blue' | 'violet' | 'rose' | 'amber' | 'teal';
 export type TextSize = 'sm' | 'md' | 'lg' | 'xl';
-export type ThemeId = 'lumina' | 'signature' | 'dark' | 'light' | 'midnight' | 'pearl' | 'forest' | 'sunset' | 'mono' | 'custom';
+export type ThemeId = 'nebula' | 'lumina' | 'signature' | 'dark' | 'light' | 'midnight' | 'pearl' | 'forest' | 'sunset' | 'mono' | 'custom';
 export type ImageDisplay = 'theme' | 'original';
 
 export interface ThemePrefs {
@@ -20,6 +20,7 @@ export interface ThemePrefs {
 
 /** The 7 complete themes. `mode` = forced light/dark; undefined = follows the Light / dark setting. */
 export const THEMES: { value: ThemeId; label: string; hint: string; mode?: 'light' | 'dark'; style: ThemeStyle; accent: Accent; swatch: [string, string, string] }[] = [
+  { value: 'nebula', label: 'Nebula', hint: 'Deep navy space with neon-blue glass, glowing edges and 3D cards', mode: 'dark', style: 'glass', accent: 'blue', swatch: ['#040818', '#102463', '#4c8dff'] },
   { value: 'lumina', label: 'Lumina', hint: 'Frosted lavender glass, indigo buttons and real app logos — bright and premium', mode: 'light', style: 'glass', accent: 'violet', swatch: ['#f3f2fb', '#ffffff', '#5b5cf0'] },
   { value: 'signature', label: 'Signature', hint: 'DeepBoost Signature — deep space navy, aurora glow, electric indigo to cyan', mode: 'dark', style: 'glass', accent: 'violet', swatch: ['#05070f', '#6d5bff', '#22d3ee'] },
   { value: 'dark', label: 'Dark', hint: 'Graphite dark with ocean blue', mode: 'dark', style: 'glass', accent: 'blue', swatch: ['#0d1117', '#1b2230', '#5b8cf0'] },
