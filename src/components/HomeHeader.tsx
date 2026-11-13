@@ -1,7 +1,7 @@
 // Home header: profile photo with glowing ring, greeting, and round action buttons
 import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bell, Settings as Gear } from 'lucide-react';
+import { Bell, Settings as Gear } from 'lucide-react';
 import { useIconStore } from '../lib/icons';
 import { IconPickerSheet } from './EntityIcon';
 
@@ -44,7 +44,6 @@ export function HomeHeader({ name, unread, onBell }: { name?: string; unread: nu
         <p className="truncate text-[11px] text-muted">Dream Big • Plan Smart • Achieve More</p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        {round('Search everything', () => nav('/search'), <Search size={18} />)}
         {round(unread ? `Notifications, ${unread} new` : 'Notifications', onBell, <Bell size={18} />, unread)}
         {round('Settings', () => nav('/settings'), <Gear size={18} />)}
       </div>
