@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { SubscriptionPeople } from './SubscriptionPeople';
 import { ChapterRevisions } from './ChapterRevisions';
 import { AccountCardPanel } from './AccountCardPanel';
+import { useLookups } from '../lib/useLookups';
 import { useNavigate } from 'react-router-dom';
 import { FileDown, Plus, Copy } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -261,62 +262,63 @@ const ALLOC_COL: Record<AllocTable, string> = { incomes: 'income_id', expenses: 
 
 function AllocationSummary({ table, row, reloadKey }: { table: AllocTable; row: Row; reloadKey: number }) {
   const nav = useNavigate();
+  const { nameOf } = useLookups();
   const [links, setLinks] = useState<any[] | null>(null);
   const [names, setNames] = useState<Map<string, string>>(new Map());
+  const [now, setNow] = useState<{ account_id: string; available_paise: number }[]>([]);
+  const isSource = table === 'incomes';
   useEffect(() => {
+    // every link (chosen by you or auto-filled) — links to deleted entries are never counted
     supabase
-      .from('allocations')
-      .select('id,income_id,expense_id,loan_id,transfer_id,amount_paise')
-      .eq(ALLOC_COL[table], row.id)
-      .is('deleted_at', null)
+      .from('all_money_links')
+      .select('id,source_table,source_id,target_table,target_id,amount_paise')
+      .eq(isSource ? 'source_table' : 'target_table', table)
+      .eq(isSource ? 'source_id' : 'target_id', row.id)
       .then(async ({ data }) => {
         const list = (data as any[]) ?? [];
-        // titles of the other side
-        const want: Record<string, string[]> = { incomes: [], expenses: [], loans: [], transfers: [] };
+        const want = new Map<string, string[]>();
         for (const l of list) {
-          if (table !== 'incomes') want.incomes.push(l.income_id);
-          else if (l.expense_id) want.expenses.push(l.expense_id);
-          else if (l.loan_id) want.loans.push(l.loan_id);
-          else if (l.transfer_id) want.transfers.push(l.transfer_id);
+          const t = isSource ? l.target_table : l.source_table;
+          const id = isSource ? l.target_id : l.source_id;
+          want.set(t, [...(want.get(t) ?? []), id]);
         }
         const m = new Map<string, string>();
         await Promise.all(
-          Object.entries(want)
-            .filter(([, ids]) => ids.length)
-            .map(async ([t, ids]) => {
-              const { data: rows } = await supabase.from(t).select(t === 'loans' ? 'id,person' : 'id,title').in('id', ids);
-              ((rows as any[]) ?? []).forEach((r) => m.set(r.id, r.title ?? r.person));
-            }),
+          [...want.entries()].map(async ([t, ids]) => {
+            const { data: rows } = await supabase.from(t).select(t === 'loans' ? 'id,person' : 'id,title').in('id', ids);
+            ((rows as any[]) ?? []).forEach((r) => m.set(r.id, r.title ?? r.person));
+          }),
         );
         setNames(m);
         setLinks(list);
       });
-  }, [table, row.id, reloadKey]);
+    if (isSource)
+      supabase
+        .from('source_positions')
+        .select('account_id,available_paise')
+        .eq('source_table', table)
+        .eq('source_id', row.id)
+        .then(({ data }) => setNow(((data as any[]) ?? []).map((x) => ({ account_id: x.account_id, available_paise: Number(x.available_paise) }))));
+  }, [table, row.id, reloadKey, isSource]);
   if (links === null) return null;
   const total = Number(table === 'loans' ? row.principal_paise : row.amount_paise) || 0;
   const used = sumPaise(links);
-  if (table !== 'incomes' && used === 0) return null;
-  const left = total - used;
-  const pct = total ? Math.round((used / total) * 100) : 0;
-  const spent = sumPaise(links.filter((l) => l.expense_id));
-  const lent = sumPaise(links.filter((l) => l.loan_id));
-  const moved = sumPaise(links.filter((l) => l.transfer_id));
-  const target = (l: any) =>
-    table !== 'incomes'
-      ? { to: `/r/incomes/${l.income_id}`, kind: 'Income', id: l.income_id }
-      : l.expense_id
-        ? { to: `/r/expenses/${l.expense_id}`, kind: 'Expense', id: l.expense_id }
-        : l.loan_id
-          ? { to: `/r/loans/${l.loan_id}`, kind: 'Udhaar given', id: l.loan_id }
-          : { to: `/r/transfers/${l.transfer_id}`, kind: 'Moved to other account', id: l.transfer_id };
+  if (!isSource && used === 0) return null;
+  const left = Math.max(0, total - used);
+  const pct = total ? Math.min(100, Math.round((used / total) * 100)) : 0;
+  const spent = sumPaise(links.filter((l) => l.target_table === 'expenses'));
+  const lent = sumPaise(links.filter((l) => l.target_table === 'loans' || l.target_table === 'loan_repayments'));
+  const moved = sumPaise(links.filter((l) => l.target_table === 'transfers'));
+  const KIND: Record<string, string> = { expenses: 'Spent', loans: 'Udhaar given', loan_repayments: 'Udhaar repaid', transfers: 'Moved', incomes: 'Income', transfers_src: 'Transfer' };
+  const where = now.filter((n) => n.available_paise > 0);
   return (
     <Card className="space-y-2.5">
       <div className="flex items-center justify-between">
-        <p className="text-[14px] font-semibold">{table === 'incomes' ? 'Where this income went' : 'Paid out of income'}</p>
-        <span className="text-[12.5px] text-muted">{pct}% {table === 'incomes' ? 'used' : 'covered'}</span>
+        <p className="text-[14px] font-semibold">{isSource ? 'Where this income went' : 'Paid out of'}</p>
+        <span className="text-[12.5px] text-muted">{pct}% {isSource ? 'used' : 'covered'}</span>
       </div>
       <ProgressBar pct={pct} color={left === 0 ? 'var(--primary-2)' : undefined} />
-      {table === 'incomes' ? (
+      {isSource ? (
         <div className="grid grid-cols-2 gap-2">
           <KV label="Spent" value={formatINR(spent)} />
           <KV label="Udhaar given" value={formatINR(lent)} />
@@ -325,19 +327,25 @@ function AllocationSummary({ table, row, reloadKey }: { table: AllocTable; row: 
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2">
-          <KV label="From income" value={formatINR(used)} />
+          <KV label="Linked" value={formatINR(used)} />
           <KV label="Not linked yet" value={formatINR(left)} />
         </div>
+      )}
+      {isSource && where.length > 0 && left > 0 && (
+        <p className="text-[12.5px] text-muted">
+          Left money is in: {where.map((n) => `${nameOf(n.account_id)} ${formatINR(n.available_paise)}`).join(' · ')}
+        </p>
       )}
       {links.length > 0 && (
         <div className="space-y-1 pt-1">
           {links.map((l) => {
-            const tg = target(l);
+            const t = isSource ? l.target_table : l.source_table;
+            const id = isSource ? l.target_id : l.source_id;
             return (
-              <button key={l.id} onClick={() => nav(tg.to)} className="flex w-full items-center justify-between gap-2 text-left text-[13px]">
+              <button key={l.id} onClick={() => nav(`/r/${t}/${id}`)} className="flex w-full items-center justify-between gap-2 text-left text-[13px]">
                 <span className="min-w-0 truncate">
-                  <span className="text-muted">{tg.kind}: </span>
-                  {names.get(tg.id) ?? '…'}
+                  <span className="text-muted">{isSource ? KIND[t] ?? t : t === 'transfers' ? 'Transfer' : t === 'incomes' ? 'Income' : 'From'}: </span>
+                  {names.get(id) ?? '…'}
                 </span>
                 <span className="shrink-0 font-semibold">{formatINR(l.amount_paise)}</span>
               </button>
@@ -345,9 +353,7 @@ function AllocationSummary({ table, row, reloadKey }: { table: AllocTable; row: 
           })}
         </div>
       )}
-      {table === 'incomes' && used === 0 && (
-        <p className="text-[12px] text-muted">Not used yet. When you add an expense, udhaar or transfer, turn on "Paid out of which income?" and pick this income.</p>
-      )}
+      {isSource && used === 0 && <p className="text-[12px] text-muted">Not used yet. When you add an expense, udhaar or transfer, pick this income under "Link money source".</p>}
     </Card>
   );
 }

@@ -162,17 +162,17 @@ export function RecordDetail() {
 
       {!deleted && <DetailExtras table={t} row={row} nameOf={nameOf} reloadKey={reloadKey} />}
 
-      {showAmount && amountField && (
+      {showAmount && amountField && !isMoneyTable(t) && (
         <Card className="text-center">
           <p className="text-[12.5px] text-muted">Amount</p>
-          <p className={'text-[30px] font-bold tracking-tight ' + (t === 'incomes' ? 'text-income' : t === 'expenses' ? 'text-expense' : '')}>
+          <p className="text-[30px] font-bold tracking-tight">
             {formatINR(row[amountField.key])}
           </p>
         </Card>
       )}
 
       {isMoneyTable(t) && <PaymentBreakdown table={t} id={row.id} nameOf={nameOf} reloadKey={reloadKey} />}
-      {isMoneyTable(t) && <MoneyJourneyCard table={t} id={row.id} reloadKey={reloadKey} />}
+      {isMoneyTable(t) && t !== 'incomes' && t !== 'expenses' && <MoneyJourneyCard table={t} id={row.id} reloadKey={reloadKey} />}
       {isMoneyTable(t) && <ActivityCard key={`${row.id}-${reloadKey}`} table={t} id={row.id} deleted={!!row.deleted_at} />}
 
       {t === 'payment_requests' && <RequestPanel row={row} nameOf={nameOf} onChanged={load} />}

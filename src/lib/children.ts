@@ -26,8 +26,7 @@ export const CHILDREN: Partial<Record<TableName, ChildSpec[]>> = {
     { table: 'tasks', fk: 'project_id', title: 'Tasks', order: 'due_date', addLabel: 'Task', extra: { area: 'business' } },
   ],
   invoices: [{ table: 'incomes', fk: 'invoice_id', title: 'Payments', order: 'txn_date', addLabel: 'Payment', extra: { area: 'business', payment_method: 'upi' } }],
-  incomes: [{ table: 'allocations', fk: 'income_id', title: 'Spent on (allocations)', order: 'created_at', addLabel: 'Allocation' }],
-  expenses: [{ table: 'allocations', fk: 'expense_id', title: 'Funded by (allocations)', order: 'created_at', addLabel: 'Allocation' }],
+  // incomes / expenses: links are shown in the "Where this income went" / "Paid out of" card
   loans: [{ table: 'loan_repayments', fk: 'loan_id', title: 'Repayments', order: 'txn_date', addLabel: 'Repayment' }],
   savings_goals: [{ table: 'savings_entries', fk: 'goal_id', title: 'Contributions & withdrawals', order: 'txn_date', addLabel: 'Entry' }],
   subjects: [
