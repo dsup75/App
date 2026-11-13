@@ -177,14 +177,14 @@ function StopwatchTab() {
     setSw(n);
     saveStopwatch(n);
   };
-  const laps = sw.laps.map((t, i) => t - (i ? sw.laps.at(i - 1)! : 0));
+  const laps = sw.laps.map((t, i) => t - (i ? sw.laps[i - 1] : 0));
   const best = laps.length > 1 ? Math.min(...laps) : null;
   const worst = laps.length > 1 ? Math.max(...laps) : null;
   return (
     <Card className="space-y-4 py-6">
       <Ring pct={(now % 60000) / 60000}>
         <p className="tabular text-[44px] font-bold tracking-tight">{fmtClock(now, true)}</p>
-        {sw.laps.length > 0 && <p className="text-[12.5px] text-muted">Lap {sw.laps.length + 1} · {fmtClock(now - (sw.laps.at(-1) ?? 0), true)}</p>}
+        {sw.laps.length > 0 && <p className="text-[12.5px] text-muted">Lap {sw.laps.length + 1} · {fmtClock(now - (sw.laps[sw.laps.length - 1] ?? 0), true)}</p>}
       </Ring>
       <div className="flex items-center justify-center gap-3">
         <Button onClick={() => (sw.startAt ? set({ ...sw, laps: [...sw.laps, now] }) : set({ startAt: null, acc: 0, laps: [] }))} disabled={!sw.startAt && now === 0}>
@@ -203,7 +203,7 @@ function StopwatchTab() {
               <div key={i} className="flex items-center justify-between py-2 text-[13.5px]">
                 <span className="text-muted">Lap {i + 1}</span>
                 <span className={cx('tabular font-semibold', l === best && 'text-income', l === worst && 'text-expense')}>{fmtClock(l, true)}</span>
-                <span className="tabular text-muted">{fmtClock(sw.laps.at(i)!, true)}</span>
+                <span className="tabular text-muted">{fmtClock(sw.laps[i], true)}</span>
               </div>
             ))}
         </div>
@@ -220,7 +220,7 @@ function daysText(d: number[]) {
   if (d.length === 7) return 'Every day';
   if ([1, 2, 3, 4, 5].every((x) => d.includes(x)) && d.length === 5) return 'Weekdays';
   if (d.length === 2 && d.includes(0) && d.includes(6)) return 'Weekends';
-  return [...d].sort().map((x) => DAY_NAMES.at(x)).join(', ');
+  return [...d].sort().map((x) => DAY_NAMES[x]).join(', ');
 }
 
 function AlarmTab() {
@@ -333,7 +333,7 @@ function AlarmForm({ a, onSave, onDelete }: { a: Alarm; onSave: (a: Alarm) => vo
             <button
               key={i}
               type="button"
-              aria-label={DAY_NAMES.at(i)}
+              aria-label={DAY_NAMES[i]}
               onClick={() => setX({ ...x, days: on ? x.days.filter((y) => y !== i) : [...x.days, i] })}
               className={cx('press h-10 w-10 rounded-full text-[14px] font-semibold', on ? 'bg-[var(--primary)] text-[var(--on-primary,#fff)]' : 'bg-[var(--field)] text-muted')}
             >
