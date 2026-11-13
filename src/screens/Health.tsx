@@ -171,7 +171,7 @@ function DevicesAndBody() {
         </button>
         <button type="button" onClick={() => nav('/screen-time')} className="glass press relative overflow-hidden rounded-[18px] p-3 text-left">
           <p className="text-[13px] font-semibold text-muted">Screen Time</p>
-          <p className="mt-1 text-[15px] font-semibold">Today's phone use</p>
+          <p className="mt-1 pr-9 text-[15px] font-semibold leading-tight">Today's phone use</p>
           <p className="text-[11.5px] text-muted">Open to see apps</p>
           <span className="pointer-events-none absolute -bottom-1 -right-1 opacity-90">
             <Glyph name="phone" size={54} />
