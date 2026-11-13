@@ -141,6 +141,7 @@ function DevicesAndBody() {
   const [g, setG] = useState<any[]>([]);
   const [w, setW] = useState<any | null>(null);
   const [screen, setScreen] = useState<number | null>(null);
+  const [trend, setTrend] = useState<number[]>([]);
   useEffect(() => {
     supabase
       .from('screen_time_daily')
@@ -154,8 +155,12 @@ function DevicesAndBody() {
       .select('weight_kg,bmi,measured_at')
       .is('deleted_at', null)
       .order('measured_at', { ascending: false })
-      .limit(1)
-      .then(({ data }) => setW(((data as any[]) ?? [])[0] ?? null));
+      .limit(12)
+      .then(({ data }) => {
+        const rows = ((data as any[]) ?? []).filter((r) => r.weight_kg != null);
+        setW(rows[0] ?? null);
+        setTrend(rows.map((r) => Number(r.weight_kg)).reverse());
+      });
   }, []);
   const tile = (glyph: GlyphName, title: string, sub: string, to: string, ok?: boolean) => (
     <button key={title} type="button" onClick={() => nav(to)} className="glass press flex items-center gap-2.5 rounded-[18px] p-3 text-left">
@@ -181,9 +186,27 @@ function DevicesAndBody() {
           <button type="button" onClick={() => nav('/weight')} className="glass press w-full rounded-[18px] p-3 text-left">
             <p className="text-[24px] font-bold leading-tight">{w?.weight_kg != null ? <>{w.weight_kg}<span className="text-[13px] font-medium"> kg</span></> : '—'}</p>
             <p className="text-[11.5px] text-muted">{w?.bmi ? `BMI: ${w.bmi}` : 'Add a weight entry'}</p>
-            <svg viewBox="0 0 100 26" className="mt-1 h-[26px] w-full" aria-hidden>
-              <path d="M0 22 L15 18 L28 20 L42 12 L56 15 L70 8 L84 10 L100 3" fill="none" stroke="var(--tone-income)" strokeWidth="2" strokeLinecap="round" opacity={w ? 1 : 0.25} />
-            </svg>
+            {trend.length > 1 ? (
+              <svg viewBox="0 0 100 26" preserveAspectRatio="none" className="mt-1 h-[26px] w-full" aria-label="Your weight entries">
+                <path
+                  d={trend
+                    .map((v, i) => {
+                      const lo = Math.min(...trend);
+                      const hi = Math.max(...trend);
+                      const y = hi === lo ? 13 : 23 - ((v - lo) / (hi - lo)) * 20;
+                      return `${i ? 'L' : 'M'}${((i / (trend.length - 1)) * 100).toFixed(1)} ${y.toFixed(1)}`;
+                    })
+                    .join(' ')}
+                  fill="none"
+                  stroke="var(--tone-income)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            ) : (
+              <div className="h-[26px]" />
+            )}
           </button>
         </div>
         <div>
