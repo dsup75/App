@@ -87,12 +87,18 @@ export function CreditScreen() {
   const latestScore = scores[0];
 
   return (
-    <Page title="Credit & Loans" subtitle="Cards, EMIs, investments, insurance — all in one place" back>
+    <Page title="Credit & Loans" subtitle="Manage • Optimise • Plan" back glyph="card">
       {/* ---------- Net worth ---------- */}
       {net && (
         <div className="hero relative overflow-hidden rounded-[24px] p-4">
-          <p className="text-[13px] opacity-80">Net worth (what you have − what you owe)</p>
-          <p className="mt-1 text-[30px] font-bold leading-tight tracking-tight">{formatINR(net.net)}</p>
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[15px] font-bold">Net Worth</p>
+              <p className="mt-1 text-[30px] font-bold leading-tight tracking-tight">{formatINR(net.net)}</p>
+              <p className="text-[12px] opacity-75">What you have − what you owe</p>
+            </div>
+            {util !== null && <UsedRing pct={util} />}
+          </div>
           <div className="mt-3 grid grid-cols-2 gap-2 text-[12.5px]">
             <div className="glass rounded-[14px] p-2.5">
               <p className="opacity-75">You have</p>
@@ -313,6 +319,24 @@ function EmptyAdd({ icon, title, text, onAdd }: { icon: ReactNode; title: string
         <Plus size={15} /> Add
       </Button>
     </Card>
+  );
+}
+
+function UsedRing({ pct }: { pct: number }) {
+  const R = 36;
+  const L = 2 * Math.PI * R;
+  const c = pct > 30 ? '#f87171' : '#4ade80';
+  return (
+    <div className="relative h-[92px] w-[92px] shrink-0">
+      <svg width="92" height="92" viewBox="0 0 92 92" className="-rotate-90">
+        <circle cx="46" cy="46" r={R} fill="none" stroke="rgba(255,255,255,.15)" strokeWidth="9" />
+        <circle cx="46" cy="46" r={R} fill="none" stroke={c} strokeWidth="9" strokeLinecap="round" strokeDasharray={`${(L * Math.min(100, pct)) / 100} ${L}`} />
+      </svg>
+      <span className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-[20px] font-bold leading-none">{Math.round(pct)}%</span>
+        <span className="mt-0.5 text-[10px] opacity-80">Credit used</span>
+      </span>
+    </div>
   );
 }
 

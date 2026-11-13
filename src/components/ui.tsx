@@ -1,4 +1,5 @@
 import { useEffect, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { Glyph, type GlyphName } from './Glyph';
 import { goBack } from '../lib/nav';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
@@ -15,12 +16,15 @@ export function Page({
   back,
   right,
   header,
+  glyph,
   children,
 }: {
   title: string;
   subtitle?: string;
   back?: boolean;
   right?: ReactNode;
+  /** a big realistic icon beside the title (main screens) */
+  glyph?: GlyphName;
   /** replaces the whole title area (used by Home) */
   header?: ReactNode;
   children: ReactNode;
@@ -35,7 +39,7 @@ export function Page({
     );
   return (
     <div className="page-in page-wrap relative z-10 mx-auto pb-32 pt-safe">
-      <div className="flex h-11 items-center justify-between">
+      <div className={cx('flex items-center justify-between', glyph && !back ? 'h-3' : 'h-11')}>
         {back ? (
           <button onClick={() => goBack(nav)} className="-ml-1.5 flex items-center gap-0.5 rounded-full py-1 pr-2 text-primary active:opacity-60">
             <ChevronLeft size={20} /> <span className="text-[14px] font-medium">Back</span>
@@ -43,10 +47,23 @@ export function Page({
         ) : (
           <span />
         )}
-        <div className="flex items-center gap-2">{right}</div>
+        {!(glyph && !back) && <div className="flex items-center gap-2">{right}</div>}
       </div>
-      <h1 className="truncate text-[26px] font-bold leading-tight tracking-tight">{title}</h1>
-      {subtitle && <p className="mt-0.5 text-[14px] text-muted">{subtitle}</p>}
+      {glyph ? (
+        <div className="flex items-center gap-3">
+          <Glyph name={glyph} size={52} />
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-[26px] font-bold leading-tight tracking-tight">{title}</h1>
+            {subtitle && <p className="truncate text-[13.5px] text-muted">{subtitle}</p>}
+          </div>
+          {!back && right && <div className="flex shrink-0 items-center gap-2">{right}</div>}
+        </div>
+      ) : (
+        <>
+          <h1 className="truncate text-[26px] font-bold leading-tight tracking-tight">{title}</h1>
+          {subtitle && <p className="mt-0.5 text-[14px] text-muted">{subtitle}</p>}
+        </>
+      )}
       <div className="mt-4 space-y-3.5">{children}</div>
     </div>
   );

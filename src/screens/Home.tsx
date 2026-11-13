@@ -1,7 +1,7 @@
 import { RecurringDrafts, BudgetWarnings } from './Planning';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Circle, Timer, Flame, CalendarClock, LayoutGrid, ChevronUp, ChevronDown, AlertTriangle, ChevronRight, CalendarDays, ArrowRight } from 'lucide-react';
+import { Check, Circle, Timer, Flame, CalendarClock, LayoutGrid, ChevronUp, ChevronDown, AlertTriangle, ChevronRight, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { supabase } from '../lib/supabase';
@@ -308,12 +308,18 @@ export function Home() {
                   <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-[var(--danger)] px-2 text-[13px] font-bold text-white">{total}</span>
                   <ChevronRight size={18} className="text-muted" />
                 </button>
-                <div className="grid grid-cols-2 gap-2 min-[400px]:grid-cols-3">
+                <div className="-mx-0.5 flex gap-2 overflow-x-auto px-0.5 pb-0.5 [scrollbar-width:none]">
                   {chips.map((c) => (
-                    <button key={c.label} type="button" onClick={() => nav(c.to)} className="tint-card press flex items-center gap-1.5 rounded-[16px] px-2 py-2.5 text-left" style={{ ['--tint' as string]: c.tint }}>
-                      <Glyph name={c.glyph} size={30} />
-                      <span className="text-[19px] font-bold" style={{ color: c.tint }}>{c.n}</span>
-                      <span className="min-w-0 text-[11.5px] font-medium leading-tight">{c.label}</span>
+                    <button
+                      key={c.label}
+                      type="button"
+                      onClick={() => nav(c.to)}
+                      className="tint-card press flex w-[calc((100%-24px)/4)] min-w-[72px] shrink-0 flex-col items-center rounded-[16px] px-1 py-2.5 text-center"
+                      style={{ ['--tint' as string]: c.tint }}
+                    >
+                      <Glyph name={c.glyph} size={32} />
+                      <span className="mt-1 text-[18px] font-bold leading-none" style={{ color: c.tint }}>{c.n}</span>
+                      <span className="mt-1 w-full text-[10.5px] font-medium leading-tight">{c.label}</span>
                     </button>
                   ))}
                 </div>
@@ -340,9 +346,7 @@ export function Home() {
           {d.upcoming.length > 0 && (
             <div className="glass space-y-3 rounded-[24px] p-3.5">
               <div className="flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-[10px] text-white" style={{ background: 'var(--tone-blue)' }}>
-                  <CalendarDays size={17} />
-                </span>
+                <Glyph name="calendar" size={28} />
                 <p className="min-w-0 flex-1 text-[17px] font-bold">Upcoming</p>
                 <button type="button" onClick={() => nav('/calendar')} className="glass press flex items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] font-semibold">
                   See All <ArrowRight size={13} />
@@ -354,10 +358,10 @@ export function Home() {
                   const k = isMoney ? (/sip/i.test(u.kind) ? 'var(--tone-income)' : 'var(--tone-expense)') : /revision/i.test(u.kind) ? 'var(--tone-violet)' : /exam|test/i.test(u.kind) ? 'var(--tone-blue)' : /event|birthday/i.test(u.kind) ? 'var(--tone-pink)' : /task/i.test(u.kind) ? 'var(--tone-income)' : 'var(--tone-amber)';
                   const g: GlyphName = isMoney ? (/sip/i.test(u.kind) ? 'chart' : /premium/i.test(u.kind) ? 'shield' : 'card') : /revision/i.test(u.kind) ? 'cap' : /exam|test/i.test(u.kind) ? 'chart' : /birthday/i.test(u.kind) ? 'gift' : /event/i.test(u.kind) ? 'calendar' : /task/i.test(u.kind) ? 'check' : /invoice|payment/i.test(u.kind) ? 'receipt' : 'clock';
                   return (
-                    <button key={i} type="button" onClick={() => nav(u.to)} className="tint-card press w-[44%] min-w-[140px] shrink-0 rounded-[18px] p-3 text-left" style={{ ['--tint' as string]: k }}>
-                      <Glyph name={g} size={36} />
-                      <p className="mt-2 line-clamp-2 text-[14px] font-semibold leading-tight">{u.title}</p>
-                      <p className="mt-0.5 truncate text-[11.5px] text-muted">{u.kind} · {relativeDay(u.date)}</p>
+                    <button key={i} type="button" onClick={() => nav(u.to)} className="tint-card press flex w-[calc((100%-20px)/3)] min-w-[104px] shrink-0 flex-col items-center rounded-[18px] px-2 py-3 text-center" style={{ ['--tint' as string]: k }}>
+                      <Glyph name={g} size={38} />
+                      <p className="mt-1.5 line-clamp-2 w-full text-[13px] font-semibold leading-tight">{u.title}</p>
+                      <p className="mt-0.5 w-full truncate text-[11px] text-muted">{relativeDay(u.date)}</p>
                     </button>
                   );
                 })}

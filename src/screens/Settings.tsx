@@ -15,6 +15,9 @@ import { isValidScriptUrl, syncAll, testScript } from '../lib/sheets';
 import { isValidUpiId } from '../lib/upi';
 import { formatDateTime } from '../lib/dates';
 import { PinPad } from '../components/PinPad';
+import { Glyph, type GlyphName } from '../components/Glyph';
+import { useIconStore } from '../lib/icons';
+import { IconPickerSheet } from '../components/EntityIcon';
 import { Badge, Button, Card, Confirm, FormRow, IconBubble, List, ListRow, Page, SectionTitle, Segmented, Sheet, Toggle, cx } from '../components/ui';
 
 export function SettingsScreen() {
@@ -62,8 +65,28 @@ export function SettingsScreen() {
     toast(on ? `${bioLabel(bio?.kinds ?? [])} unlock on` : 'Biometric unlock off');
   };
 
+  const theme = getThemePrefs();
+  const themeName = theme.theme === 'custom' ? 'Custom' : THEMES.find((t) => t.value === theme.theme)?.label ?? 'Nebula';
+  const jump = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const quick: { glyph: GlyphName; title: string; sub: string; go: () => void }[] = [
+    { glyph: 'palette', title: 'Theme', sub: `${themeName}`, go: () => jump('set-theme') },
+    { glyph: 'lock', title: 'App Lock & Biometrics', sub: config ? (config.biometric ? `${bioLabel(bio?.kinds ?? [])} unlock on` : 'PIN on') : 'Off', go: () => jump('set-security') },
+    { glyph: 'bell', title: 'Reminders', sub: 'Bills, EMIs, tasks, exams', go: () => jump('set-reminders') },
+    { glyph: 'sparkle', title: 'AI Assistant', sub: 'Gemini key & smart add', go: () => jump('set-ai') },
+    { glyph: 'cloud', title: 'Backup & Restore', sub: 'Export or import all data', go: () => nav('/money-tools/backup') },
+    { glyph: 'trash', title: 'Recycle Bin', sub: 'Restore deleted items', go: () => nav('/recycle') },
+    { glyph: 'info', title: 'About DeepBoost Life', sub: `Version ${import.meta.env.VITE_APP_VERSION ?? 'dev'}`, go: () => jump('set-account') },
+  ];
+
   return (
-    <Page title="Settings" back>
+    <Page title="Settings" back glyph="gear">
+      <ProfileCard name={settings?.full_name ?? ''} email={user?.email ?? ''} />
+      <List>
+        {quick.map((q) => (
+          <ListRow key={q.title} icon={<Glyph name={q.glyph} size={34} />} title={q.title} subtitle={q.sub} onClick={q.go} chevron />
+        ))}
+      </List>
+
       <SectionTitle>Profile</SectionTitle>
       <Card className="space-y-3">
         <FormRow label="Your name">
@@ -75,9 +98,13 @@ export function SettingsScreen() {
         </Button>
       </Card>
 
-      <Appearance />
+      <div id="set-theme" className="scroll-mt-4">
+        <Appearance />
+      </div>
 
-      <SectionTitle>Security</SectionTitle>
+      <div id="set-security" className="scroll-mt-4">
+        <SectionTitle>Security</SectionTitle>
+      </div>
       <List>
         <ListRow
           icon={<IconBubble tone="primary"><Lock size={18} /></IconBubble>}
@@ -129,6 +156,31 @@ export function SettingsScreen() {
           </>
         )}
       </List>
+      {config?.biometric && Capacitor.isNativePlatform() && (
+        <List>
+          <ListRow
+            icon={<IconBubble tone="teal">{bio?.kinds.includes('face') ? <ScanFace size={18} /> : <Fingerprint size={18} />}</IconBubble>}
+            title="Test unlock now"
+            subtitle="Shows exactly what your phone allows: face, fingerprint or phone PIN"
+            onClick={async () => {
+              suppressBriefly();
+              const ok = await biometricPrompt('Test: unlock DeepBoost Life', !!config.deviceCredential);
+              suppressBriefly();
+              toast(ok ? 'Unlock works' : 'Not unlocked', ok ? 'success' : 'error');
+            }}
+            chevron
+          />
+        </List>
+      )}
+      <Card className="space-y-1.5">
+        <p className="text-[13.5px] font-semibold">Why face unlock may not appear</p>
+        <p className="text-[12.5px] text-muted">
+          Android lets apps use face unlock only on phones with secure face hardware (for example Pixel 8 and newer, some Samsung Galaxy S and Fold models). On most phones the
+          maker's face unlock works for the lock screen only and is not shared with any app — banking apps too. On those phones DeepBoost Life opens with your fingerprint, or with your
+          phone PIN / pattern when "Also allow phone PIN / pattern" is on.
+        </p>
+        <p className="text-[12.5px] text-muted">This phone reports: {bio ? (bio.kinds.length ? bio.kinds.join(', ') : 'no face / fingerprint shared with apps') : '…'}{bio?.strong ? ' · strong biometrics' : ''}.</p>
+      </Card>
       <p className="px-1 text-[12px] text-muted">
         The PIN protects this app on this phone. Your data on the server is protected by your password and database security
         rules.
@@ -145,9 +197,13 @@ export function SettingsScreen() {
         />
       </List>
 
-      <Reminders />
+      <div id="set-reminders" className="scroll-mt-4 space-y-3.5">
+        <Reminders />
+      </div>
 
-      <AiSettings />
+      <div id="set-ai" className="scroll-mt-4 space-y-3.5">
+        <AiSettings />
+      </div>
 
       <SectionTitle>Data & Backup</SectionTitle>
       <List>
@@ -164,7 +220,9 @@ export function SettingsScreen() {
 
       <SheetSync />
 
-      <SectionTitle>Account</SectionTitle>
+      <div id="set-account" className="scroll-mt-4">
+        <SectionTitle>Account</SectionTitle>
+      </div>
       <List>
         <ListRow icon={<IconBubble tone="expense"><LogOut size={18} /></IconBubble>} title="Sign out" onClick={() => setLogout(true)} />
         <ListRow icon={<IconBubble tone="muted"><User size={18} /></IconBubble>} title="App version" right={<span className="text-[14px] text-muted">{import.meta.env.VITE_APP_VERSION ?? 'dev'}</span>} />
@@ -181,6 +239,32 @@ export function SettingsScreen() {
         onClose={() => setLogout(false)}
       />
     </Page>
+  );
+}
+
+/* ---------------- Profile card ---------------- */
+function ProfileCard({ name, email }: { name: string; email: string }) {
+  const store = useIconStore();
+  const [open, setOpen] = useState(false);
+  const ic = store.get('profile', 'me');
+  const up = ic?.kind === 'custom' ? store.upload(ic.custom_icon_id) : null;
+  const url = up ? store.url(up.path) : null;
+  return (
+    <Card className="flex items-center gap-3.5">
+      <button type="button" aria-label="Profile photo" onClick={() => setOpen(true)} className="avatar-ring shrink-0 rounded-full p-[3px]">
+        <span className="flex h-[58px] w-[58px] items-center justify-center overflow-hidden rounded-full bg-[var(--solid)] text-[22px] font-bold text-primary">
+          {url ? <img src={url} alt="" className="h-full w-full object-cover" /> : (name || email || 'D').slice(0, 1).toUpperCase()}
+        </span>
+      </button>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[18px] font-bold">{name || 'Your name'}</p>
+        <p className="truncate text-[13px] text-muted">{email}</p>
+        <button type="button" className="mt-0.5 text-[12.5px] font-semibold text-primary" onClick={() => setOpen(true)}>
+          Change photo
+        </button>
+      </div>
+      <IconPickerSheet open={open} onClose={() => setOpen(false)} table="profile" id="me" title="Profile photo" />
+    </Card>
   );
 }
 

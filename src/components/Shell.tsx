@@ -2,8 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   House, BookOpen, Wallet, LayoutGrid, Plus, ListTodo, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Timer,
-  FileText, HandCoins, Users, StickyNote, CalendarDays, QrCode, ClipboardList, Wand2,
-} from 'lucide-react';
+  FileText, HandCoins, Users, StickyNote, CalendarDays, QrCode, ClipboardList, Wand2, AlarmClock } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { IconBubble, Sheet, cx, type Tone } from './ui';
 
@@ -86,6 +85,8 @@ const ACTIONS: { label: string; to: string; icon: LucideIcon; tone: Tone }[] = [
   { label: 'Transfer', to: '/r/transfers/new', icon: ArrowLeftRight, tone: 'violet' },
   { label: 'Note', to: '/r/notes/new', icon: StickyNote, tone: 'amber' },
   { label: 'Event', to: '/r/events/new', icon: CalendarDays, tone: 'pink' },
+  { label: 'Timer', to: '/clock?tab=timer', icon: Timer, tone: 'amber' },
+  { label: 'Alarm', to: '/clock?tab=alarm', icon: AlarmClock, tone: 'violet' },
 ];
 
 function QuickAdd({ open, onClose }: { open: boolean; onClose: () => void }) {

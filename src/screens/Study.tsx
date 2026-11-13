@@ -11,11 +11,11 @@ import { Shortcut } from './Clients';
 import { TableList } from '../components/TableList';
 import { TEMPLATES, applyTemplate, type SyllabusTemplate } from '../lib/syllabus';
 import {
-  BarChart, Button, Card, Empty, ErrorBox,  HeroCard, IconBubble, IconButton, List, ListRow, Page, ProgressBar, SectionTitle, SeeAll,  Sheet, Spinner,
+  BarChart, Button, Card, Empty, ErrorBox, IconBubble, IconButton, List, ListRow, Page, SectionTitle, SeeAll,  Sheet, Spinner,
 } from '../components/ui';
 import { LibraryBig } from 'lucide-react';
 import { RevisionSummary } from './Revisions';
-import { EntityIcon } from '../components/EntityIcon';
+import { Glyph, type GlyphName } from '../components/Glyph';
 
 export function StudyHub() {
   const nav = useNavigate();
@@ -72,57 +72,21 @@ export function StudyHub() {
   return (
     <Page
       title="Study"
+      subtitle="Learn • Revise • Excel"
+      glyph="cap"
       right={
         <IconButton label="Log study session" onClick={() => nav('/r/study_sessions/new')}>
           <Plus size={19} />
         </IconButton>
       }
     >
-      <HeroCard>
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-[13px] opacity-80">Studied today</p>
-            <p className="mt-1 text-[28px] font-bold tracking-tight">
-              {Math.floor(todayMin / 60)}h {todayMin % 60}m
-            </p>
-            <p className="text-[12px] opacity-80">
-              This week: {Math.floor(weekMin / 60)}h {weekMin % 60}m
-            </p>
-          </div>
-          <Button size="sm" onClick={() => nav('/pomodoro')}>
-            <Timer size={15} /> Focus
-          </Button>
-        </div>
-        {data.exams[0] && (
-          <div className="mt-3 rounded-[14px] p-2.5" style={{ background: 'rgba(255,255,255,.12)' }}>
-            <p className="text-[12px] opacity-80">Next exam</p>
-            <p className="text-[15px] font-semibold">
-              {data.exams[0].name} · {daysLeft(data.exams[0].exam_date)} days left
-            </p>
-          </div>
-        )}
-      </HeroCard>
-
-      <Card>
-        <p className="mb-2 text-[13px] font-semibold">Last 7 days (minutes)</p>
-        <BarChart data={week} format={(v) => `${v}m`} height={90} />
-      </Card>
-
-      <div className="grid grid-cols-3 gap-2">
-        <Shortcut icon={<ClipboardCheck size={16} />} label="Tests" onClick={() => nav('/tests')} />
-        <Shortcut icon={<GraduationCap size={16} />} label="Exams" onClick={() => nav('/exams')} />
-        <Shortcut icon={<BookOpen size={16} />} label="Sessions" onClick={() => nav('/sessions')} />
-      </div>
-
-      <RevisionSummary />
-
-      {data.chapters.length === 0 && (
-        <Card className="flex items-center gap-3">
-          <IconBubble tone="violet"><LibraryBig size={17} /></IconBubble>
-          <p className="flex-1 text-[13px] text-muted">Load JEE, NEET or board chapters in one tap.</p>
-          <Button size="sm" variant="primary" onClick={() => setTplOpen(true)}>Templates</Button>
-        </Card>
-      )}
+      <TodayProgress
+        todayMin={todayMin}
+        weekMin={weekMin}
+        chaptersToday={data.chapters.filter((c) => c.status === 'completed' && String(c.updated_at ?? '').slice(0, 10) === todayISO()).length}
+        testsToday={data.tests.filter((t) => t.test_date === todayISO()).length}
+        exam={data.exams[0] ? { name: data.exams[0].name, days: daysLeft(data.exams[0].exam_date) } : null}
+      />
 
       <SectionTitle
         right={
@@ -135,33 +99,63 @@ export function StudyHub() {
         Subjects
       </SectionTitle>
       {data.subjects.length === 0 ? (
-        <Empty title="No subjects" />
+        <Empty title="No subjects" text="Add subjects or load a JEE / NEET / board template." />
       ) : (
-        <div className="space-y-2.5">
+        <div className="grid grid-cols-3 gap-2.5">
           {data.subjects.map((s) => {
             const ch = data.chapters.filter((c) => c.subject_id === s.id);
             const done = ch.filter((c) => c.status === 'completed').length;
             const pct = ch.length ? Math.round((done / ch.length) * 100) : 0;
-            const mins = data.sessions.filter((x) => x.subject_id === s.id).reduce((a, x) => a + x.minutes, 0);
             return (
-              <div key={s.id} onClick={() => nav(`/r/subjects/${s.id}`)} className="glass cursor-pointer rounded-[18px] p-3.5 active:scale-[0.99] transition-transform">
-                <div className="flex items-center gap-3">
-                  <EntityIcon table="subjects" id={s.id} fallback={BookOpen} fallbackTone="blue" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[14.5px] font-semibold">{s.name}</p>
-                    <p className="text-[12.5px] text-muted">
-                      {done}/{ch.length} chapters · {mins} min this week
-                    </p>
-                  </div>
-                  <span className="text-[14px] font-bold">{pct}%</span>
-                </div>
-                <div className="mt-2.5">
-                  <ProgressBar pct={pct} />
-                </div>
-              </div>
+              <button key={s.id} type="button" onClick={() => nav(`/r/subjects/${s.id}`)} className="glass press flex flex-col items-center rounded-[18px] px-1.5 pb-3 pt-3.5 text-center">
+                <Glyph name={subjectGlyph(s.name)} size={40} />
+                <span className="mt-1.5 w-full truncate text-[13px] font-semibold">{s.name}</span>
+                <span className="text-[12px] text-muted">{pct}%</span>
+                <span className="mt-1.5 h-1.5 w-3/4 overflow-hidden rounded-full bg-[var(--hairline)]">
+                  <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: pct >= 70 ? 'var(--tone-income)' : pct >= 35 ? 'var(--tone-amber-solid, #f59e0b)' : 'var(--primary-2)' }} />
+                </span>
+              </button>
             );
           })}
         </div>
+      )}
+
+      <RevisionSummary />
+
+      <div className="glass rounded-[22px] p-3.5">
+        <div className="flex items-center gap-2">
+          <Glyph name="stopwatch" size={30} />
+          <p className="min-w-0 flex-1 text-[16px] font-bold">Study Timer</p>
+          <button type="button" className="text-[12.5px] font-semibold text-primary" onClick={() => nav('/clock?tab=stopwatch')}>
+            Stopwatch
+          </button>
+        </div>
+        <div className="mt-2 flex items-center justify-center gap-4">
+          <p className="tabular text-[40px] font-bold tracking-tight">25:00</p>
+          <button type="button" aria-label="Start focus timer" onClick={() => nav('/pomodoro')} className="fab-glow press flex h-14 w-14 items-center justify-center rounded-full text-white">
+            <Timer size={24} />
+          </button>
+        </div>
+        <p className="text-center text-[12.5px] text-muted">Study 25 min · Break 5 min · saved to today's study time</p>
+      </div>
+
+      <Card>
+        <p className="mb-2 text-[13px] font-semibold">Last 7 days (minutes)</p>
+        <BarChart data={week} format={(v) => `${v}m`} height={90} />
+      </Card>
+
+      <div className="grid grid-cols-3 gap-2">
+        <Shortcut icon={<ClipboardCheck size={16} />} label="Tests" onClick={() => nav('/tests')} />
+        <Shortcut icon={<GraduationCap size={16} />} label="Exams" onClick={() => nav('/exams')} />
+        <Shortcut icon={<BookOpen size={16} />} label="Sessions" onClick={() => nav('/sessions')} />
+      </div>
+
+      {data.chapters.length === 0 && (
+        <Card className="flex items-center gap-3">
+          <IconBubble tone="violet"><LibraryBig size={17} /></IconBubble>
+          <p className="flex-1 text-[13px] text-muted">Load JEE, NEET or board chapters in one tap.</p>
+          <Button size="sm" variant="primary" onClick={() => setTplOpen(true)}>Templates</Button>
+        </Card>
       )}
 
       {(weak.length > 0 || backlog.length > 0) && (
@@ -230,6 +224,88 @@ function TemplateSheet({ open, onClose, onApplied }: { open: boolean; onClose: (
         ))}
       </List>
     </Sheet>
+  );
+}
+
+/** a picture for the subject from its name */
+function subjectGlyph(name: string): GlyphName {
+  const n = name.toLowerCase();
+  if (/math|maths|ganit/.test(n)) return 'sigma';
+  if (/phys/.test(n)) return 'atom';
+  if (/chem|rasayan/.test(n)) return 'flask';
+  if (/bio|botany|zoology/.test(n)) return 'leaf';
+  if (/geo|history|civic|social|polit|econ/.test(n)) return 'globe';
+  if (/computer|coding|program|it\b/.test(n)) return 'phone';
+  return 'book';
+}
+
+const GOAL_KEY = 'study-daily-goal-min';
+function dailyGoal(): number {
+  try {
+    return Number(localStorage.getItem(GOAL_KEY)) || 180;
+  } catch {
+    return 180;
+  }
+}
+
+function TodayProgress({ todayMin, weekMin, chaptersToday, testsToday, exam }: { todayMin: number; weekMin: number; chaptersToday: number; testsToday: number; exam: { name: string; days: number } | null }) {
+  const [goal, setGoal] = useState(dailyGoal);
+  const pct = Math.min(100, Math.round((todayMin / goal) * 100));
+  const R = 44;
+  const L = 2 * Math.PI * R;
+  const editGoal = () => {
+    const v = window.prompt('Daily study goal (minutes)', String(goal));
+    const n = Number(v);
+    if (n > 0 && n <= 1000) {
+      setGoal(n);
+      try {
+        localStorage.setItem(GOAL_KEY, String(n));
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+  const Line = ({ ok, text }: { ok: boolean; text: string }) => (
+    <p className="flex items-center gap-2 text-[13.5px]">
+      <span className={'flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold text-white ' + (ok ? 'bg-[var(--tone-income)]' : 'bg-[var(--hairline)]')}>✓</span>
+      {text}
+    </p>
+  );
+  return (
+    <div className="hero relative overflow-hidden rounded-[24px] p-4">
+      <p className="text-[15px] font-bold">Today's Progress</p>
+      <div className="mt-2 flex items-center gap-4">
+        <button type="button" onClick={editGoal} aria-label="Change daily goal" className="relative h-[108px] w-[108px] shrink-0">
+          <svg width="108" height="108" viewBox="0 0 108 108" className="-rotate-90">
+            <defs>
+              <linearGradient id="study-ring" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stopColor="#22d3ee" />
+                <stop offset="1" stopColor="#3b82f6" />
+              </linearGradient>
+            </defs>
+            <circle cx="54" cy="54" r={R} fill="none" stroke="rgba(255,255,255,.14)" strokeWidth="10" />
+            <circle cx="54" cy="54" r={R} fill="none" stroke="url(#study-ring)" strokeWidth="10" strokeLinecap="round" strokeDasharray={`${(L * pct) / 100} ${L}`} />
+          </svg>
+          <span className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-[24px] font-bold leading-none">{pct}%</span>
+            <span className="mt-0.5 text-[10px] opacity-75">of {goal} min</span>
+          </span>
+        </button>
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <Line ok={chaptersToday > 0} text={`${chaptersToday} chapter${chaptersToday === 1 ? '' : 's'} done`} />
+          <Line ok={testsToday > 0} text={`${testsToday} mock test${testsToday === 1 ? '' : 's'}`} />
+          <Line ok={todayMin > 0} text={`${Math.floor(todayMin / 60) ? `${Math.floor(todayMin / 60)}h ` : ''}${todayMin % 60} min study`} />
+          <p className="text-[11.5px] opacity-75">This week {Math.floor(weekMin / 60)}h {weekMin % 60}m</p>
+        </div>
+      </div>
+      {exam && (
+        <div className="mt-3 rounded-[14px] px-3 py-2" style={{ background: 'rgba(255,255,255,.12)' }}>
+          <p className="text-[13px] font-semibold">
+            {exam.name} · {exam.days} days left
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 

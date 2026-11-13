@@ -5,7 +5,8 @@ import { useId, type ReactNode } from 'react';
 export type GlyphName =
   | 'shoe' | 'moon' | 'phone' | 'earbuds' | 'watch' | 'scale' | 'heart' | 'flame' | 'activity' | 'body'
   | 'calendar' | 'check' | 'book' | 'cap' | 'chart' | 'money' | 'dumbbell' | 'card' | 'bank' | 'shield'
-  | 'clock' | 'bell' | 'wallet' | 'handshake' | 'gift' | 'receipt' | 'target' | 'briefcase';
+  | 'clock' | 'bell' | 'wallet' | 'handshake' | 'gift' | 'receipt' | 'target' | 'briefcase'
+  | 'gear' | 'barchart' | 'sigma' | 'atom' | 'flask' | 'leaf' | 'globe' | 'grid' | 'lock' | 'sparkle' | 'trash' | 'info' | 'palette' | 'cloud' | 'stopwatch' | 'people';
 
 type G = (id: (k: string) => string) => ReactNode;
 
@@ -382,6 +383,192 @@ const GLYPHS: Record<GlyphName, G> = {
       <rect x="5" y="24" width="38" height="3" fill="#6b21a8" opacity=".5" />
       <rect x="21" y="22" width="6" height="7" rx="1.5" fill="#fde68a" />
       {shine(16, 17, 8, 2, 0.35)}
+    </>
+  ),
+  gear: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#93c5fd'], ['1', '#2563eb']], '1', '1')}
+      </defs>
+      {floor}
+      <path d="M21 3h6l1 5 4 2 4-3 4 4-3 4 2 4 5 1v6l-5 1-2 4 3 4-4 4-4-3-4 2-1 5h-6l-1-5-4-2-4 3-4-4 3-4-2-4-5-1v-6l5-1 2-4-3-4 4-4 4 3 4-2z" fill={`url(#${i('a')})`} />
+      <circle cx="24" cy="24" r="7" fill="#0b1a3d" />
+      <circle cx="24" cy="24" r="4" fill="#bfdbfe" />
+      {shine(18, 10, 5, 2, 0.4)}
+    </>
+  ),
+  barchart: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#93c5fd'], ['1', '#2563eb']])}
+        {lg(i('b'), [['0', '#c4b5fd'], ['1', '#7c3aed']])}
+        {lg(i('c'), [['0', '#67e8f9'], ['1', '#0891b2']])}
+      </defs>
+      {floor}
+      <rect x="6" y="26" width="9" height="16" rx="2.5" fill={`url(#${i('c')})`} />
+      <rect x="19.5" y="16" width="9" height="26" rx="2.5" fill={`url(#${i('b')})`} />
+      <rect x="33" y="6" width="9" height="36" rx="2.5" fill={`url(#${i('a')})`} />
+      <path d="M8 20l13-9 7 4 13-10" stroke="#fff" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity=".9" />
+    </>
+  ),
+  sigma: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#a5b4fc'], ['1', '#4f46e5']], '1', '1')}
+      </defs>
+      <path d="M10 6h28v8h-4l-1-3H20l9 13-9 13h13l1-3h4v8H10v-4l12-14L10 10z" fill={`url(#${i('a')})`} />
+      {shine(20, 8, 8, 1.5, 0.45)}
+    </>
+  ),
+  atom: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#93c5fd'], ['1', '#7c3aed']], '1', '1')}
+      </defs>
+      <g fill="none" stroke={`url(#${i('a')})`} strokeWidth="2.6">
+        <ellipse cx="24" cy="24" rx="20" ry="8" />
+        <ellipse cx="24" cy="24" rx="20" ry="8" transform="rotate(60 24 24)" />
+        <ellipse cx="24" cy="24" rx="20" ry="8" transform="rotate(120 24 24)" />
+      </g>
+      <circle cx="24" cy="24" r="4.5" fill="#f472b6" />
+    </>
+  ),
+  flask: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#fde68a'], ['1', '#f59e0b']])}
+      </defs>
+      {floor}
+      <path d="M18 4h12v4h-2v10l11 19c2 3 0 6-3 6H12c-3 0-5-3-3-6l11-19V8h-2z" fill="#e0f2fe" opacity=".35" stroke="#bae6fd" strokeWidth="1.2" />
+      <path d="M14 30h20l5 7c2 3 0 6-3 6H12c-3 0-5-3-3-6z" fill={`url(#${i('a')})`} />
+      <circle cx="20" cy="36" r="2" fill="#fff" opacity=".8" />
+      <circle cx="27" cy="33" r="1.4" fill="#fff" opacity=".8" />
+    </>
+  ),
+  leaf: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#86efac'], ['1', '#15803d']], '1', '1')}
+      </defs>
+      {floor}
+      <path d="M40 6C18 6 7 17 8 38c21 1 32-10 32-32z" fill={`url(#${i('a')})`} />
+      <path d="M10 40C18 28 26 20 36 12" stroke="#dcfce7" strokeWidth="2" fill="none" strokeLinecap="round" />
+    </>
+  ),
+  globe: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#7dd3fc'], ['1', '#0369a1']], '1', '1')}
+      </defs>
+      <circle cx="24" cy="24" r="19" fill={`url(#${i('a')})`} />
+      <path d="M12 14c5 2 6 6 4 9s1 6 5 6 2 6 0 9M30 8c-2 4 1 6 5 6s5 4 3 8-5 5-5 9" stroke="#bbf7d0" strokeWidth="3" fill="none" strokeLinecap="round" />
+      {shine(17, 13, 6, 3, 0.35)}
+    </>
+  ),
+  grid: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#93c5fd'], ['1', '#2563eb']], '1', '1')}
+        {lg(i('b'), [['0', '#f9a8d4'], ['1', '#db2777']], '1', '1')}
+        {lg(i('c'), [['0', '#86efac'], ['1', '#16a34a']], '1', '1')}
+        {lg(i('d'), [['0', '#fde68a'], ['1', '#f59e0b']], '1', '1')}
+      </defs>
+      <rect x="5" y="5" width="17" height="17" rx="5" fill={`url(#${i('a')})`} />
+      <rect x="26" y="5" width="17" height="17" rx="5" fill={`url(#${i('b')})`} />
+      <rect x="5" y="26" width="17" height="17" rx="5" fill={`url(#${i('c')})`} />
+      <rect x="26" y="26" width="17" height="17" rx="5" fill={`url(#${i('d')})`} />
+    </>
+  ),
+  lock: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#6ee7b7'], ['1', '#059669']], '1', '1')}
+      </defs>
+      {floor}
+      <path d="M15 21v-6a9 9 0 0 1 18 0v6" stroke="#94a3b8" strokeWidth="4" fill="none" />
+      <rect x="9" y="20" width="30" height="22" rx="6" fill={`url(#${i('a')})`} />
+      <circle cx="24" cy="30" r="3" fill="#064e3b" />
+      <rect x="22.8" y="31" width="2.4" height="6" rx="1.2" fill="#064e3b" />
+    </>
+  ),
+  sparkle: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#c4b5fd'], ['.5', '#60a5fa'], ['1', '#22d3ee']], '1', '1')}
+      </defs>
+      <path d="M22 4l4 12 12 4-12 4-4 12-4-12-12-4 12-4z" fill={`url(#${i('a')})`} />
+      <path d="M38 28l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="#fbbf24" />
+    </>
+  ),
+  trash: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#c4b5fd'], ['1', '#7c3aed']])}
+      </defs>
+      {floor}
+      <rect x="8" y="9" width="32" height="5" rx="2.5" fill="#a78bfa" />
+      <rect x="19" y="5" width="10" height="5" rx="2" fill="#a78bfa" />
+      <path d="M11 16h26l-2 24c0 2-2 3-4 3H17c-2 0-4-1-4-3z" fill={`url(#${i('a')})`} />
+      <path d="M19 22v14M24 22v14M29 22v14" stroke="#ede9fe" strokeWidth="2" strokeLinecap="round" />
+    </>
+  ),
+  info: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#7dd3fc'], ['1', '#2563eb']], '1', '1')}
+      </defs>
+      <circle cx="24" cy="24" r="19" fill={`url(#${i('a')})`} />
+      <circle cx="24" cy="15" r="2.8" fill="#fff" />
+      <rect x="21.5" y="21" width="5" height="15" rx="2.5" fill="#fff" />
+    </>
+  ),
+  palette: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#fde68a'], ['1', '#f59e0b']], '1', '1')}
+      </defs>
+      {floor}
+      <path d="M24 5C12 5 4 13 4 23c0 9 7 15 13 15 4 0 4-3 3-5-1-3 1-5 4-5h6c6 0 14-3 14-11C44 10 35 5 24 5z" fill={`url(#${i('a')})`} />
+      <circle cx="14" cy="20" r="3.2" fill="#ef4444" />
+      <circle cx="22" cy="13" r="3.2" fill="#3b82f6" />
+      <circle cx="32" cy="14" r="3.2" fill="#22c55e" />
+      <circle cx="37" cy="22" r="3.2" fill="#a855f7" />
+    </>
+  ),
+  cloud: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#ffffff'], ['1', '#93c5fd']])}
+      </defs>
+      {floor}
+      <path d="M14 38a9 9 0 0 1-1-18 12 12 0 0 1 23 2 8 8 0 0 1 0 16z" fill={`url(#${i('a')})`} />
+      <path d="M24 34V22m-5 5l5-5 5 5" stroke="#2563eb" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
+  stopwatch: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#ffffff'], ['1', '#c7d2fe']], '1', '1')}
+      </defs>
+      {floor}
+      <rect x="20" y="2" width="8" height="5" rx="2" fill="#f59e0b" />
+      <circle cx="24" cy="26" r="17" fill="#f97316" />
+      <circle cx="24" cy="26" r="13.5" fill={`url(#${i('a')})`} />
+      <path d="M24 26V16" stroke="#1e1b4b" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="24" cy="26" r="2.4" fill="#1e1b4b" />
+    </>
+  ),
+  people: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#fdba74'], ['1', '#ea580c']], '1', '1')}
+        {lg(i('b'), [['0', '#fde68a'], ['1', '#f59e0b']], '1', '1')}
+      </defs>
+      {floor}
+      <circle cx="32" cy="14" r="6" fill={`url(#${i('b')})`} />
+      <path d="M22 40c0-8 4-14 10-14s10 6 10 14z" fill={`url(#${i('b')})`} />
+      <circle cx="18" cy="16" r="7" fill={`url(#${i('a')})`} />
+      <path d="M5 42c0-9 6-15 13-15s13 6 13 15z" fill={`url(#${i('a')})`} />
     </>
   ),
 };

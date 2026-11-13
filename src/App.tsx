@@ -44,8 +44,10 @@ import { WeightScreen } from './screens/Weight';
 import { ScreenTimeScreen } from './screens/ScreenTime';
 import { TimelineScreen } from './screens/Timeline';
 import { CreditScreen } from './screens/Credit';
+import { ClockScreen } from './screens/Clock';
 import { SetupScreen } from './screens/Setup';
 import { onReminderTap, scheduleReminders } from './lib/reminders';
+import { rescheduleAlarms } from './lib/clock';
 import { saveFinishedFocusSession } from './lib/focusGuard';
 import { checkScreenGoalAlert, syncScreenTimeTotals } from './lib/screenTime';
 import { syncAll } from './lib/sheets';
@@ -179,6 +181,7 @@ function ReminderSync() {
     if (!user) return;
     const run = () => {
       scheduleReminders(user.id).catch(() => {});
+      rescheduleAlarms().catch(() => {});
       saveFinishedFocusSession().catch(() => {});
       syncScreenTimeTotals().catch(() => {});
       checkScreenGoalAlert().catch(() => {});
@@ -255,6 +258,7 @@ function Gate() {
           <Route path="/screen-time" element={<ScreenTimeScreen />} />
           <Route path="/timeline" element={<TimelineScreen />} />
           <Route path="/credit" element={<CreditScreen />} />
+          <Route path="/clock" element={<ClockScreen />} />
           <Route path="/setup" element={<SetupScreen />} />
           <Route path="/recurring" element={<RecurringScreen />} />
           <Route path="/lists" element={<ListsScreen />} />

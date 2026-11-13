@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Landmark, Tag, Plus, QrCode, FileText, HandCoins, Target, Users, Wand2, Smartphone, CreditCard, Gauge, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Landmark, Tag, Plus, QrCode, FileText, HandCoins, Target, Users, Wand2, Smartphone, CreditCard, Gauge, Search, SlidersHorizontal, X, TrendingUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchBalances, fetchMoney, friendlyError, type Balance, type Row } from '../lib/db';
 import { currentMonth, monthLabel, monthRange, shiftMonth, toISODate, todayISO } from '../lib/dates';
 import { useCustomOptions } from '../lib/options';
-import { BankCardCarousel } from '../components/BankCard';
+import { BankCardCarousel, MiniAccountCard } from '../components/BankCard';
+import { Glyph } from '../components/Glyph';
+import { fetchCreditAccounts, type CreditAccount } from '../lib/credit';
 import { formatINR, sumPaise } from '../lib/money';
 import { ACCOUNT_TYPES, UPI_APPS, optionLabel, isSpendable } from '../lib/tables';
 import { useLookups } from '../lib/useLookups';
@@ -22,9 +24,19 @@ export function Finance() {
   const tab = (params.get('tab') as Tab) || 'overview';
   const setTab = (t: Tab) => setParams({ tab: t }, { replace: true });
   const [month, setMonth] = useState(currentMonth());
+  const nav = useNavigate();
 
   return (
-    <Page title="Finance">
+    <Page
+      title="Finance"
+      subtitle="Track • Plan • Grow"
+      glyph="barchart"
+      right={
+        <button type="button" aria-label="Reports" onClick={() => nav('/reports')} className="glass press flex h-10 w-10 items-center justify-center rounded-full">
+          <TrendingUp size={18} />
+        </button>
+      }
+    >
       <Segmented
         value={tab}
         onChange={setTab}
@@ -92,12 +104,20 @@ const TOOLS = [
 function Overview({ month }: { month: string }) {
   const nav = useNavigate();
   const { data, error, reload } = useMonthData(month);
-  const [balances, setBalances] = useState<Balance[] | null>(null);
+  const [balances, setBalances] = useState<CreditAccount[] | null>(null);
   const [six, setSix] = useState<{ amount_paise: number; txn_date: string }[]>([]);
+  const [sixIn, setSixIn] = useState<{ amount_paise: number; txn_date: string }[]>([]);
   const { nameOf } = useLookups();
 
   useEffect(() => {
-    fetchBalances().then(setBalances).catch(() => setBalances([]));
+    fetchCreditAccounts().then(setBalances).catch(() => setBalances([]));
+    const from = monthRange(shiftMonth(currentMonth(), -5)).from;
+    supabase
+      .from('incomes')
+      .select('amount_paise,txn_date')
+      .is('deleted_at', null)
+      .gte('txn_date', from)
+      .then(({ data }) => setSixIn((data as { amount_paise: number; txn_date: string }[] | null) ?? []));
   }, []);
   useEffect(() => {
     const from = monthRange(shiftMonth(currentMonth(), -5)).from;
@@ -135,8 +155,18 @@ function Overview({ month }: { month: string }) {
   return (
     <>
       <HeroCard>
-        <p className="text-[13px] opacity-80">Total balance</p>
-        <p className="mt-1 text-[30px] font-bold tracking-tight">{formatINR(total)}</p>
+        <div className="flex items-end gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="mt-1 text-[30px] font-bold leading-tight tracking-tight">{formatINR(total)}</p>
+            <p className="text-[13px] opacity-80">Total balance</p>
+            {inc - exp !== 0 && (
+              <p className="mt-1 text-[13px] font-semibold" style={{ color: inc - exp >= 0 ? 'var(--tone-income)' : 'var(--tone-expense)' }}>
+                {inc - exp >= 0 ? '↑' : '↓'} {formatINR(Math.abs(inc - exp))} this month
+              </p>
+            )}
+          </div>
+          <MiniBars values={sixMonthBars(sixIn).map((b) => b.value)} />
+        </div>
         <div className="mt-3 grid grid-cols-3 gap-2">
           <div className="rounded-[14px] p-2.5" style={{ background: 'rgba(255,255,255,.12)' }}>
             <p className="text-[11.5px] opacity-80">Income</p>
@@ -201,10 +231,34 @@ function Overview({ month }: { month: string }) {
         </>
       )}
 
-      <SectionTitle right={<SeeAll onClick={() => nav('/finance?tab=accounts')} />}>Accounts & UPI apps</SectionTitle>
-      {!balances ? <Spinner /> : <AccountList rows={balances} />}
+      <SectionTitle right={<SeeAll onClick={() => nav('/finance?tab=accounts')} />}>Your accounts</SectionTitle>
+      {!balances ? (
+        <Spinner />
+      ) : (
+        <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+          {balances
+            .filter((b) => isSpendable(b.type) || b.type === 'credit_card' || b.type === 'pay_later')
+            .sort((x, y) => Number(!!(y.card_network || y.card_last4)) - Number(!!(x.card_network || x.card_last4)) || y.balance_paise - x.balance_paise)
+            .map((b) => (
+              <MiniAccountCard key={b.id} a={b} onClick={() => nav(`/r/accounts/${b.id}`)} />
+            ))}
+          <button type="button" onClick={() => nav('/r/accounts/new')} className="glass press flex h-[132px] w-[96px] shrink-0 flex-col items-center justify-center gap-1.5 rounded-[16px]">
+            <Plus size={26} className="text-primary" />
+            <span className="text-[12.5px] font-semibold">Add Account</span>
+          </button>
+        </div>
+      )}
 
-      <SectionTitle>Recent</SectionTitle>
+      <button type="button" onClick={() => nav('/budgets')} className="tint-card press flex w-full items-center gap-3 rounded-[18px] p-3 text-left" style={{ ['--tint' as string]: 'var(--tone-pink)' }}>
+        <Glyph name="target" size={40} />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[14.5px] font-semibold">Set a budget for this month</span>
+          <span className="block text-[12px] text-muted">Stay on track — get an alert at 80%</span>
+        </span>
+        <span className="rounded-full bg-[var(--primary)] px-3 py-1.5 text-[12.5px] font-semibold text-[var(--on-primary,#fff)]">Set now</span>
+      </button>
+
+      <SectionTitle right={<SeeAll onClick={() => nav('/finance?tab=transactions')} />}>Recent transactions</SectionTitle>
       {recent.length === 0 ? (
         <Empty title="No entries this month" text="Add income or an expense to get started." />
       ) : (
@@ -610,5 +664,22 @@ function Categories() {
         <Plus size={16} /> Add category
       </Button>
     </>
+  );
+}
+
+/** six small rising bars (income per month) beside the balance */
+function MiniBars({ values }: { values: number[] }) {
+  const max = Math.max(1, ...values);
+  if (!values.some((v) => v > 0)) return null;
+  return (
+    <div className="flex h-[64px] shrink-0 items-end gap-[5px]" aria-label="Income, last 6 months">
+      {values.map((v, i) => (
+        <span
+          key={i}
+          className="w-[9px] rounded-t-[3px]"
+          style={{ height: `${Math.max(6, (v / max) * 100)}%`, background: i === values.length - 1 ? 'linear-gradient(180deg,#86efac,#16a34a)' : 'linear-gradient(180deg,#93c5fd,#2563eb)', opacity: 0.6 + (0.4 * (i + 1)) / values.length }}
+        />
+      ))}
+    </div>
   );
 }

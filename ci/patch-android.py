@@ -55,5 +55,10 @@ for p in perms:
     if tag not in m:
         m = m.replace('</manifest>', f'    {tag}\n</manifest>', 1)
 
+# Clock: alarms and countdown timers ring on time (the user allows "Alarms & reminders" once)
+for tag in ['<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />']:
+    if tag not in m:
+        m = m.replace('</manifest>', f'    {tag}\n</manifest>', 1)
+
 mf.write_text(m)
 print('manifest patched:', 'ViewPermissionUsageActivity' in m, 'ACTION_SHOW_PERMISSIONS_RATIONALE' in m)

@@ -1,7 +1,7 @@
 // Home: "Health & connected devices" — one configurable carousel. Shows only data the app really has.
 import { useCallback, useEffect, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Footprints, Moon, Scale, HeartPulse, Flame, Activity, MonitorSmartphone, Headphones, Watch, Settings2, GripVertical, RotateCcw, Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Footprints, Moon, Scale, HeartPulse, Flame, Activity, MonitorSmartphone, Headphones, Watch, Settings2, GripVertical, RotateCcw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { todayISO } from '../lib/dates';
 import { healthAvailable, readToday, saveHealthSnapshot } from '../lib/health';
@@ -195,15 +195,13 @@ export function HealthCarousel() {
     <>
       <div className="flex items-center gap-2 px-1">
         <Glyph name="heart" size={26} />
-        <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold">Health &amp; Devices</p>
-        <button
-          type="button"
-          onClick={() => set({ ...prefs, auto: !prefs.auto })}
-          className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-semibold"
-          style={prefs.auto ? { background: 'var(--tone-income-bg)', color: 'var(--tone-income)' } : { background: 'var(--card-2)', color: 'var(--muted)' }}
-        >
-          Auto slide {prefs.auto ? <Play size={11} fill="currentColor" /> : <Pause size={11} />}
-        </button>
+        <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold">Health &amp; Connected Devices</p>
+        {shown.length > 5 && (
+          <>
+            <span className="text-[12px] text-primary">Auto</span>
+            <Toggle checked={prefs.auto} onChange={(v) => set({ ...prefs, auto: v })} />
+          </>
+        )}
         <button type="button" aria-label="Health carousel settings" onClick={() => setSetup(true)} className="p-1 text-muted">
           <Settings2 size={17} />
         </button>
@@ -216,49 +214,27 @@ export function HealthCarousel() {
         </div>
       ) : (
         <div
-          className="glass rounded-[24px] p-3"
+          ref={track}
+          className="-mx-1 flex gap-2 overflow-x-auto scroll-smooth px-1 pb-0.5 [scrollbar-width:none]"
           onPointerDown={() => setTouching(true)}
           onPointerUp={() => setTouching(false)}
           onPointerCancel={() => setTouching(false)}
           onPointerLeave={() => setTouching(false)}
+          onScroll={(e) => setIdx(Math.round(e.currentTarget.scrollLeft / step()))}
         >
-          <div
-            ref={track}
-            className="flex gap-2.5 overflow-x-auto scroll-smooth [scrollbar-width:none]"
-            onScroll={(e) => setIdx(Math.round(e.currentTarget.scrollLeft / step()))}
-          >
-            {shown.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => nav(s.to)}
-                className="health-tile press flex w-[31%] min-w-[104px] shrink-0 flex-col items-center rounded-[18px] px-2 py-3 text-center"
-                style={{ ['--tile' as string]: TILE[s.id] }}
-              >
-                <span className="flex h-[50px] w-[50px] items-center justify-center">
-                  <Glyph name={BIG_ICON[s.id]} size={48} />
-                </span>
-                <span className="mt-1.5 block w-full truncate text-[12px] font-medium opacity-85">{s.label ?? LABEL[s.id]}</span>
-                <span className={cx('block w-full truncate font-bold tracking-tight', s.value.length > 9 ? 'text-[14.5px]' : 'text-[17px]')}>{s.value}</span>
-                <span className="block w-full truncate text-[10.5px]" style={{ color: TILE[s.id] }}>{s.sub}</span>
-              </button>
-            ))}
-          </div>
-          {shown.length > 3 && (
-            <div className="mt-2.5 flex items-center justify-between">
-              <button type="button" aria-label="Previous" onClick={() => go(idx - 1)} className="glass press flex h-8 w-8 items-center justify-center rounded-full">
-                <ChevronLeft size={16} />
-              </button>
-              <div className="flex gap-1.5">
-                {Array.from({ length: Math.max(1, shown.length - 2) }).map((_, i) => (
-                  <button key={i} type="button" aria-label={`Go to ${i + 1}`} onClick={() => go(i)} className={cx('h-1.5 rounded-full transition-all', i === idx ? 'w-4 bg-[var(--primary-2)]' : 'w-1.5 bg-[var(--hairline)]')} />
-                ))}
-              </div>
-              <button type="button" aria-label="Next" onClick={() => go(idx + 1)} className="glass press flex h-8 w-8 items-center justify-center rounded-full">
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          )}
+          {shown.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => nav(s.to)}
+              className="health-tile press flex w-[calc((100%-32px)/5)] min-w-[68px] shrink-0 flex-col items-center rounded-[16px] px-1 pb-2 pt-2.5 text-center"
+              style={{ ['--tile' as string]: TILE[s.id] }}
+            >
+              <Glyph name={BIG_ICON[s.id]} size={34} />
+              <span className={cx('mt-1.5 block w-full truncate font-bold leading-tight tracking-tight', s.value.length > 8 ? 'text-[11.5px]' : 'text-[14px]')}>{s.value}</span>
+              <span className="block w-full truncate text-[10.5px] opacity-75">{s.label ?? LABEL[s.id]}</span>
+            </button>
+          ))}
         </div>
       )}
 

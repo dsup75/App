@@ -245,3 +245,37 @@ export function BankCardCarousel({ rows }: { rows: Balance[] }) {
     </div>
   );
 }
+
+/** Small upright card for "Your Accounts" rows (Finance overview, like the reference design) */
+export function MiniAccountCard({
+  a,
+  hidden,
+  onClick,
+}: {
+  a: { id: string; name: string; type: string; upi_app?: string | null; balance_paise: number; card_last4?: string | null; account_number?: string | null; card_network?: CardExtra['card_network']; card_color?: string | null };
+  hidden?: boolean;
+  onClick?: () => void;
+}) {
+  const base = cardLook(a);
+  const look = a.card_color ? { ...base, from: a.card_color, to: '#0b0b0b' } : base;
+  const last4 = a.card_last4 || (a.account_number ? a.account_number.replace(/\s/g, '').slice(-4) : null);
+  const owes = CREDIT_TYPES.includes(a.type);
+  const amount = owes ? Math.max(0, -a.balance_paise) : a.balance_paise;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="bank-card press relative flex h-[132px] w-[118px] shrink-0 flex-col overflow-hidden rounded-[16px] p-2.5 text-left text-white"
+      style={{ background: `linear-gradient(140deg, ${look.from}, ${look.to})`, boxShadow: '0 10px 22px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.28)' }}
+    >
+      <span className="card-sheen" />
+      <span className="truncate text-[15px] font-black italic leading-tight" style={{ color: look.accent }}>{look.mark}</span>
+      <span className="mt-1 truncate font-mono text-[10.5px] tracking-wider opacity-90">{last4 ? `•••• ${hidden ? '••••' : last4}` : a.name}</span>
+      <span className="mt-auto flex items-center justify-between">
+        <span className="text-[10px] opacity-75">{owes ? 'Due' : 'Balance'}</span>
+        {a.card_network && <NetworkMark network={a.card_network} size={10} />}
+      </span>
+      <span className="truncate text-[16px] font-bold leading-tight">{hidden ? '₹ ••••' : formatINR(amount)}</span>
+    </button>
+  );
+}

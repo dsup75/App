@@ -9,7 +9,7 @@ import { useLookups } from '../lib/useLookups';
 import { useToast } from '../context/ToastContext';
 import { RecordLine } from '../components/RecordLine';
 import { TaskLine } from './Home';
-import { Empty, ErrorBox, HeroCard, IconBubble, IconButton, List, ListRow, Page, Segmented, Spinner } from '../components/ui';
+import { Empty, ErrorBox, HeroCard, IconBubble, IconButton, List, ListRow, Page, SectionTitle, SeeAll, Segmented, Spinner } from '../components/ui';
 
 type Tab = 'clients' | 'tasks' | 'campaigns';
 
@@ -67,7 +67,9 @@ export function ClientsHub() {
 
   return (
     <Page
-      title="Clients"
+      title="Work"
+      subtitle="Clients • Projects • Growth"
+      glyph="briefcase"
       right={
         <IconButton label="Add" onClick={() => nav(addPath)}>
           <Plus size={19} />
@@ -115,11 +117,26 @@ export function ClientsHub() {
         clients.length === 0 ? (
           <Empty title="No clients yet" text="Add your first client to track tasks, invoices and campaigns." />
         ) : (
-          <List>
-            {clients.map((c) => (
-              <RecordLine key={c.id} table="clients" row={c} nameOf={nameOf} />
-            ))}
-          </List>
+          <>
+            <List>
+              {clients.map((c) => (
+                <RecordLine key={c.id} table="clients" row={c} nameOf={nameOf} />
+              ))}
+            </List>
+            {tasks.filter((t) => t.due_date && t.due_date <= today).length > 0 && (
+              <>
+                <SectionTitle right={<SeeAll onClick={() => setParams({ tab: 'tasks' }, { replace: true })} />}>Today's tasks</SectionTitle>
+                <div className="glass divide-y divide-[var(--hairline)] overflow-hidden rounded-[18px]">
+                  {tasks
+                    .filter((t) => t.due_date && t.due_date <= today)
+                    .slice(0, 6)
+                    .map((t) => (
+                      <TaskLine key={t.id} task={t} today={today} onToggle={() => toggle(t)} onOpen={() => nav(`/r/tasks/${t.id}`)} extra={nameOf(t.client_id)} />
+                    ))}
+                </div>
+              </>
+            )}
+          </>
         )
       ) : tab === 'tasks' ? (
         tasks.length === 0 ? (

@@ -1,10 +1,27 @@
 import { useNavigate } from 'react-router-dom';
 import {
   ListTodo, Receipt, HandCoins, Users, PiggyBank, TrendingUp, Bot, Settings, Trash2, CalendarDays, QrCode, Flame, StickyNote,
-  ShoppingCart, CalendarCheck, Link2, Timer, Megaphone, FolderKanban, Target, Wand2, Gauge, CalendarClock, Search, Sparkles, Wrench, HeartPulse, Briefcase, RotateCcw, Watch, Scale, MonitorSmartphone, CreditCard,
+  ShoppingCart, CalendarCheck, Link2, Timer, Megaphone, FolderKanban, Target, Wand2, Gauge, CalendarClock, Search, Sparkles, Wrench, HeartPulse, Briefcase, RotateCcw, Watch, Scale, MonitorSmartphone, CreditCard, AlarmClock, ChevronRight,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { IconBubble, Page, SectionTitle, type Tone } from '../components/ui';
+import { Glyph, type GlyphName } from '../components/Glyph';
+
+/** big tiles at the top — the places people open most */
+const FEATURED: { title: string; sub: string; to: string; glyph: GlyphName }[] = [
+  { title: 'Clock', sub: 'Timer, Stopwatch, Alarm', to: '/clock', glyph: 'stopwatch' },
+  { title: 'Life', sub: 'Habits, Events', to: '/habits', glyph: 'calendar' },
+  { title: 'Credit & Loans', sub: 'Cards, EMI', to: '/credit', glyph: 'card' },
+  { title: 'Health', sub: 'Fitness & Sleep', to: '/health', glyph: 'heart' },
+  { title: 'Gadgets', sub: 'Devices', to: '/gadgets', glyph: 'watch' },
+  { title: 'Reports', sub: 'Insights', to: '/reports', glyph: 'barchart' },
+  { title: 'Work', sub: 'Clients, Projects', to: '/clients', glyph: 'briefcase' },
+  { title: 'AI Assistant', sub: 'Ask & smart add', to: '/assistant', glyph: 'sparkle' },
+  { title: 'Backup', sub: 'Export Data', to: '/money-tools/backup', glyph: 'cloud' },
+  { title: 'App Lock', sub: 'Biometrics', to: '/settings', glyph: 'lock' },
+  { title: 'Reminders', sub: 'Alerts', to: '/settings', glyph: 'bell' },
+  { title: 'Settings', sub: 'Customize', to: '/settings', glyph: 'gear' },
+];
 
 interface Item {
   label: string;
@@ -47,7 +64,8 @@ const SECTIONS: { title: string; items: Item[] }[] = [
       { label: 'Clients', to: '/clients', icon: Briefcase, tone: 'primary' },
       { label: 'Projects', to: '/projects', icon: FolderKanban, tone: 'blue' },
       { label: 'Campaigns', to: '/campaigns', icon: Megaphone, tone: 'pink' },
-      { label: 'Focus timer', to: '/pomodoro', icon: Timer, tone: 'primary' },
+      { label: 'Pomodoro', to: '/pomodoro', icon: Timer, tone: 'primary' },
+      { label: 'Clock', to: '/clock', icon: AlarmClock, tone: 'amber' },
       { label: 'Revisions', to: '/revisions', icon: RotateCcw, tone: 'violet' },
     ],
   },
@@ -77,7 +95,16 @@ const SECTIONS: { title: string; items: Item[] }[] = [
 export function More() {
   const nav = useNavigate();
   return (
-    <Page title="More">
+    <Page title="More" subtitle="Everything in one place" glyph="grid">
+      <div className="grid grid-cols-3 gap-2.5">
+        {FEATURED.map((f) => (
+          <button key={f.title} type="button" onClick={() => nav(f.to)} className="glass press flex flex-col items-center gap-1 rounded-[18px] px-1.5 py-3.5 text-center">
+            <Glyph name={f.glyph} size={40} />
+            <span className="mt-0.5 text-[13px] font-semibold leading-tight">{f.title}</span>
+            <span className="text-[10.5px] leading-tight text-muted">{f.sub}</span>
+          </button>
+        ))}
+      </div>
       {SECTIONS.map((s) => (
         <div key={s.title} className="space-y-2">
           <SectionTitle>{s.title}</SectionTitle>
@@ -93,6 +120,16 @@ export function More() {
           </div>
         </div>
       ))}
+      <button type="button" onClick={() => nav('/setup')} className="hero press flex w-full items-center gap-3 rounded-[20px] p-4 text-left">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15">
+          <Glyph name="sparkle" size={34} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[16px] font-bold">DeepBoost Life</span>
+          <span className="block text-[12.5px] opacity-85">Your personal life OS · Version {import.meta.env.VITE_APP_VERSION ?? 'dev'}</span>
+        </span>
+        <ChevronRight size={18} className="opacity-80" />
+      </button>
     </Page>
   );
 }
