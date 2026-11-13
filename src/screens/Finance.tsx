@@ -16,8 +16,9 @@ import {
   BarChart, Button, Card, CHART_COLORS, Chips, Donut, Empty, ErrorBox, FormRow, HeroCard, IconBubble, IconButton, KV, List, ListRow, Page, SectionTitle, Segmented, SeeAll, Sheet, Skeleton, Spinner,
 } from '../components/ui';
 import { sixMonthBars } from './Home';
+import { ReportsScreen } from './Reports';
 
-type Tab = 'overview' | 'transactions' | 'accounts' | 'categories';
+type Tab = 'overview' | 'transactions' | 'accounts' | 'reports' | 'categories';
 
 export function Finance() {
   const [params, setParams] = useSearchParams();
@@ -38,19 +39,27 @@ export function Finance() {
       }
     >
       <Segmented
-        value={tab}
+        value={tab === 'categories' ? 'reports' : tab}
         onChange={setTab}
         options={[
           { value: 'overview', label: 'Overview' },
           { value: 'transactions', label: 'Entries' },
           { value: 'accounts', label: 'Accounts' },
-          { value: 'categories', label: 'Categories' },
+          { value: 'reports', label: 'Reports' },
         ]}
       />
       {(tab === 'overview' || tab === 'transactions') && <MonthPicker month={month} onChange={setMonth} />}
       {tab === 'overview' && <Overview month={month} />}
       {tab === 'transactions' && <Transactions month={month} />}
       {tab === 'accounts' && <Accounts />}
+      {tab === 'reports' && (
+        <>
+          <ReportsScreen embedded />
+          <Button full onClick={() => setTab('categories')}>
+            <Tag size={16} /> Manage categories
+          </Button>
+        </>
+      )}
       {tab === 'categories' && <Categories />}
     </Page>
   );

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FileSpreadsheet, FileText, FileDown, DatabaseBackup } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -35,7 +36,7 @@ interface Data {
   tasksDone: number;
 }
 
-export function ReportsScreen() {
+export function ReportsScreen({ embedded = false }: { embedded?: boolean } = {}) {
   const toast = useToast();
   const { nameOf } = useLookups();
   const [preset, setPreset] = useState<Preset>('this_month');
@@ -156,7 +157,7 @@ export function ReportsScreen() {
   ];
 
   return (
-    <Page title="Reports" subtitle={label} back>
+    <Wrap embedded={embedded} label={label}>
       <Chips
         value={preset}
         onChange={setPreset}
@@ -285,7 +286,7 @@ export function ReportsScreen() {
           <DatabaseBackup size={15} /> Full data backup (JSON)
         </Button>
       </Card>
-    </Page>
+    </Wrap>
   );
 }
 
@@ -399,4 +400,14 @@ async function backupAll() {
     out[t] = t === 'user_settings' ? (data ?? []).map((r: any) => ({ ...r, sync_key: r.sync_key ? '(hidden)' : null })) : data;
   }
   return saveFile(`DeepBoost-Backup-${todayISO()}.json`, new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' }));
+}
+
+/** full screen, or the body only inside Finance → Reports */
+function Wrap({ embedded, label, children }: { embedded: boolean; label: string; children: ReactNode }) {
+  if (embedded) return <div className="space-y-3.5">{children}</div>;
+  return (
+    <Page title="Reports" subtitle={label} back glyph="barchart">
+      {children}
+    </Page>
+  );
 }

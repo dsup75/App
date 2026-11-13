@@ -6,7 +6,7 @@ export type GlyphName =
   | 'shoe' | 'moon' | 'phone' | 'earbuds' | 'watch' | 'scale' | 'heart' | 'flame' | 'activity' | 'body'
   | 'calendar' | 'check' | 'book' | 'cap' | 'chart' | 'money' | 'dumbbell' | 'card' | 'bank' | 'shield'
   | 'clock' | 'bell' | 'wallet' | 'handshake' | 'gift' | 'receipt' | 'target' | 'briefcase'
-  | 'gear' | 'barchart' | 'sigma' | 'atom' | 'flask' | 'leaf' | 'globe' | 'grid' | 'lock' | 'sparkle' | 'trash' | 'info' | 'palette' | 'cloud' | 'stopwatch' | 'people';
+  | 'gear' | 'barchart' | 'sigma' | 'atom' | 'flask' | 'leaf' | 'globe' | 'grid' | 'lock' | 'sparkle' | 'trash' | 'info' | 'palette' | 'cloud' | 'stopwatch' | 'people' | 'house' | 'plus';
 
 type G = (id: (k: string) => string) => ReactNode;
 
@@ -569,6 +569,27 @@ const GLYPHS: Record<GlyphName, G> = {
       <path d="M22 40c0-8 4-14 10-14s10 6 10 14z" fill={`url(#${i('b')})`} />
       <circle cx="18" cy="16" r="7" fill={`url(#${i('a')})`} />
       <path d="M5 42c0-9 6-15 13-15s13 6 13 15z" fill={`url(#${i('a')})`} />
+    </>
+  ),
+  house: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#93c5fd'], ['1', '#2563eb']], '1', '1')}
+        {lg(i('r'), [['0', '#fca5a5'], ['1', '#dc2626']], '1', '1')}
+      </defs>
+      {floor}
+      <path d="M9 22v17a3 3 0 0 0 3 3h24a3 3 0 0 0 3-3V22L24 9z" fill={`url(#${i('a')})`} />
+      <path d="M4 23L24 6l20 17-3 3L24 12 7 26z" fill={`url(#${i('r')})`} />
+      <rect x="20" y="29" width="8" height="13" rx="2" fill="#fde68a" />
+      {shine(18, 24, 6, 1.8, 0.35)}
+    </>
+  ),
+  plus: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#ffffff'], ['1', '#dbeafe']])}
+      </defs>
+      <path d="M20 6h8v14h14v8H28v14h-8V28H6v-8h14z" fill={`url(#${i('a')})`} />
     </>
   ),
 };

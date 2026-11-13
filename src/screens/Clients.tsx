@@ -11,7 +11,7 @@ import { RecordLine } from '../components/RecordLine';
 import { TaskLine } from './Home';
 import { Empty, ErrorBox, HeroCard, IconBubble, IconButton, List, ListRow, Page, SectionTitle, SeeAll, Segmented, Spinner } from '../components/ui';
 
-type Tab = 'clients' | 'tasks' | 'campaigns';
+type Tab = 'clients' | 'projects' | 'tasks' | 'invoices' | 'campaigns';
 
 export function ClientsHub() {
   const nav = useNavigate();
@@ -22,6 +22,8 @@ export function ClientsHub() {
   const [clients, setClients] = useState<Row[] | null>(null);
   const [tasks, setTasks] = useState<Row[]>([]);
   const [campaigns, setCampaigns] = useState<Row[]>([]);
+  const [projects, setProjects] = useState<Row[]>([]);
+  const [invoices, setInvoices] = useState<Row[]>([]);
   const [outstanding, setOutstanding] = useState(0);
   const [error, setError] = useState('');
   const today = todayISO();
@@ -29,13 +31,17 @@ export function ClientsHub() {
   const load = useCallback(async () => {
     setError('');
     try {
-      const [c, t, k, inv, tot] = await Promise.all([
+      const [c, t, k, inv, tot, pr, allInv] = await Promise.all([
         supabase.from('clients').select('*').is('deleted_at', null).order('name'),
         supabase.from('tasks').select('*').is('deleted_at', null).not('client_id', 'is', null).in('status', ['pending', 'in_progress', 'waiting']).order('due_date', { ascending: true, nullsFirst: false }),
         supabase.from('campaigns').select('*').is('deleted_at', null).in('status', ['active', 'planned', 'paused']).order('end_date', { ascending: true, nullsFirst: false }),
         supabase.from('invoices').select('id,amount_paise,status').is('deleted_at', null).eq('status', 'sent'),
         supabase.from('invoice_totals').select('id,received_paise'),
+        supabase.from('projects').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
+        supabase.from('invoices').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(50),
       ]);
+      setProjects((pr.data as Row[]) ?? []);
+      setInvoices((allInv.data as Row[]) ?? []);
       for (const r of [c, t, k, inv, tot]) if (r.error) throw r.error;
       setClients(c.data as Row[]);
       setTasks(t.data as Row[]);
@@ -63,7 +69,8 @@ export function ClientsHub() {
     }
   };
 
-  const addPath = tab === 'clients' ? '/r/clients/new' : tab === 'tasks' ? '/r/tasks/new?area=business' : '/r/campaigns/new';
+  const addPath =
+    tab === 'clients' ? '/r/clients/new' : tab === 'projects' ? '/r/projects/new' : tab === 'tasks' ? '/r/tasks/new?area=business' : tab === 'invoices' ? '/r/invoices/new' : '/r/campaigns/new';
 
   return (
     <Page
@@ -94,18 +101,19 @@ export function ClientsHub() {
       </HeroCard>
 
       <div className="grid grid-cols-3 gap-2">
-        <Shortcut icon={<FileText size={16} />} label="Invoices" onClick={() => nav('/invoices')} />
-        <Shortcut icon={<FolderKanban size={16} />} label="Projects" onClick={() => nav('/projects')} />
-        <Shortcut icon={<Megaphone size={16} />} label="Campaigns" onClick={() => nav('/campaigns')} />
+        <Shortcut icon={<FileText size={16} />} label="Requests" onClick={() => nav('/requests')} />
+        <Shortcut icon={<Megaphone size={16} />} label="Campaigns" onClick={() => setParams({ tab: 'campaigns' }, { replace: true })} />
+        <Shortcut icon={<FolderKanban size={16} />} label="All projects" onClick={() => nav('/projects')} />
       </div>
 
       <Segmented
-        value={tab}
+        value={tab === 'campaigns' ? 'clients' : tab}
         onChange={(v) => setParams({ tab: v }, { replace: true })}
         options={[
           { value: 'clients', label: 'Clients' },
-          { value: 'tasks', label: 'Client tasks' },
-          { value: 'campaigns', label: 'Live campaigns' },
+          { value: 'projects', label: 'Projects' },
+          { value: 'tasks', label: 'Tasks' },
+          { value: 'invoices', label: 'Invoices' },
         ]}
       />
 
@@ -137,6 +145,26 @@ export function ClientsHub() {
               </>
             )}
           </>
+        )
+      ) : tab === 'projects' ? (
+        projects.length === 0 ? (
+          <Empty title="No projects yet" text="Add a project for a client to track its work and money." />
+        ) : (
+          <List>
+            {projects.map((r) => (
+              <RecordLine key={r.id} table="projects" row={r} nameOf={nameOf} />
+            ))}
+          </List>
+        )
+      ) : tab === 'invoices' ? (
+        invoices.length === 0 ? (
+          <Empty title="No invoices yet" text="Create an invoice and share it with a UPI payment link." />
+        ) : (
+          <List>
+            {invoices.map((r) => (
+              <RecordLine key={r.id} table="invoices" row={r} nameOf={nameOf} />
+            ))}
+          </List>
         )
       ) : tab === 'tasks' ? (
         tasks.length === 0 ? (

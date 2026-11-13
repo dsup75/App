@@ -36,9 +36,12 @@ export function HomeHeader({ name, unread, onBell }: { name?: string; unread: nu
         <span className="absolute bottom-0.5 right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[var(--bg)] bg-[var(--tone-income)]" />
       </button>
       <div className="min-w-0 flex-1">
-        <p className="text-[13px] text-muted">{greeting()},</p>
-        <p className="truncate text-[21px] font-bold leading-tight tracking-tight">{name ? `${name}!` : 'Welcome!'} 👋</p>
-        <p className="truncate text-[11.5px] text-muted">Dream Big • Plan Smart • Achieve More</p>
+        <p className="truncate text-[12.5px] text-muted">
+          {greeting()}
+          {name ? `, ${name.split(' ')[0]}` : ''} 👋
+        </p>
+        <p className="truncate text-[21px] font-bold leading-tight tracking-tight">DeepBoost Life</p>
+        <p className="truncate text-[11px] text-muted">Dream Big • Plan Smart • Achieve More</p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {round('Search everything', () => nav('/search'), <Search size={18} />)}
