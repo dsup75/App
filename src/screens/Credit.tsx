@@ -14,7 +14,8 @@ import {
   cardStatus, emiSchedule, emiSplit, fetchCreditAccounts, fetchNetWorth, investmentStatus, loanStatus, owed, nextOnDay,
   type CreditAccount, type NetWorth,
 } from '../lib/credit';
-import { BankCard } from '../components/BankCard';
+import { cardLook, CardChip, NetworkMark } from '../components/BankCard';
+import { Glyph, type GlyphName } from '../components/Glyph';
 import { BrandLogo as DomainLogo } from '../components/EntityIcon';
 import { brandDomain } from '../lib/brands';
 import { useToast } from '../context/ToastContext';
@@ -33,6 +34,7 @@ export function CreditScreen() {
   const [payBill, setPayBill] = useState<CreditAccount | null>(null);
   const [payEmi, setPayEmi] = useState<CreditAccount | null>(null);
   const [plan, setPlan] = useState<CreditAccount | null>(null);
+  const [loanView, setLoanView] = useState<CreditAccount | null>(null);
   const [invest, setInvest] = useState<{ a: CreditAccount; mode: 'add' | 'value' } | null>(null);
 
   const load = useCallback(async () => {
@@ -125,7 +127,7 @@ export function CreditScreen() {
       )}
 
       {/* ---------- Credit cards ---------- */}
-      <SectionTitle right={<AddLink onClick={() => nav('/r/accounts/new?type=credit_card')} label="Add card" />}>Credit cards</SectionTitle>
+      <SectionTitle right={<AddLink onClick={() => nav('/r/accounts/new?type=credit_card')} label="Add card" />}>Credit Cards</SectionTitle>
       {groups.cards.length === 0 ? (
         <EmptyAdd
           icon={<CreditCard size={18} />}
@@ -142,30 +144,23 @@ export function CreditScreen() {
       {groups.later.length === 0 ? (
         <p className="px-1 text-[12.5px] text-muted">Paytm Postpaid, Amazon Pay Later, Flipkart Pay Later, Simpl, LazyPay… add them here to see dues and limits.</p>
       ) : (
-        <List>
+        <div className="space-y-2">
           {groups.later.map((c) => {
             const st = cardStatus(c, moves.get(c.id) ?? []);
             return (
-              <ListRow
+              <DueRow
                 key={c.id}
-                icon={<BrandLogo name={c.lender || c.name} size={36} fallback={<IconBubble tone="violet"><Wallet size={16} /></IconBubble>} />}
+                glyph="wallet"
                 title={c.name}
-                subtitle={[st.limit ? `Limit ${formatINR(st.limit)}` : null, st.dueDate ? `Due ${relativeDay(st.dueDate)}` : null].filter(Boolean).join(' · ') || 'Pay later'}
-                right={
-                  <span className="flex flex-col items-end">
-                    <span className="text-[14px] font-semibold text-expense">{formatINR(st.owed)}</span>
-                    {st.owed > 0 && (
-                      <button type="button" className="text-[12px] font-semibold text-primary" onClick={(e) => { e.stopPropagation(); setPayBill(c); }}>
-                        Pay
-                      </button>
-                    )}
-                  </span>
-                }
+                amount={formatINR(st.owed)}
+                sub={st.dueDate ? `Due: ${formatDate(st.dueDate).replace(/ \d{4}$/, '')}` : st.limit ? `Limit ${formatINR(st.limit)}` : 'Pay later'}
+                action="Pay"
+                onAction={() => setPayBill(c)}
                 onClick={() => nav(`/r/accounts/${c.id}`)}
               />
             );
           })}
-        </List>
+        </div>
       )}
 
       {/* ---------- Loans ---------- */}
@@ -178,8 +173,28 @@ export function CreditScreen() {
           onAdd={() => nav('/r/accounts/new?type=loan')}
         />
       ) : (
-        groups.loans.map((l) => <LoanBlock key={l.id} a={l} onPay={() => setPayEmi(l)} onPlan={() => setPlan(l)} />)
+        <div className="space-y-2">
+          {groups.loans.map((l) => (
+            <DueRow
+              key={l.id}
+              glyph="bank"
+              title={l.name}
+              amount={formatINR(owed(l))}
+              sub={l.installment_paise ? `EMI: ${formatINR(l.installment_paise)}` : 'Loan'}
+              action="View"
+              onAction={() => setLoanView(l)}
+              onClick={() => setLoanView(l)}
+            />
+          ))}
+        </div>
       )}
+      <div className="glass flex items-center gap-3 rounded-[18px] p-3" style={{ boxShadow: 'inset 0 0 0 1px rgba(var(--acc), .35)' }}>
+        <Glyph name="shield" size={44} />
+        <p className="min-w-0 flex-1 text-[14.5px] font-semibold leading-snug">
+          Keep Credit Usage
+          <span className="block text-[12.5px] font-normal text-muted">under 30% for better score{util !== null ? ` · now ${util}%` : ''}</span>
+        </p>
+      </div>
       <Card onClick={() => nav('/loans')} className="press flex items-center gap-3">
         <IconBubble tone="amber"><HandCoins size={17} /></IconBubble>
         <div className="min-w-0 flex-1">
@@ -288,6 +303,21 @@ export function CreditScreen() {
       <PayBillSheet a={payBill} spend={groups.spend} moves={payBill ? moves.get(payBill.id) ?? [] : []} onClose={() => setPayBill(null)} onDone={load} />
       <PayEmiSheet a={payEmi} spend={groups.spend} onClose={() => setPayEmi(null)} onDone={load} />
       <ScheduleSheet a={plan} onClose={() => setPlan(null)} />
+      {loanView && (
+        <Sheet open onClose={() => setLoanView(null)} title={loanView.name}>
+          <LoanBlock
+            a={loanView}
+            onPay={() => {
+              setPayEmi(loanView);
+              setLoanView(null);
+            }}
+            onPlan={() => {
+              setPlan(loanView);
+              setLoanView(null);
+            }}
+          />
+        </Sheet>
+      )}
       <InvestSheet x={invest} spend={groups.spend} onClose={() => setInvest(null)} onDone={load} onMode={(mode) => invest && setInvest({ ...invest, mode })} />
     </Page>
   );
@@ -358,46 +388,117 @@ function ScoreRing({ score }: { score: number }) {
 
 function CardBlock({ a, moves, onPay }: { a: CreditAccount; moves: { txn_date: string; signed_paise: number }[]; onPay: () => void }) {
   const nav = useNavigate();
+  const [open, setOpen] = useState(false);
   const st = cardStatus(a, moves);
   const overdue = st.daysLeft !== null && st.daysLeft < 0 && (st.billAmount ?? st.owed) > 0;
+  const base = cardLook(a);
+  const look = a.card_color ? { ...base, from: a.card_color, to: '#0b1230' } : { ...base, from: '#2f6bff', to: '#0f1f6b' };
+  const mark = base.mark;
   return (
     <div className="space-y-2">
-      <BankCard account={a} extra={a} />
-      <Card className="space-y-2.5">
-        {st.limit != null && (
-          <div>
-            <div className="mb-1 flex justify-between text-[12.5px]">
-              <span className="text-muted">Used {formatINR(st.owed)}</span>
-              <span className="font-semibold">Available {formatINR(st.available)}</span>
-            </div>
-            <ProgressBar pct={Math.min(100, st.utilization ?? 0)} color={(st.utilization ?? 0) > 30 ? 'var(--tone-expense)' : 'var(--primary-2)'} />
-          </div>
-        )}
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <Mini label="Bill to pay" value={st.billAmount !== null ? formatINR(st.billAmount) : formatINR(st.owed)} strong />
-          <Mini label="Min. due (est.)" value={st.minDue !== null ? formatINR(st.minDue) : '—'} />
-          <Mini label="Not billed yet" value={st.unbilled !== null ? formatINR(st.unbilled) : '—'} />
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-[12.5px] text-muted">
-            {st.dueDate ? (
-              <>
-                Due <b className={overdue ? 'text-expense' : 'text-fg'}>{formatDate(st.dueDate)}</b>
-                {st.daysLeft !== null && (st.daysLeft >= 0 ? ` · ${st.daysLeft === 0 ? 'today' : `${st.daysLeft} days left`}` : ' · overdue')}
-              </>
-            ) : (
-              'Add bill day & due day to see the bill'
-            )}
+      <div
+        className="bank-card relative overflow-hidden rounded-[22px] p-4 text-white"
+        style={{ background: `linear-gradient(135deg, ${look.from} 0%, ${look.to} 100%)`, boxShadow: '0 14px 34px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.3), 0 0 0 1px rgba(120,160,255,.35)' }}
+      >
+        <span className="card-sheen" />
+        <div className="flex items-start justify-between">
+          <p className="text-[22px] font-black italic leading-none tracking-tight" style={{ color: look.accent }}>
+            {mark}
+            <span className="ml-0.5 font-semibold not-italic text-white/90">card</span>
           </p>
-          <div className="flex gap-1.5">
-            <Button size="sm" onClick={() => nav(`/r/expenses/new?account_id=${a.id}`)}>Spend</Button>
-            <Button size="sm" variant="primary" onClick={onPay} disabled={st.owed <= 0}>Pay bill</Button>
+          {a.card_network && <NetworkMark network={a.card_network} size={14} />}
+        </div>
+        <div className="mt-3">
+          <CardChip w={38} />
+        </div>
+        <p className="mt-2 font-mono text-[17px] tracking-[0.18em]">•••• {a.card_last4 ?? '••••'}</p>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <div>
+            <p className="text-[12px] opacity-75">Outstanding</p>
+            <p className="text-[19px] font-bold">{formatINR(st.owed)}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[12px] opacity-75">Available Limit</p>
+            <p className="text-[19px] font-bold">{st.available !== null ? formatINR(st.available) : '—'}</p>
           </div>
         </div>
-        {a.interest_rate_bp ? (
-          <p className="text-[11.5px] text-muted">Not paying in full costs about {paiseToInput(a.interest_rate_bp)}% a year on the unpaid part — pay the full bill to avoid interest.</p>
-        ) : null}
-      </Card>
+        <div className="mt-3 flex justify-center">
+          <button
+            type="button"
+            onClick={onPay}
+            disabled={st.owed <= 0}
+            className="press rounded-full px-9 py-2 text-[14.5px] font-semibold text-white disabled:opacity-50"
+            style={{ background: 'linear-gradient(135deg,#4f8cff,#2a5bd7)', boxShadow: '0 6px 18px rgba(42,91,215,.6), inset 0 1px 0 rgba(255,255,255,.35)' }}
+          >
+            Pay Bill
+          </button>
+        </div>
+      </div>
+      <button type="button" onClick={() => setOpen(!open)} className="flex w-full items-center justify-between px-2 text-[12.5px] text-muted">
+        <span>
+          {st.dueDate ? (
+            <>
+              Due <b className={overdue ? 'text-expense' : 'text-fg'}>{formatDate(st.dueDate)}</b>
+              {st.daysLeft !== null && (st.daysLeft >= 0 ? ` · ${st.daysLeft === 0 ? 'today' : `${st.daysLeft} days left`}` : ' · overdue')}
+            </>
+          ) : (
+            'Add bill day & due day to see the bill'
+          )}
+        </span>
+        <span className="font-semibold text-primary">{open ? 'Hide details' : 'Bill details'}</span>
+      </button>
+      {open && (
+        <Card className="space-y-2.5">
+          {st.limit != null && (
+            <div>
+              <div className="mb-1 flex justify-between text-[12.5px]">
+                <span className="text-muted">Used {st.utilization ?? 0}%</span>
+                <span className="font-semibold">Limit {formatINR(st.limit)}</span>
+              </div>
+              <ProgressBar pct={Math.min(100, st.utilization ?? 0)} color={(st.utilization ?? 0) > 30 ? 'var(--tone-expense)' : 'var(--primary-2)'} />
+            </div>
+          )}
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <Mini label="Bill to pay" value={st.billAmount !== null ? formatINR(st.billAmount) : formatINR(st.owed)} strong />
+            <Mini label="Min. due (est.)" value={st.minDue !== null ? formatINR(st.minDue) : '—'} />
+            <Mini label="Not billed yet" value={st.unbilled !== null ? formatINR(st.unbilled) : '—'} />
+          </div>
+          <div className="flex gap-1.5">
+            <Button size="sm" onClick={() => nav(`/r/expenses/new?account_id=${a.id}`)}>Add spend</Button>
+            <Button size="sm" onClick={() => nav(`/r/accounts/${a.id}`)}>Statement</Button>
+          </div>
+          {a.interest_rate_bp ? (
+            <p className="text-[11.5px] text-muted">Not paying in full costs about {paiseToInput(a.interest_rate_bp)}% a year on the unpaid part — pay the full bill to avoid interest.</p>
+          ) : null}
+        </Card>
+      )}
+    </div>
+  );
+}
+
+/** one-line row like the reference: icon, name, amount + small line, a round button */
+function DueRow({ glyph, title, amount, sub, action, onAction, onClick }: { glyph: GlyphName; title: string; amount: string; sub: string; action: string; onAction: () => void; onClick: () => void }) {
+  return (
+    <div className="glass flex items-center gap-3 rounded-[18px] px-3 py-2.5" onClick={onClick}>
+      <span className="rounded-[12px] p-1" style={{ background: 'rgba(var(--acc), .14)' }}>
+        <Glyph name={glyph} size={32} />
+      </span>
+      <p className="min-w-0 flex-1 truncate text-[14.5px] font-semibold">{title}</p>
+      <span className="text-right">
+        <span className="block text-[15px] font-bold">{amount}</span>
+        <span className="block text-[11.5px] text-muted">{sub}</span>
+      </span>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onAction();
+        }}
+        className="press rounded-full px-3.5 py-1.5 text-[13px] font-semibold text-white"
+        style={{ background: 'linear-gradient(135deg,#4f8cff,#2a5bd7)' }}
+      >
+        {action}
+      </button>
     </div>
   );
 }

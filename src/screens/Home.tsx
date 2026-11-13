@@ -1,7 +1,7 @@
 import { RecurringDrafts, BudgetWarnings } from './Planning';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Circle, Timer, Flame, CalendarClock, LayoutGrid, ChevronUp, ChevronDown, AlertTriangle, ChevronRight, ArrowRight } from 'lucide-react';
+import { Check, Circle, Timer, Flame, CalendarClock, LayoutGrid, ChevronUp, ChevronDown, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { supabase } from '../lib/supabase';
@@ -17,7 +17,6 @@ import { HomeHeader } from '../components/HomeHeader';
 import { Glyph, type GlyphName } from '../components/Glyph';
 import { BalanceHero } from '../components/BalanceHero';
 import { ActivityTimeline } from '../components/ActivityTimeline';
-import { BalanceCarousel } from '../components/BalanceCarousel';
 import { NotificationsSheet, useNotices } from '../components/Notifications';
 import {
   Badge, BarChart, Button, Card, Chips, Empty, ErrorBox, List, Page, SectionTitle, SeeAll, Sheet, Skeleton, Toggle, cx,
@@ -291,22 +290,20 @@ export function Home() {
           <>
           {(() => {
             const chips = [
-              { n: d.billsDue, label: 'Bills / EMI Due', glyph: 'card' as GlyphName, tint: 'var(--tone-expense)', to: '/credit' },
-              { n: d.invoiceCount, label: 'Pending Payments', glyph: 'calendar' as GlyphName, tint: 'var(--tone-blue)', to: '/invoices' },
-              { n: overdueTasks, label: 'Overdue Tasks', glyph: 'check' as GlyphName, tint: 'var(--tone-amber)', to: '/tasks' },
-              { n: d.revisionsDue, label: 'Due Revisions', glyph: 'book' as GlyphName, tint: 'var(--tone-violet)', to: '/revisions' },
-              { n: d.dueLoans.length, label: 'Udhaar Due', glyph: 'handshake' as GlyphName, tint: 'var(--tone-pink)', to: '/loans' },
-              { n: d.followUps, label: 'Follow-ups', glyph: 'bell' as GlyphName, tint: 'var(--tone-teal)', to: '/clients?tab=tasks' },
+              { n: d.billsDue, label: 'Bills', sub: 'EMI & card due', glyph: 'card' as GlyphName, tint: 'var(--tone-expense)', to: '/credit' },
+              { n: d.invoiceCount, label: 'Invoices', sub: 'to receive', glyph: 'calendar' as GlyphName, tint: 'var(--tone-blue)', to: '/invoices' },
+              { n: overdueTasks, label: 'Tasks', sub: 'overdue', glyph: 'check' as GlyphName, tint: 'var(--tone-amber)', to: '/tasks' },
+              { n: d.revisionsDue, label: 'Revisions', sub: 'due today', glyph: 'book' as GlyphName, tint: 'var(--tone-violet)', to: '/revisions' },
+              { n: d.dueLoans.length, label: 'Udhaar', sub: 'due', glyph: 'handshake' as GlyphName, tint: 'var(--tone-pink)', to: '/loans' },
+              { n: d.followUps, label: 'Follow-ups', sub: 'clients', glyph: 'bell' as GlyphName, tint: 'var(--tone-teal)', to: '/clients?tab=tasks' },
             ].filter((c) => c.n > 0);
             if (!chips.length) return null;
             const total = chips.reduce((t, c) => t + c.n, 0);
             return (
-              <div className="glass space-y-3 rounded-[24px] p-3.5">
-                <button type="button" className="flex w-full items-center gap-2" onClick={() => { setNoticeOpen(true); notices.reload(); }}>
-                  <AlertTriangle size={22} className="shrink-0" style={{ color: 'var(--tone-amber-solid)', fill: 'var(--tone-amber-bg)' }} />
-                  <span className="min-w-0 flex-1 text-left text-[17px] font-bold">Need Attention</span>
-                  <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-[var(--danger)] px-2 text-[13px] font-bold text-white">{total}</span>
-                  <ChevronRight size={18} className="text-muted" />
+              <div className="space-y-2.5">
+                <button type="button" className="flex w-full items-center gap-2 px-1" onClick={() => { setNoticeOpen(true); notices.reload(); }}>
+                  <span className="text-[17px] font-bold">Need Attention</span>
+                  <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--danger)] px-1.5 text-[12.5px] font-bold text-white">{total}</span>
                 </button>
                 <div className="-mx-0.5 flex gap-2 overflow-x-auto px-0.5 pb-0.5 [scrollbar-width:none]">
                   {chips.map((c) => (
@@ -317,17 +314,15 @@ export function Home() {
                       className="tint-card press flex w-[calc((100%-24px)/4)] min-w-[72px] shrink-0 flex-col items-center rounded-[16px] px-1 py-2.5 text-center"
                       style={{ ['--tint' as string]: c.tint }}
                     >
-                      <Glyph name={c.glyph} size={32} />
-                      <span className="mt-1 text-[18px] font-bold leading-none" style={{ color: c.tint }}>{c.n}</span>
-                      <span className="mt-1 w-full text-[10.5px] font-medium leading-tight">{c.label}</span>
+                      <Glyph name={c.glyph} size={34} />
+                      <span className="mt-1.5 w-full truncate text-[13.5px] font-bold leading-tight">
+                        <span style={{ color: c.tint }}>{c.n}</span> {c.label}
+                      </span>
+                      <span className="w-full truncate text-[10.5px] text-muted">{c.sub}</span>
                     </button>
                   ))}
                 </div>
-                {d.toReceive > 0 && (
-                  <p className="px-1 text-[12px] text-muted">
-                    To receive from clients: <b className="text-fg">{money(d.toReceive)}</b>
-                  </p>
-                )}
+
               </div>
             );
           })()}
@@ -344,11 +339,10 @@ export function Home() {
         upcoming: (
           <>
           {d.upcoming.length > 0 && (
-            <div className="glass space-y-3 rounded-[24px] p-3.5">
-              <div className="flex items-center gap-2">
-                <Glyph name="calendar" size={28} />
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-2 px-1">
                 <p className="min-w-0 flex-1 text-[17px] font-bold">Upcoming</p>
-                <button type="button" onClick={() => nav('/calendar')} className="glass press flex items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] font-semibold">
+                <button type="button" onClick={() => nav('/calendar')} className="flex items-center gap-1 text-[13px] font-semibold text-primary">
                   See All <ArrowRight size={13} />
                 </button>
               </div>
@@ -417,9 +411,7 @@ export function Home() {
         <Skeleton rows={5} />
       ) : (
         <>
-          <BalanceCarousel hide={hide}>
           <BalanceHero total={d.balance} monthIn={sumPaise(byArea(d.incomes))} monthOut={sumPaise(byArea(d.expenses))} hide={hide} onToggleHide={toggleHide} />
-          </BalanceCarousel>
 
           <Chips value={filter} onChange={setFilter} options={[{ value: 'all', label: 'All' }, ...(AREAS as { value: Filter; label: string }[])]} />
 

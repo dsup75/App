@@ -48,8 +48,8 @@ export function Finance() {
           { value: 'reports', label: 'Reports' },
         ]}
       />
-      {(tab === 'overview' || tab === 'transactions') && <MonthPicker month={month} onChange={setMonth} />}
-      {tab === 'overview' && <Overview month={month} />}
+      {tab === 'transactions' && <MonthPicker month={month} onChange={setMonth} />}
+      {tab === 'overview' && <Overview month={currentMonth()} />}
       {tab === 'transactions' && <Transactions month={month} />}
       {tab === 'accounts' && <Accounts />}
       {tab === 'reports' && (
@@ -167,80 +167,18 @@ function Overview({ month }: { month: string }) {
         <div className="flex items-end gap-3">
           <div className="min-w-0 flex-1">
             <p className="mt-1 text-[30px] font-bold leading-tight tracking-tight">{formatINR(total)}</p>
-            <p className="text-[13px] opacity-80">Total balance</p>
+            <p className="text-[15px] font-medium opacity-90">Total Balance</p>
             {inc - exp !== 0 && (
-              <p className="mt-1 text-[13px] font-semibold" style={{ color: inc - exp >= 0 ? 'var(--tone-income)' : 'var(--tone-expense)' }}>
-                {inc - exp >= 0 ? '↑' : '↓'} {formatINR(Math.abs(inc - exp))} this month
+              <p className="mt-1 text-[14px] font-semibold" style={{ color: inc - exp >= 0 ? 'var(--tone-income)' : 'var(--tone-expense)' }}>
+                {inc - exp >= 0 ? '↑' : '↓'} {total - (inc - exp) > 0 ? `${Math.abs(Math.round(((inc - exp) / (total - (inc - exp))) * 1000) / 10)}%` : formatINR(Math.abs(inc - exp))}
               </p>
             )}
           </div>
           <MiniBars values={sixMonthBars(sixIn).map((b) => b.value)} />
         </div>
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          <div className="rounded-[14px] p-2.5" style={{ background: 'rgba(255,255,255,.12)' }}>
-            <p className="text-[11.5px] opacity-80">Income</p>
-            <p className="text-[15px] font-bold">{formatINR(inc)}</p>
-          </div>
-          <div className="rounded-[14px] p-2.5" style={{ background: 'rgba(255,255,255,.12)' }}>
-            <p className="text-[11.5px] opacity-80">Expenses</p>
-            <p className="text-[15px] font-bold">{formatINR(exp)}</p>
-          </div>
-          <button className="rounded-[14px] p-2.5 text-left" style={{ background: 'rgba(255,255,255,.12)' }} onClick={() => nav('/finance?tab=transactions&type=transfers')}>
-            <p className="text-[11.5px] opacity-80">Transfers ({data.transfers.length})</p>
-            <p className="text-[15px] font-bold">{formatINR(sumPaise(data.transfers))}</p>
-          </button>
-        </div>
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          <Button size="sm" onClick={() => nav('/r/incomes/new')}>+ Income</Button>
-          <Button size="sm" onClick={() => nav('/r/expenses/new')}>+ Expense</Button>
-          <Button size="sm" onClick={() => nav('/r/transfers/new')}>Transfer</Button>
-        </div>
       </HeroCard>
 
-      <div className="grid grid-cols-4 gap-2">
-        {TOOLS.map(({ label, to, icon: Icon, tone }) => (
-          <button key={to} onClick={() => nav(to)} className="glass flex flex-col items-center gap-1.5 rounded-[16px] py-3 transition-transform active:scale-95">
-            <IconBubble tone={tone} size={34}>
-              <Icon size={17} />
-            </IconBubble>
-            <span className="text-[11.5px] font-semibold">{label}</span>
-          </button>
-        ))}
-      </div>
-
-      <SectionTitle>Spending overview</SectionTitle>
-      <Card>
-        <BarChart data={sixMonthBars(six)} format={(v) => formatINR(v)} />
-      </Card>
-
-      {byCat.length > 0 && (
-        <>
-          <SectionTitle right={<SeeAll onClick={() => nav('/reports')} label="Reports" />}>Top categories</SectionTitle>
-          <Card className="flex items-center gap-4">
-            <Donut
-              size={112}
-              parts={byCat.map(([, v], i) => ({ value: v, color: CHART_COLORS[i % CHART_COLORS.length] }))}
-              center={
-                <>
-                  <span className="text-[12.5px] font-bold">{formatINR(exp)}</span>
-                  <span className="text-[10px] text-muted">Spent</span>
-                </>
-              }
-            />
-            <div className="min-w-0 flex-1 space-y-1">
-              {byCat.slice(0, 6).map(([k, v], i) => (
-                <div key={k} className="flex items-center gap-1.5 text-[12px]">
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
-                  <span className="flex-1 truncate">{k}</span>
-                  <span className="text-muted">{Math.round((v / exp) * 100)}%</span>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </>
-      )}
-
-      <SectionTitle right={<SeeAll onClick={() => nav('/finance?tab=accounts')} />}>Your accounts</SectionTitle>
+      <SectionTitle right={<SeeAll onClick={() => nav('/finance?tab=accounts')} />}>Your Accounts</SectionTitle>
       {!balances ? (
         <Spinner />
       ) : (
@@ -258,16 +196,8 @@ function Overview({ month }: { month: string }) {
         </div>
       )}
 
-      <button type="button" onClick={() => nav('/budgets')} className="tint-card press flex w-full items-center gap-3 rounded-[18px] p-3 text-left" style={{ ['--tint' as string]: 'var(--tone-pink)' }}>
-        <Glyph name="target" size={40} />
-        <span className="min-w-0 flex-1">
-          <span className="block text-[14.5px] font-semibold">Set a budget for this month</span>
-          <span className="block text-[12px] text-muted">Stay on track — get an alert at 80%</span>
-        </span>
-        <span className="rounded-full bg-[var(--primary)] px-3 py-1.5 text-[12.5px] font-semibold text-[var(--on-primary,#fff)]">Set now</span>
-      </button>
 
-      <SectionTitle right={<SeeAll onClick={() => nav('/finance?tab=transactions')} />}>Recent transactions</SectionTitle>
+      <SectionTitle right={<SeeAll onClick={() => nav('/finance?tab=transactions')} />}>Recent Transactions</SectionTitle>
       {recent.length === 0 ? (
         <Empty title="No entries this month" text="Add income or an expense to get started." />
       ) : (
@@ -277,6 +207,15 @@ function Overview({ month }: { month: string }) {
           ))}
         </List>
       )}
+
+      <button type="button" onClick={() => nav('/budgets')} className="tint-card press flex w-full items-center gap-3 rounded-[18px] p-3 text-left" style={{ ['--tint' as string]: 'var(--tone-pink)' }}>
+        <Glyph name="target" size={40} />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[14.5px] font-semibold">Set a budget for this month</span>
+          <span className="block text-[12px] text-muted">Stay on track — get an alert at 80%</span>
+        </span>
+        <span className="rounded-full bg-[var(--primary)] px-3 py-1.5 text-[12.5px] font-semibold text-[var(--on-primary,#fff)]">Set now</span>
+      </button>
     </>
   );
 }

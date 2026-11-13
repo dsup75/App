@@ -1,5 +1,6 @@
 // Smart revision: due / upcoming revisions with Easy · Moderate · Difficult feedback, plus interval settings
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Glyph } from '../components/Glyph';
 import { useNavigate } from 'react-router-dom';
 import { CalendarClock, RotateCcw, Settings as SettingsIcon, Plus, X } from 'lucide-react';
 import {
@@ -306,16 +307,39 @@ export function RevisionSummary() {
   if (!rows) return null;
   const today = todayISO();
   const due = rows.filter((r) => r.due_date <= today).length;
+  const next = rows.find((r) => r.due_date > today);
+  const days = next ? Math.round((new Date(next.due_date + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000) : null;
   return (
-    <Card className="flex items-center gap-3" onClick={() => nav('/revisions')}>
-      <RotateCcw size={18} className="text-primary" />
-      <span className="min-w-0 flex-1">
-        <span className="block text-[14.5px] font-semibold">Revisions</span>
-        <span className="block text-[12.5px] text-muted">
-          {due ? `${due} due now` : 'Nothing due today'} · {rows.length - due} in the next 7 days
+    <div className="glass rounded-[22px] p-3.5">
+      <p className="flex items-center gap-2 text-[16px] font-bold">
+        <Glyph name="calendar" size={24} /> Smart Revision
+      </p>
+      <div className="mt-2.5 flex items-center gap-3">
+        <span className="rounded-[14px] p-1.5" style={{ background: 'rgba(var(--acc), .14)' }}>
+          <Glyph name="calendar" size={36} />
         </span>
-      </span>
-      {due > 0 && <Badge tone="amber">{due}</Badge>}
-    </Card>
+        <span className="min-w-0 flex-1">
+          {due > 0 ? (
+            <>
+              <span className="block text-[14px] text-primary">Due now</span>
+              <span className="block text-[15px] font-semibold">{due} chapter{due === 1 ? '' : 's'} to revise</span>
+            </>
+          ) : days !== null ? (
+            <>
+              <span className="block text-[14px] text-primary">Next Revision</span>
+              <span className="block text-[15px] font-semibold">in {days} day{days === 1 ? '' : 's'}</span>
+            </>
+          ) : (
+            <>
+              <span className="block text-[14px] text-primary">No revisions planned</span>
+              <span className="block text-[12.5px] text-muted">Finish a chapter — revisions after 1, 3, 7, 14, 30 days</span>
+            </>
+          )}
+        </span>
+        <button type="button" onClick={() => nav('/revisions')} className="press rounded-full px-5 py-2 text-[14px] font-semibold text-white" style={{ background: 'linear-gradient(135deg, #7c3aed, #6366f1)', boxShadow: '0 6px 16px rgba(124,58,237,.45)' }}>
+          {due > 0 ? 'Start' : 'Open'}
+        </button>
+      </div>
+    </div>
   );
 }

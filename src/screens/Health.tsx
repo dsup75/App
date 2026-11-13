@@ -8,6 +8,7 @@ import { Button, Card, Page, SectionTitle, SeeAll, Skeleton } from '../component
 import { Glyph, type GlyphName } from '../components/Glyph';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { todayISO } from '../lib/dates';
 
 function Stat({ glyph, label, value, unit }: { glyph: GlyphName; label: string; value: number | null; unit?: string }) {
   return (
@@ -94,6 +95,8 @@ export function HealthScreen() {
               <Glyph name="shoe" size={128} />
             </span>
           </div>
+          <DevicesAndBody />
+          <SectionTitle>More from Health Connect</SectionTitle>
           <div className="grid grid-cols-2 gap-2.5">
             <Stat glyph="heart" label="Heart rate (avg)" value={data?.heartRateAvg ?? null} unit="bpm" />
             <Stat glyph="moon" label="Sleep last night" value={data?.sleepMinutes != null ? Math.round((data.sleepMinutes / 60) * 10) / 10 : null} unit="h" />
@@ -125,17 +128,26 @@ export function HealthScreen() {
           </Card>
         </>
       )}
-      <DevicesAndBody />
+      {state !== 'ready' && state !== null && <DevicesAndBody />}
     </Page>
   );
 }
+
+const fmtMin = (m: number) => `${Math.floor(m / 60)}h ${Math.round(m % 60)}m`;
 
 /** Devices, weight and screen time — always shown, from your own saved data */
 function DevicesAndBody() {
   const nav = useNavigate();
   const [g, setG] = useState<any[]>([]);
   const [w, setW] = useState<any | null>(null);
+  const [screen, setScreen] = useState<number | null>(null);
   useEffect(() => {
+    supabase
+      .from('screen_time_daily')
+      .select('total_minutes,day')
+      .eq('day', todayISO())
+      .maybeSingle()
+      .then(({ data }) => setScreen(data ? Number((data as any).total_minutes) : null), () => setScreen(null));
     supabase.from('gadgets').select('id,name,kind,last_status,last_sync_at').is('deleted_at', null).then(({ data }) => setG((data as any[]) ?? []));
     supabase
       .from('body_measurements')
@@ -158,25 +170,33 @@ function DevicesAndBody() {
   const scale = g.find((x) => x.kind === 'scale');
   return (
     <>
-      <SectionTitle right={<SeeAll onClick={() => nav('/gadgets')} />}>Health devices</SectionTitle>
+      <SectionTitle right={<SeeAll onClick={() => nav('/gadgets')} />}>Health Devices</SectionTitle>
       <div className="grid grid-cols-2 gap-2.5">
         {tile('watch', watch?.name ?? 'Watch', watch ? watch.last_status ?? 'Not synced yet' : 'Add your watch', watch ? `/gadgets/${watch.id}` : '/gadgets', /connected|synced/i.test(watch?.last_status ?? ''))}
         {tile('scale', scale?.name ?? 'Scale', scale ? scale.last_status ?? 'Not connected yet' : 'Add your scale', scale ? `/gadgets/${scale.id}` : '/gadgets', /connected|synced/i.test(scale?.last_status ?? ''))}
       </div>
       <div className="grid grid-cols-2 gap-2.5">
-        <button type="button" onClick={() => nav('/weight')} className="glass press rounded-[18px] p-3 text-left">
-          <p className="text-[13px] font-semibold text-muted">Weight & Body</p>
-          <p className="mt-1 text-[24px] font-bold leading-tight">{w?.weight_kg != null ? <>{w.weight_kg}<span className="text-[13px] font-medium"> kg</span></> : '—'}</p>
-          <p className="text-[11.5px] text-muted">{w?.bmi ? `BMI ${w.bmi}` : 'Add a weight entry'}</p>
-        </button>
-        <button type="button" onClick={() => nav('/screen-time')} className="glass press relative overflow-hidden rounded-[18px] p-3 text-left">
-          <p className="text-[13px] font-semibold text-muted">Screen Time</p>
-          <p className="mt-1 pr-9 text-[15px] font-semibold leading-tight">Today's phone use</p>
-          <p className="text-[11.5px] text-muted">Open to see apps</p>
-          <span className="pointer-events-none absolute -bottom-1 -right-1 opacity-90">
-            <Glyph name="phone" size={54} />
-          </span>
-        </button>
+        <div>
+          <p className="mb-1.5 px-1 text-[15px] font-bold">Weight &amp; Body</p>
+          <button type="button" onClick={() => nav('/weight')} className="glass press w-full rounded-[18px] p-3 text-left">
+            <p className="text-[24px] font-bold leading-tight">{w?.weight_kg != null ? <>{w.weight_kg}<span className="text-[13px] font-medium"> kg</span></> : '—'}</p>
+            <p className="text-[11.5px] text-muted">{w?.bmi ? `BMI: ${w.bmi}` : 'Add a weight entry'}</p>
+            <svg viewBox="0 0 100 26" className="mt-1 h-[26px] w-full" aria-hidden>
+              <path d="M0 22 L15 18 L28 20 L42 12 L56 15 L70 8 L84 10 L100 3" fill="none" stroke="var(--tone-income)" strokeWidth="2" strokeLinecap="round" opacity={w ? 1 : 0.25} />
+            </svg>
+          </button>
+        </div>
+        <div>
+          <p className="mb-1.5 px-1 text-[15px] font-bold">Screen Time</p>
+          <button type="button" onClick={() => nav('/screen-time')} className="glass press relative w-full overflow-hidden rounded-[18px] p-3 text-left">
+            <p className="pr-10 text-[24px] font-bold leading-tight">{screen != null ? fmtMin(screen) : '—'}</p>
+            <p className="text-[11.5px] text-muted">Today</p>
+            <div className="h-[26px]" />
+            <span className="pointer-events-none absolute -bottom-1 right-0">
+              <Glyph name="phone" size={58} />
+            </span>
+          </button>
+        </div>
       </div>
     </>
   );

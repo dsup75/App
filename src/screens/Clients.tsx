@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Briefcase, FileText, Megaphone, FolderKanban } from 'lucide-react';
+import { Plus, Briefcase, FileText, Megaphone, FolderKanban, ChevronRight } from 'lucide-react';
+import { EntityIcon } from '../components/EntityIcon';
 import { supabase } from '../lib/supabase';
 import { friendlyError, updateRecord, type Row } from '../lib/db';
 import { formatINR } from '../lib/money';
@@ -24,6 +25,7 @@ export function ClientsHub() {
   const [campaigns, setCampaigns] = useState<Row[]>([]);
   const [projects, setProjects] = useState<Row[]>([]);
   const [invoices, setInvoices] = useState<Row[]>([]);
+  const [received, setReceived] = useState<Map<string, number>>(new Map());
   const [outstanding, setOutstanding] = useState(0);
   const [error, setError] = useState('');
   const today = todayISO();
@@ -41,6 +43,16 @@ export function ClientsHub() {
         supabase.from('invoices').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(50),
       ]);
       setProjects((pr.data as Row[]) ?? []);
+      supabase
+        .from('incomes')
+        .select('client_id,amount_paise')
+        .is('deleted_at', null)
+        .not('client_id', 'is', null)
+        .then(({ data }) => {
+          const m = new Map<string, number>();
+          for (const r of (data as any[]) ?? []) m.set(r.client_id, (m.get(r.client_id) ?? 0) + Number(r.amount_paise));
+          setReceived(m);
+        });
       setInvoices((allInv.data as Row[]) ?? []);
       for (const r of [c, t, k, inv, tot]) if (r.error) throw r.error;
       setClients(c.data as Row[]);
@@ -83,29 +95,6 @@ export function ClientsHub() {
         </IconButton>
       }
     >
-      <HeroCard onClick={() => nav('/invoices')}>
-        <div className="grid grid-cols-3 gap-2">
-          <div>
-            <p className="text-[11.5px] opacity-80">Active clients</p>
-            <p className="text-[22px] font-bold">{active}</p>
-          </div>
-          <div>
-            <p className="text-[11.5px] opacity-80">Follow-ups</p>
-            <p className="text-[22px] font-bold">{followUps}</p>
-          </div>
-          <div>
-            <p className="text-[11.5px] opacity-80">To receive</p>
-            <p className="truncate text-[18px] font-bold leading-[33px]">{formatINR(outstanding)}</p>
-          </div>
-        </div>
-      </HeroCard>
-
-      <div className="grid grid-cols-3 gap-2">
-        <Shortcut icon={<FileText size={16} />} label="Requests" onClick={() => nav('/requests')} />
-        <Shortcut icon={<Megaphone size={16} />} label="Campaigns" onClick={() => setParams({ tab: 'campaigns' }, { replace: true })} />
-        <Shortcut icon={<FolderKanban size={16} />} label="All projects" onClick={() => nav('/projects')} />
-      </div>
-
       <Segmented
         value={tab === 'campaigns' ? 'clients' : tab}
         onChange={(v) => setParams({ tab: v }, { replace: true })}
@@ -126,14 +115,34 @@ export function ClientsHub() {
           <Empty title="No clients yet" text="Add your first client to track tasks, invoices and campaigns." />
         ) : (
           <>
-            <List>
-              {clients.map((c) => (
-                <RecordLine key={c.id} table="clients" row={c} nameOf={nameOf} />
-              ))}
-            </List>
+            <SectionTitle right={<SeeAll onClick={() => nav('/r/clients/new')} label="+ Add" />}>My Clients</SectionTitle>
+            <div className="space-y-2">
+              {clients.map((c) => {
+                const n = projects.filter((p) => p.client_id === c.id).length;
+                const got = received.get(c.id) ?? 0;
+                return (
+                  <button key={c.id} type="button" onClick={() => nav(`/r/clients/${c.id}`)} className="glass press flex w-full items-center gap-3 rounded-[18px] px-3 py-3 text-left">
+                    <EntityIcon table="clients" id={c.id} fallback={Briefcase} fallbackTone="blue" size={44} brandName={c.name} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[15.5px] font-semibold">{c.name}</span>
+                      <span className="block truncate text-[12.5px] text-muted">
+                        {n} Project{n === 1 ? '' : 's'} • {formatINR(got)}
+                      </span>
+                    </span>
+                    <ChevronRight size={18} className="text-muted" />
+                  </button>
+                );
+              })}
+            </div>
+            {outstanding > 0 && <p className="px-1 text-[12px] text-muted">To receive from clients: {formatINR(outstanding)} · {active} active · {followUps} follow-ups</p>}
+            <div className="grid grid-cols-3 gap-2">
+              <Shortcut icon={<Megaphone size={16} />} label="Campaigns" onClick={() => setParams({ tab: 'campaigns' }, { replace: true })} />
+              <Shortcut icon={<FileText size={16} />} label="Requests" onClick={() => nav('/requests')} />
+              <Shortcut icon={<FolderKanban size={16} />} label="All projects" onClick={() => nav('/projects')} />
+            </div>
             {tasks.filter((t) => t.due_date && t.due_date <= today).length > 0 && (
               <>
-                <SectionTitle right={<SeeAll onClick={() => setParams({ tab: 'tasks' }, { replace: true })} />}>Today's tasks</SectionTitle>
+                <SectionTitle right={<SeeAll onClick={() => setParams({ tab: 'tasks' }, { replace: true })} />}>Today's Tasks</SectionTitle>
                 <div className="glass divide-y divide-[var(--hairline)] overflow-hidden rounded-[18px]">
                   {tasks
                     .filter((t) => t.due_date && t.due_date <= today)

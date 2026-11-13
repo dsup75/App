@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Timer, ClipboardCheck, GraduationCap, AlertTriangle, BookOpen } from 'lucide-react';
+import { Plus, ClipboardCheck, GraduationCap, AlertTriangle, BookOpen, Play, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { friendlyError, type Row } from '../lib/db';
 import { formatDate, todayISO, toISODate } from '../lib/dates';
@@ -111,9 +111,10 @@ export function StudyHub() {
                 <Glyph name={subjectGlyph(s.name)} size={40} />
                 <span className="mt-1.5 w-full truncate text-[13px] font-semibold">{s.name}</span>
                 <span className="text-[12px] text-muted">{pct}%</span>
-                <span className="mt-1.5 h-1.5 w-3/4 overflow-hidden rounded-full bg-[var(--hairline)]">
-                  <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: pct >= 70 ? 'var(--tone-income)' : pct >= 35 ? 'var(--tone-amber-solid, #f59e0b)' : 'var(--primary-2)' }} />
-                </span>
+                <svg width="46" height="14" viewBox="0 0 46 14" className="mt-1" aria-hidden>
+                  <path d="M3 3 Q23 17 43 3" fill="none" stroke="var(--hairline)" strokeWidth="3.5" strokeLinecap="round" />
+                  <path d="M3 3 Q23 17 43 3" fill="none" stroke={pct >= 70 ? '#4ade80' : pct >= 35 ? '#facc15' : '#38bdf8'} strokeWidth="3.5" strokeLinecap="round" pathLength={100} strokeDasharray={`${Math.max(4, pct)} 100`} />
+                </svg>
               </button>
             );
           })}
@@ -123,20 +124,19 @@ export function StudyHub() {
       <RevisionSummary />
 
       <div className="glass rounded-[22px] p-3.5">
-        <div className="flex items-center gap-2">
-          <Glyph name="stopwatch" size={30} />
-          <p className="min-w-0 flex-1 text-[16px] font-bold">Study Timer</p>
-          <button type="button" className="text-[12.5px] font-semibold text-primary" onClick={() => nav('/clock?tab=stopwatch')}>
-            Stopwatch
+        <p className="text-[16px] font-bold">Study Timer</p>
+        <div className="mt-1.5 flex items-center justify-center gap-3">
+          <p className="tabular text-[42px] font-bold tracking-tight">25:00</p>
+          <button type="button" aria-label="Stopwatch" onClick={() => nav('/clock?tab=stopwatch')} className="press flex h-10 w-10 items-center justify-center rounded-full text-white" style={{ background: 'linear-gradient(135deg,#3b82f6,#1d4ed8)' }}>
+            <ChevronRightIcon size={20} />
+          </button>
+          <button type="button" aria-label="Start focus timer" onClick={() => nav('/pomodoro')} className="press flex h-12 w-12 items-center justify-center rounded-full text-white" style={{ background: 'linear-gradient(135deg,#a78bfa,#6366f1)', boxShadow: '0 0 16px rgba(139,92,246,.6)' }}>
+            <Play size={22} fill="currentColor" />
           </button>
         </div>
-        <div className="mt-2 flex items-center justify-center gap-4">
-          <p className="tabular text-[40px] font-bold tracking-tight">25:00</p>
-          <button type="button" aria-label="Start focus timer" onClick={() => nav('/pomodoro')} className="fab-glow press flex h-14 w-14 items-center justify-center rounded-full text-white">
-            <Timer size={24} />
-          </button>
-        </div>
-        <p className="text-center text-[12.5px] text-muted">Study 25 min · Break 5 min · saved to today's study time</p>
+        <p className="mt-1 text-center text-[13px]">
+          <b>Study</b> <span className="text-muted">25m</span> <span className="mx-3" /> <b>Break</b> <span className="text-muted">5m</span>
+        </p>
       </div>
 
       <Card>
@@ -265,15 +265,17 @@ function TodayProgress({ todayMin, weekMin, chaptersToday, testsToday, exam }: {
       }
     }
   };
-  const Line = ({ ok, text }: { ok: boolean; text: string }) => (
-    <p className="flex items-center gap-2 text-[13.5px]">
-      <span className={'flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold text-white ' + (ok ? 'bg-[var(--tone-income)]' : 'bg-[var(--hairline)]')}>✓</span>
+  const Line = ({ ok, color, text }: { ok: boolean; color: string; text: string }) => (
+    <p className="flex items-center gap-2 text-[14px]">
+      <span className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: ok ? color : 'rgba(255,255,255,.2)' }}>✓</span>
       {text}
     </p>
   );
   return (
-    <div className="hero relative overflow-hidden rounded-[24px] p-4">
-      <p className="text-[15px] font-bold">Today's Progress</p>
+    <div className="hero relative overflow-hidden rounded-[24px] p-4" style={{ background: 'linear-gradient(140deg, #5b21b6 0%, #3730a3 55%, #1e1b4b 100%)', color: '#fff' }}>
+      <p className="flex items-center gap-2 text-[16px] font-bold">
+        <Glyph name="calendar" size={22} /> Today's Progress
+      </p>
       <div className="mt-2 flex items-center gap-4">
         <button type="button" onClick={editGoal} aria-label="Change daily goal" className="relative h-[108px] w-[108px] shrink-0">
           <svg width="108" height="108" viewBox="0 0 108 108" className="-rotate-90">
@@ -292,9 +294,9 @@ function TodayProgress({ todayMin, weekMin, chaptersToday, testsToday, exam }: {
           </span>
         </button>
         <div className="min-w-0 flex-1 space-y-1.5">
-          <Line ok={chaptersToday > 0} text={`${chaptersToday} chapter${chaptersToday === 1 ? '' : 's'} done`} />
-          <Line ok={testsToday > 0} text={`${testsToday} mock test${testsToday === 1 ? '' : 's'}`} />
-          <Line ok={todayMin > 0} text={`${Math.floor(todayMin / 60) ? `${Math.floor(todayMin / 60)}h ` : ''}${todayMin % 60} min study`} />
+          <Line ok={chaptersToday > 0} color="#a855f7" text={`${chaptersToday}/3 Chapters`} />
+          <Line ok={testsToday > 0} color="#22c55e" text={`${testsToday} Mock Test`} />
+          <Line ok={todayMin > 0} color="#22c55e" text={`${Math.floor(todayMin / 60) ? `${Math.floor(todayMin / 60)}h ` : ''}${todayMin % 60} min Study`} />
           <p className="text-[11.5px] opacity-75">This week {Math.floor(weekMin / 60)}h {weekMin % 60}m</p>
         </div>
       </div>

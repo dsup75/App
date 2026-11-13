@@ -9,14 +9,11 @@ import { Glyph, type GlyphName } from '../components/Glyph';
 
 /** big tiles at the top — the places people open most */
 const FEATURED: { title: string; sub: string; to: string; glyph: GlyphName }[] = [
-  { title: 'Clock', sub: 'Timer, Stopwatch, Alarm', to: '/clock', glyph: 'stopwatch' },
-  { title: 'Life', sub: 'Habits, Events', to: '/habits', glyph: 'calendar' },
+  { title: 'Life', sub: 'Habits, Events', to: '/habits', glyph: 'flame' },
   { title: 'Credit & Loans', sub: 'Cards, EMI', to: '/credit', glyph: 'card' },
   { title: 'Health', sub: 'Fitness & Sleep', to: '/health', glyph: 'heart' },
-  { title: 'Gadgets', sub: 'Devices', to: '/gadgets', glyph: 'watch' },
+  { title: 'Gadgets', sub: 'Devices', to: '/gadgets', glyph: 'phone' },
   { title: 'Reports', sub: 'Insights', to: '/reports', glyph: 'barchart' },
-  { title: 'Work', sub: 'Clients, Projects', to: '/clients', glyph: 'briefcase' },
-  { title: 'AI Assistant', sub: 'Ask & smart add', to: '/assistant', glyph: 'sparkle' },
   { title: 'Backup', sub: 'Export Data', to: '/money-tools/backup', glyph: 'cloud' },
   { title: 'App Lock', sub: 'Biometrics', to: '/settings', glyph: 'lock' },
   { title: 'Reminders', sub: 'Alerts', to: '/settings', glyph: 'bell' },
@@ -34,6 +31,7 @@ const SECTIONS: { title: string; items: Item[] }[] = [
   {
     title: 'Daily life',
     items: [
+      { label: 'Clock', to: '/clock', icon: AlarmClock, tone: 'amber' },
       { label: 'Tasks', to: '/tasks', icon: ListTodo, tone: 'blue' },
       { label: 'Habits', to: '/habits', icon: Flame, tone: 'amber' },
       { label: 'Calendar', to: '/calendar', icon: CalendarDays, tone: 'violet' },
@@ -61,11 +59,10 @@ const SECTIONS: { title: string; items: Item[] }[] = [
   {
     title: 'Work & study',
     items: [
-      { label: 'Clients', to: '/clients', icon: Briefcase, tone: 'primary' },
+      { label: 'Work', to: '/clients', icon: Briefcase, tone: 'primary' },
       { label: 'Projects', to: '/projects', icon: FolderKanban, tone: 'blue' },
       { label: 'Campaigns', to: '/campaigns', icon: Megaphone, tone: 'pink' },
       { label: 'Pomodoro', to: '/pomodoro', icon: Timer, tone: 'primary' },
-      { label: 'Clock', to: '/clock', icon: AlarmClock, tone: 'amber' },
       { label: 'Revisions', to: '/revisions', icon: RotateCcw, tone: 'violet' },
     ],
   },
@@ -105,6 +102,17 @@ export function More() {
           </button>
         ))}
       </div>
+      <button type="button" onClick={() => nav('/setup')} className="hero press flex w-full items-center gap-3 rounded-[20px] p-4 text-left">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15">
+          <Glyph name="sparkle" size={34} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[16px] font-bold">DeepBoost Life</span>
+          <span className="block text-[12.5px] opacity-85">Your personal life OS · Version {import.meta.env.VITE_APP_VERSION ?? 'dev'}</span>
+        </span>
+        <ChevronRight size={18} className="opacity-80" />
+      </button>
+      <SectionTitle>All features</SectionTitle>
       {SECTIONS.map((s) => (
         <div key={s.title} className="space-y-2">
           <SectionTitle>{s.title}</SectionTitle>
@@ -120,16 +128,6 @@ export function More() {
           </div>
         </div>
       ))}
-      <button type="button" onClick={() => nav('/setup')} className="hero press flex w-full items-center gap-3 rounded-[20px] p-4 text-left">
-        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15">
-          <Glyph name="sparkle" size={34} />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[16px] font-bold">DeepBoost Life</span>
-          <span className="block text-[12.5px] opacity-85">Your personal life OS · Version {import.meta.env.VITE_APP_VERSION ?? 'dev'}</span>
-        </span>
-        <ChevronRight size={18} className="opacity-80" />
-      </button>
     </Page>
   );
 }

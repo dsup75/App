@@ -119,6 +119,11 @@ export function BackupScreen() {
       const name = `deepboost-backup-${new Date().toISOString().slice(0, 10)}.json`;
       suppressBriefly();
       await saveFile(name, new Blob([JSON.stringify(file)], { type: 'application/json' }));
+      try {
+        localStorage.setItem('last-backup-at', new Date().toISOString());
+      } catch {
+        /* ignore */
+      }
       toast(`Backup ready · ${count} records`);
     } catch (e) {
       toast(friendlyError(e), 'error');

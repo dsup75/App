@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
-import { Lock, Fingerprint, ScanFace, Smartphone, Timer, LogOut, FileSpreadsheet, User, KeyRound, Bell, DatabaseBackup } from 'lucide-react';
+import { Lock, Fingerprint, ScanFace, Smartphone, Timer, LogOut, FileSpreadsheet, User, KeyRound, Bell, DatabaseBackup, ChevronRight } from 'lucide-react';
 import { AiSettings } from '../components/AiSettings';
 import { askPermission, getReminderConfig, remindersSupported, saveReminderConfig, scheduleReminders, DEFAULT_REMINDERS, type ReminderConfig } from '../lib/reminders';
 import { useAuth } from '../context/AuthContext';
@@ -13,7 +13,8 @@ import { brandLogosOn, setBrandLogosOn } from '../lib/brands';
 import { ACCENTS, STYLES, TEXT_SIZES, THEMES, getThemePrefs, setThemePrefs, type CustomColors, type ThemePrefs } from '../lib/theme';
 import { isValidScriptUrl, syncAll, testScript } from '../lib/sheets';
 import { isValidUpiId } from '../lib/upi';
-import { formatDateTime } from '../lib/dates';
+import { formatDate, formatDateTime } from '../lib/dates';
+import { aiKeyInfo } from '../lib/ai';
 import { PinPad } from '../components/PinPad';
 import { Glyph, type GlyphName } from '../components/Glyph';
 import { useIconStore } from '../lib/icons';
@@ -65,16 +66,28 @@ export function SettingsScreen() {
     toast(on ? `${bioLabel(bio?.kinds ?? [])} unlock on` : 'Biometric unlock off');
   };
 
+  const [remOn, setRemOn] = useState<boolean | null>(null);
+  const [aiOn, setAiOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (user) getReminderConfig(user.id).then((c) => setRemOn(!!c.on)).catch(() => setRemOn(false));
+    aiKeyInfo().then((k) => setAiOn(!!k)).catch(() => setAiOn(false));
+  }, [user]);
+  let lastBackup: string | null = null;
+  try {
+    lastBackup = localStorage.getItem('last-backup-at');
+  } catch {
+    /* ignore */
+  }
   const theme = getThemePrefs();
   const themeName = theme.theme === 'custom' ? 'Custom' : THEMES.find((t) => t.value === theme.theme)?.label ?? 'Nebula';
   const jump = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const quick: { glyph: GlyphName; title: string; sub: string; go: () => void }[] = [
-    { glyph: 'palette', title: 'Theme', sub: `${themeName}`, go: () => jump('set-theme') },
-    { glyph: 'lock', title: 'App Lock & Biometrics', sub: config ? (config.biometric ? `${bioLabel(bio?.kinds ?? [])} unlock on` : 'PIN on') : 'Off', go: () => jump('set-security') },
-    { glyph: 'bell', title: 'Reminders', sub: 'Bills, EMIs, tasks, exams', go: () => jump('set-reminders') },
-    { glyph: 'sparkle', title: 'AI Assistant', sub: 'Gemini key & smart add', go: () => jump('set-ai') },
-    { glyph: 'cloud', title: 'Backup & Restore', sub: 'Export or import all data', go: () => nav('/money-tools/backup') },
-    { glyph: 'trash', title: 'Recycle Bin', sub: 'Restore deleted items', go: () => nav('/recycle') },
+    { glyph: 'palette', title: 'Theme', sub: `${themeName}${document.documentElement.classList.contains('dark') ? ' (Dark)' : ' (Light)'}`, go: () => jump('set-theme') },
+    { glyph: 'lock', title: 'App Lock & Biometrics', sub: config ? (config.biometric ? `${bioLabel(bio?.kinds ?? [])} Enabled` : 'PIN Enabled') : 'Off', go: () => jump('set-security') },
+    { glyph: 'bell', title: 'Reminders', sub: remOn === null ? '…' : remOn ? 'Enabled' : 'Off', go: () => jump('set-reminders') },
+    { glyph: 'sparkle', title: 'AI Assistant', sub: aiOn === null ? '…' : aiOn ? 'Gemini Connected' : 'Not connected', go: () => jump('set-ai') },
+    { glyph: 'cloud', title: 'Backup & Restore', sub: lastBackup ? `Last: ${formatDate(lastBackup.slice(0, 10))}` : 'Export or import all data', go: () => nav('/money-tools/backup') },
+    { glyph: 'trash', title: 'Recycle Bin', sub: 'Restore Deleted', go: () => nav('/recycle') },
     { glyph: 'info', title: 'About DeepBoost Life', sub: `Version ${import.meta.env.VITE_APP_VERSION ?? 'dev'}`, go: () => jump('set-account') },
   ];
 
@@ -263,6 +276,7 @@ function ProfileCard({ name, email }: { name: string; email: string }) {
           Change photo
         </button>
       </div>
+      <ChevronRight size={20} className="text-muted" />
       <IconPickerSheet open={open} onClose={() => setOpen(false)} table="profile" id="me" title="Profile photo" />
     </Card>
   );
