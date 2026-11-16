@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLock } from '../context/LockContext';
 import { useToast } from '../context/ToastContext';
 import { friendlyError, saveSettings } from '../lib/db';
-import { biometricAvailable, biometricInfo, biometricPrompt, bioLabel, hashPin, verifyPin, LOCK_TIMEOUTS, type BioInfo, type LockConfig } from '../lib/lock';
+import { biometricAvailable, biometricInfo, biometricPrompt, bioErrorMessage, bioLabel, hashPin, verifyPin, LOCK_TIMEOUTS, type BioInfo, type LockConfig } from '../lib/lock';
 import { brandLogosOn, setBrandLogosOn } from '../lib/brands';
 import { ACCENTS, STYLES, TEXT_SIZES, THEMES, getThemePrefs, setThemePrefs, type CustomColors, type ThemePrefs } from '../lib/theme';
 import { isValidScriptUrl, syncAll, testScript } from '../lib/sheets';
@@ -59,7 +59,7 @@ export function SettingsScreen() {
       suppressBriefly();
       const ok = await biometricPrompt('Confirm to turn on face / fingerprint unlock', !bio?.available);
       suppressBriefly();
-      if (!ok) return toast('Not confirmed', 'error');
+      if (!ok) return toast(bioErrorMessage() || 'Not confirmed', 'error');
     }
     // phones that do not offer face/fingerprint to apps can still use the phone's own screen lock
     await updateConfig({ ...config, biometric: on, deviceCredential: on ? config.deviceCredential ?? !bio?.available : config.deviceCredential });
@@ -179,7 +179,7 @@ export function SettingsScreen() {
               suppressBriefly();
               const ok = await biometricPrompt('Test: unlock DeepBoost Life', !!config.deviceCredential);
               suppressBriefly();
-              toast(ok ? 'Unlock works' : 'Not unlocked', ok ? 'success' : 'error');
+              toast(ok ? 'Unlock works' : bioErrorMessage() || 'Not unlocked', ok ? 'success' : 'error');
             }}
             chevron
           />

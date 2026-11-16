@@ -124,10 +124,27 @@ export async function biometricPrompt(reason = 'Unlock DeepBoost Life', allowDev
       androidConfirmationRequired: false,
       androidBiometryStrength: AndroidBiometryStrength.weak,
     });
+    lastBioError = '';
     return true;
-  } catch {
+  } catch (e) {
+    lastBioError = String((e as { code?: unknown })?.code ?? (e as Error)?.message ?? 'unknown');
     return false;
   }
+}
+
+/** why the last face / fingerprint prompt did not unlock ('' = it worked) */
+export let lastBioError = '';
+
+/** A plain message for the last failure, or '' when the person just closed the sheet. */
+export function bioErrorMessage(code = lastBioError): string {
+  if (!code || /cancel|fallback/i.test(code)) return '';
+  if (/notEnrolled/i.test(code)) return 'No face or fingerprint is saved in your phone. Add one in phone Settings → Security, or use your PIN.';
+  if (/notAvailable|invalidContext/i.test(code))
+    return "Your phone doesn't let apps use its face unlock (most Android phones only allow fingerprint for apps). Use fingerprint or your PIN.";
+  if (/lockout/i.test(code)) return 'Too many tries. Unlock your phone once with its own PIN/pattern, then try again — or use your PIN.';
+  if (/passcodeNotSet|noDeviceCredential/i.test(code)) return 'Set a screen lock on your phone first (Settings → Security).';
+  if (/authenticationFailed/i.test(code)) return 'Face / fingerprint not recognised. Try again or use your PIN.';
+  return 'Face / fingerprint could not start (' + code + '). Use your PIN.';
 }
 
 export const LOCK_TIMEOUTS = [

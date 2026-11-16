@@ -6,8 +6,7 @@ import { App as CapApp } from '@capacitor/app';
 import { useLock } from '../context/LockContext';
 import { useAuth } from '../context/AuthContext';
 import { PinPad } from '../components/PinPad';
-import { Confirm } from '../components/ui';
-import { biometricInfo, bioLabel, type BioKind } from '../lib/lock';
+import { biometricInfo, bioLabel, bioErrorMessage, type BioKind } from '../lib/lock';
 import { Logo } from './Auth';
 
 export function LockScreen() {
@@ -18,6 +17,8 @@ export function LockScreen() {
   const [forgot, setForgot] = useState(false);
   const [kinds, setKinds] = useState<BioKind[]>([]);
   const [scanning, setScanning] = useState(false);
+  const [bioMsg, setBioMsg] = useState('');
+  const [leaving, setLeaving] = useState(false);
   const [showPin, setShowPin] = useState(!config?.biometric);
   const running = useRef(false);
 
@@ -28,6 +29,7 @@ export function LockScreen() {
   const tryBio = useCallback(async () => {
     if (!config?.biometric || running.current) return;
     running.current = true;
+    setBioMsg('');
     setScanning(true);
     // first attempt can fail while Android is still bringing the app to the front — retry once
     let ok = await unlockWithBiometric();
@@ -37,7 +39,10 @@ export function LockScreen() {
     }
     setScanning(false);
     running.current = false;
-    if (!ok) setShowPin(true);
+    if (!ok) {
+      setBioMsg(bioErrorMessage());
+      setShowPin(true);
+    }
   }, [config?.biometric, unlockWithBiometric]);
 
   // like Face ID: ask straight away, and again every time the app comes back while locked
@@ -62,8 +67,13 @@ export function LockScreen() {
   };
 
   const resetViaLogin = async () => {
-    await updateConfig(null);
-    await signOut();
+    setLeaving(true);
+    try {
+      await updateConfig(null);
+    } finally {
+      await signOut().catch(() => {});
+      setLeaving(false);
+    }
   };
   const face = kinds.includes('face');
   const BioIcon = face ? ScanFace : Fingerprint;
@@ -97,6 +107,7 @@ export function LockScreen() {
           </>
         ) : (
           <>
+            {bioMsg && <p className="mb-3 rounded-2xl bg-[var(--surface-2,rgba(127,127,127,.12))] px-3 py-2 text-center text-[12.5px] text-muted">{bioMsg}</p>}
             <p className="mb-5 text-[14px] text-muted">Enter your {config.length}-digit PIN</p>
             <PinPad
               length={config.length}
@@ -112,14 +123,24 @@ export function LockScreen() {
           </>
         )}
       </div>
-      <Confirm
-        open={forgot}
-        title="Forgot PIN?"
-        message="You will be signed out. Sign in again with your email and password, then set a new PIN in Settings. Your data stays safe."
-        confirmLabel="Sign out"
-        onConfirm={resetViaLogin}
-        onClose={() => setForgot(false)}
-      />
+      {forgot && (
+        <div className="absolute inset-0 z-20 flex items-end justify-center bg-black/40" onClick={() => !leaving && setForgot(false)}>
+          <div className="sheet-in w-full max-w-xl rounded-t-[26px] px-5 pb-8 pt-4 pb-safe" style={{ background: 'var(--sheet)', borderTop: '1px solid var(--edge)' }} onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-2 text-center text-[16px] font-semibold">Forgot PIN?</h3>
+            <p className="mb-5 text-center text-[14px] text-muted">
+              You will be signed out. Sign in again with your email and password (use "Forgot password?" there if needed), then set a new PIN in Settings. Your data stays safe.
+            </p>
+            <div className="flex gap-2.5">
+              <button disabled={leaving} onClick={() => setForgot(false)} className="h-12 flex-1 rounded-2xl border border-[var(--edge)] text-[15px] font-medium">
+                Cancel
+              </button>
+              <button disabled={leaving} onClick={resetViaLogin} className="h-12 flex-1 rounded-2xl bg-primary text-[15px] font-semibold text-white">
+                {leaving ? 'Signing out…' : 'Sign out'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
