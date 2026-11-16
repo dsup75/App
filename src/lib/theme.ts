@@ -4,7 +4,7 @@ export type ThemeMode = 'system' | 'light' | 'dark';
 export type ThemeStyle = 'glass' | 'midnight' | 'clean';
 export type Accent = 'green' | 'blue' | 'violet' | 'rose' | 'amber' | 'teal';
 export type TextSize = 'sm' | 'md' | 'lg' | 'xl';
-export type ThemeId = 'nebula' | 'lumina' | 'signature' | 'dark' | 'light' | 'midnight' | 'pearl' | 'forest' | 'sunset' | 'mono' | 'custom';
+export type ThemeId = 'nebula' | 'lumina' | 'signature' | 'dark' | 'light' | 'midnight' | 'pearl' | 'forest' | 'sunset' | 'mono' | 'hume' | 'custom';
 export type ImageDisplay = 'theme' | 'original';
 
 /** Custom theme: your own colours (any hex). Empty = derived automatically. */
@@ -27,6 +27,8 @@ export interface ThemePrefs {
   accent: Accent;
   text: TextSize;
   reduceEffects: boolean;
+  /** set once the Smoke Glass default was applied */
+  glassV1?: boolean;
 }
 
 /** 7 ready themes + Custom = 8. `mode` = forced light/dark; undefined = follows the Light / dark setting. */
@@ -35,13 +37,13 @@ export const THEMES: { value: ThemeId; label: string; hint: string; mode?: 'ligh
   { value: 'signature', label: 'Signature', hint: 'DeepBoost Signature — deep space navy, aurora glow, electric indigo to cyan', mode: 'dark', style: 'glass', accent: 'violet', swatch: ['#05070f', '#6d5bff', '#22d3ee'] },
   { value: 'lumina', label: 'Lumina', hint: 'Frosted lavender glass, indigo buttons and real app logos — bright and premium', mode: 'light', style: 'glass', accent: 'violet', swatch: ['#f3f2fb', '#ffffff', '#5b5cf0'] },
   { value: 'light', label: 'Classic', hint: 'Bright, crisp and neutral — easy to read in sunlight', mode: 'light', style: 'glass', accent: 'blue', swatch: ['#f4f6f9', '#ffffff', '#2f6bd6'] },
-  { value: 'midnight', label: 'Midnight', hint: 'True black for AMOLED screens, violet accent — saves battery', mode: 'dark', style: 'midnight', accent: 'violet', swatch: ['#000000', '#121214', '#9b84ff'] },
+  { value: 'hume', label: 'Smoke Glass', hint: 'See-through smoky glass cards over a soft blurred backdrop, DeepBoost blue→green buttons (default)', mode: 'dark', style: 'glass', accent: 'blue', swatch: ['#1b1c1f', '#3a3b40', '#1f8fff'] },
   { value: 'pearl', label: 'Pearl', hint: 'Warm ivory with champagne gold — calm and elegant', mode: 'light', style: 'glass', accent: 'amber', swatch: ['#f6f1ea', '#fffdf9', '#a67c46'] },
   { value: 'mono', label: 'Black & White', hint: 'Pure monochrome — no colour anywhere', style: 'clean', accent: 'green', swatch: ['#ffffff', '#111111', '#808080'] },
 ];
 
 /** themes that were removed → the closest one that is still here */
-const RETIRED: Partial<Record<ThemeId, ThemeId>> = { dark: 'midnight', forest: 'light', sunset: 'pearl' };
+const RETIRED: Partial<Record<ThemeId, ThemeId>> = { dark: 'hume', midnight: 'hume', forest: 'light', sunset: 'pearl' };
 
 export const STYLES: { value: ThemeStyle; label: string; hint: string }[] = [
   { value: 'glass', label: 'Liquid Glass', hint: 'Transparent glass cards (default)' },
@@ -67,7 +69,7 @@ export const TEXT_SIZES: { value: TextSize; label: string; zoom: number }[] = [
 
 const KEY = 'theme-prefs';
 const OLD_KEY = 'theme-mode';
-const DEFAULTS: ThemePrefs = { theme: 'nebula', images: 'theme', mode: 'system', style: 'glass', accent: 'blue', text: 'md', reduceEffects: false };
+const DEFAULTS: ThemePrefs = { theme: 'hume', images: 'theme', mode: 'system', style: 'glass', accent: 'blue', text: 'md', reduceEffects: false, glassV1: true };
 const listeners = new Set<(p: ThemePrefs) => void>();
 
 export function getThemePrefs(): ThemePrefs {
@@ -78,6 +80,16 @@ export function getThemePrefs(): ThemePrefs {
       // people who set up their look before themes existed keep exactly that look
       const out: ThemePrefs = { ...DEFAULTS, theme: 'custom', ...saved };
       if (RETIRED[out.theme]) out.theme = RETIRED[out.theme]!;
+      // Nov 2026: the see-through "Smoke Glass" look became the app's look — switched once; any theme can be picked again after
+      if (!saved.glassV1) {
+        out.theme = 'hume';
+        out.glassV1 = true;
+        try {
+          localStorage.setItem(KEY, JSON.stringify({ ...saved, theme: 'hume', glassV1: true }));
+        } catch {
+          /* ignore */
+        }
+      }
       return out;
     }
     const old = localStorage.getItem(OLD_KEY);

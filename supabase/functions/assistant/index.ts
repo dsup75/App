@@ -1,8 +1,8 @@
 // DeepBoost Life — AI assistant (Supabase Edge Function, Deno)
 //
 // Key: each user pastes their Gemini key in the app (Settings → AI Assistant). It is stored encrypted
-// in Supabase Vault and read here with the service role. A project-wide GEMINI_API_KEY secret, if set,
-// is used instead. Optional secret: GEMINI_MODEL (default below).
+// in Supabase Vault and read here with the service role. The user's own key always wins; a project-wide
+// GEMINI_API_KEY secret is only a fallback. Optional secret: GEMINI_MODEL (default below).
 //
 // The app sends the signed-in user's own data summary (already filtered by
 // Row Level Security). The key never reaches the phone. The assistant only
@@ -15,9 +15,12 @@ const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
 /** The key the signed-in user saved in the app (encrypted in Vault), or the project secret. Never sent back. */
 async function keyFor(req: Request): Promise<string | null> {
-  if (ENV_KEY) return ENV_KEY;
+  return (await userKey(req)) ?? ENV_KEY ?? null;
+}
+async function userKey(req: Request): Promise<string | null> {
   const auth = req.headers.get('authorization') ?? '';
   if (!auth.startsWith('Bearer ') || !SB_URL || !SERVICE) return null;
+  try {
   const u = await fetch(`${SB_URL}/auth/v1/user`, { headers: { authorization: auth, apikey: SERVICE } });
   if (!u.ok) return null;
   const user = await u.json();
@@ -30,6 +33,21 @@ async function keyFor(req: Request): Promise<string | null> {
   if (!r.ok) return null;
   const k = await r.json();
   return typeof k === 'string' && k.length > 10 ? k : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Asks Google if the key works (lists 1 model — free, no tokens). */
+async function checkKey(KEY: string): Promise<{ valid: boolean; message?: string }> {
+  try {
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1', { headers: { 'x-goog-api-key': KEY } });
+    if (r.ok) return { valid: true };
+    const d = await r.json().catch(() => null);
+    return { valid: false, message: d?.error?.message ?? `Google answered ${r.status}` };
+  } catch {
+    return { valid: false, message: 'Could not reach Google from the server.' };
+  }
 }
 
 
@@ -60,9 +78,9 @@ async function extract(KEY: string, text: string, image?: { base64: string; mime
   const parts: unknown[] = [];
   if (image?.base64) parts.push({ inline_data: { mime_type: image.mime || 'image/jpeg', data: image.base64 } });
   parts.push({ text: `Today is ${new Date().toISOString().slice(0, 10)}.\n${text || '(see image)'}` });
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${KEY}`, {
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': KEY },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: EXTRACT }] },
       contents: [{ role: 'user', parts }],
@@ -79,9 +97,13 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
     const body = await req.json().catch(() => ({}));
-    // Connection test from Settings → AI Assistant (never calls Gemini, never returns the key)
+    // Connection test from Settings → AI Assistant (asks Google if the key works; never returns the key)
     const KEY = await keyFor(req);
-    if (body?.mode === 'ping') return Response.json({ ok: true, key: Boolean(KEY), model: MODEL }, { headers: cors });
+    if (body?.mode === 'ping') {
+      if (!KEY) return Response.json({ ok: true, key: false, model: MODEL }, { headers: cors });
+      const c = await checkKey(KEY);
+      return Response.json({ ok: true, key: true, valid: c.valid, google: c.message ?? null, model: MODEL }, { headers: cors });
+    }
     if (!KEY) {
       return Response.json({ error: 'No Gemini API key yet. Add it in Settings → AI Assistant.' }, { status: 400, headers: cors });
     }
@@ -103,9 +125,9 @@ Deno.serve(async (req) => {
       })),
       { role: 'user', parts: [{ text: `My data (JSON):\n${ctx}\n\nQuestion: ${question}` }] },
     ];
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${KEY}`, {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': KEY },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM }] },
         contents,

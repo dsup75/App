@@ -1165,3 +1165,118 @@ html[data-nav='pop'] .list-in > * {
 [data-theme='mono'] .care-chip-on {
   filter: grayscale(1);
 }
+
+/* ---------- Smoke Glass (Hume-style): see-through smoky cards over a soft blurred backdrop ---------- */
+.dark[data-theme='hume'],
+[data-theme='hume'] {
+  --bg: #121315;
+  --card: rgba(58, 60, 66, 0.34);
+  --card-2: rgba(255, 255, 255, 0.07);
+  --solid: #1f2023;
+  --text: #f4f4f6;
+  --muted: #a3a5ad;
+  --hairline: rgba(255, 255, 255, 0.09);
+  --edge: rgba(255, 255, 255, 0.12);
+  --edge-hi: rgba(255, 255, 255, 0.1);
+  --field: rgba(255, 255, 255, 0.07);
+  --nav: rgba(34, 35, 39, 0.62);
+  --sheet: rgba(30, 31, 35, 0.9);
+  --shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  --blur: 26px;
+  --primary: #5fb0ff;
+  --primary-2: #1f8fff;
+  --primary-soft: rgba(31, 143, 255, 0.18);
+  --acc: 31, 143, 255;
+  --acc2: 39, 196, 107;
+  --hero-1: #1f6fff;
+  --hero-2: #14b8a6;
+  --income: #3ddc8f;
+  --expense: #ff6b7d;
+  --danger: #ff5a6e;
+  --tone-income: #3ddc8f;
+  --tone-income-bg: rgba(61, 220, 143, 0.15);
+  --tone-expense: #ff6b7d;
+  --tone-expense-bg: rgba(255, 107, 125, 0.15);
+  --tone-muted: #a3a5ad;
+  --tone-muted-bg: rgba(255, 255, 255, 0.08);
+  --tone-blue: #5fb0ff;
+  --tone-blue-bg: rgba(31, 143, 255, 0.16);
+  --tone-violet: #b4a2ff;
+  --tone-violet-bg: rgba(160, 140, 255, 0.15);
+  --tone-pink: #ff8cc6;
+  --tone-pink-bg: rgba(255, 140, 198, 0.14);
+  --tone-pink-solid: #ec4899;
+  --tone-teal: #3fe0c5;
+  --tone-teal-bg: rgba(63, 224, 197, 0.14);
+  --tone-teal-solid: #14b8a6;
+  --tone-amber: #ffc14d;
+  --tone-amber-bg: rgba(255, 193, 77, 0.14);
+  --tone-amber-solid: #f59e0b;
+  --warn: #ffc14d;
+  --chart-2: #3ddc8f;
+  --blob1: rgba(255, 170, 90, 0.16);
+  --blob2: rgba(31, 143, 255, 0.16);
+  --blob3: rgba(39, 196, 107, 0.1);
+  --blob4: rgba(255, 255, 255, 0.05);
+  --hero-bar: #3ddc8f;
+  --logo-1: #1f6fff;
+  --logo-2: #27c46b;
+  --on-primary: #ffffff;
+}
+/* the blurred "photo" behind everything: warm window lights + cool sky, softly out of focus */
+[data-theme='hume'] .app-bg {
+  background:
+    radial-gradient(22rem 16rem at 88% 8%, rgba(255, 176, 96, 0.22), transparent 65%),
+    radial-gradient(14rem 10rem at 12% 22%, rgba(255, 214, 160, 0.1), transparent 70%),
+    radial-gradient(26rem 18rem at 0% 70%, rgba(31, 111, 255, 0.16), transparent 65%),
+    radial-gradient(24rem 18rem at 100% 88%, rgba(39, 196, 107, 0.12), transparent 65%),
+    linear-gradient(180deg, #2a2b2f 0%, #17181b 45%, #0f1012 100%);
+}
+[data-theme='hume'] .app-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+[data-theme='hume'] .glass {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.025)), var(--card);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+  backdrop-filter: blur(var(--blur)) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+[data-theme='hume'] .glass-strong {
+  background: rgba(36, 37, 41, 0.55);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+[data-theme='hume'] .hero {
+  background:
+    radial-gradient(20rem 10rem at 100% 0%, rgba(39, 196, 107, 0.4), transparent 65%),
+    linear-gradient(145deg, rgba(31, 111, 255, 0.85), rgba(20, 150, 170, 0.75));
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 18px 44px rgba(31, 111, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+[data-theme='hume'] .liquid {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+[data-theme='hume'] .liquid-primary {
+  background: linear-gradient(90deg, #1f6fff 0%, #1aa3d9 55%, #27c46b 100%) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 26px rgba(31, 143, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+}
+[data-theme='hume'] .field {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+[data-theme='hume'] .care-hero {
+  background: radial-gradient(120% 90% at 100% 0%, rgba(39, 196, 107, 0.45) 0%, rgba(39, 196, 107, 0) 60%),
+    linear-gradient(140deg, rgba(31, 111, 255, 0.82) 0%, rgba(26, 143, 224, 0.72) 45%, rgba(20, 184, 166, 0.72) 100%);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}

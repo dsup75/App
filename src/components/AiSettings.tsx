@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Bot, Eye, EyeOff, KeyRound, PlugZap, Trash2, ExternalLink } from 'lucide-react';
 import {
-  DEFAULT_AI_URL, aiKeyInfo, disconnectAi, loadAiConnection, looksLikeFunctionUrl, removeAiKey, saveAiKey, saveAiUrl, testAiConnection, type AiStatus,
+  DEFAULT_AI_URL, aiKeyInfo, aiKeyProblem, cleanAiKey, disconnectAi, loadAiConnection, looksLikeFunctionUrl, removeAiKey, saveAiKey, saveAiUrl, testAiConnection, type AiStatus,
 } from '../lib/ai';
 import { friendlyError } from '../lib/db';
 import { useToast } from '../context/ToastContext';
@@ -32,6 +32,8 @@ export function AiSettings() {
   }, []);
 
   const test = async () => {
+    // a key typed in the box but not saved yet → save it first, then test
+    if (key.trim()) return save();
     setBusy('test');
     const r = await testAiConnection();
     setStatus(r.status);
@@ -40,19 +42,30 @@ export function AiSettings() {
   };
 
   const save = async () => {
-    if (!key.trim()) return toast('Paste your Gemini API key first', 'error');
+    const clean = cleanAiKey(key);
+    const problem = aiKeyProblem(clean);
+    if (problem) {
+      setStatus('setup_pending');
+      setMsg(problem);
+      return toast(problem, 'error');
+    }
     setBusy('save');
     try {
-      const last4 = await saveAiKey(key);
+      const last4 = await saveAiKey(clean);
       setKey('');
       setShow(false);
       setInfo({ last4, updated_at: new Date().toISOString() });
       toast('API key saved securely');
       // make sure the app uses this project's AI function
       if (!url && DEFAULT_AI_URL) await saveAiUrl(DEFAULT_AI_URL).catch(() => {});
-      await test();
+      setBusy('test');
+      const r = await testAiConnection();
+      setStatus(r.status);
+      setMsg(r.message);
     } catch (e) {
-      toast(friendlyError(e), 'error');
+      const m = friendlyError(e);
+      setMsg(m);
+      toast(m, 'error');
     } finally {
       setBusy('');
     }
@@ -105,6 +118,10 @@ export function AiSettings() {
               placeholder="AIza…"
               value={key}
               onChange={(e) => setKey(e.target.value)}
+              onPaste={(e) => {
+                e.preventDefault();
+                setKey(cleanAiKey(e.clipboardData.getData('text')));
+              }}
             />
             <button type="button" aria-label={show ? 'Hide key' : 'Show key'} onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted">
               {show ? <EyeOff size={16} /> : <Eye size={16} />}

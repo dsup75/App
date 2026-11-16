@@ -106,9 +106,11 @@ export async function callAssistant<T = any>(body: Record<string, unknown>, time
 
 /** Sends a tiny test message. Never throws. */
 export async function testAiConnection(): Promise<{ status: AiStatus; message: string }> {
-  const r = await callAssistant<{ ok?: boolean; key?: boolean; answer?: string }>({ mode: 'ping' }, 20000);
+  const r = await callAssistant<{ ok?: boolean; key?: boolean; valid?: boolean; google?: string | null; answer?: string }>({ mode: 'ping' }, 20000);
   let out: { status: AiStatus; message: string };
-  if (r.data?.ok && r.data.key) out = { status: 'connected', message: 'AI Connected ✅' };
+  if (r.data?.ok && r.data.key && r.data.valid === false)
+    out = { status: 'not_connected', message: `Key saved, but Google says it doesn't work: "${r.data.google ?? 'invalid key'}". Make a new key in aistudio.google.com → Get API key, copy it fully and save again.` };
+  else if (r.data?.ok && r.data.key) out = { status: 'connected', message: 'AI Connected ✅ (Google accepted your key)' };
   else if (r.data?.ok && r.data.key === false) out = { status: 'setup_pending', message: 'Add your Gemini API key above, then test again.' };
   else if (r.error && /api key/i.test(r.error)) out = { status: 'setup_pending', message: 'Add your Gemini API key above, then test again.' };
   else if (r.status === 404 || r.status === 401 || r.status === 403) out = { status: 'not_connected', message: 'AI setup pending — Function URL check karo.' };
@@ -125,8 +127,20 @@ export async function aiKeyInfo(): Promise<{ last4: string; updated_at: string }
   return data as { last4: string; updated_at: string };
 }
 
+/** Copy-paste often brings spaces, line breaks, quotes or invisible characters — remove them. */
+export function cleanAiKey(raw: string): string {
+  return raw.replace(/[\s"'`<>\u200B-\u200D\uFEFF]/g, '').replace(/^key[:=]/i, '');
+}
+/** Quick check before sending; '' = looks fine */
+export function aiKeyProblem(key: string): string {
+  if (!key) return 'Paste your Gemini API key first.';
+  if (key.length < 20) return `Only ${key.length} letters were pasted — the key is incomplete. Tap "Copy" in AI Studio and paste again.`;
+  if (!/^[A-Za-z0-9_.\-]+$/.test(key)) return 'The pasted text has symbols an API key never has. Paste only the key itself.';
+  return '';
+}
+
 export async function saveAiKey(key: string): Promise<string> {
-  const { data, error } = await supabase.rpc('set_ai_key', { p_key: key.trim() });
+  const { data, error } = await supabase.rpc('set_ai_key', { p_key: cleanAiKey(key) });
   if (error) throw error;
   return String(data);
 }

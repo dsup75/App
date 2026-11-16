@@ -31,7 +31,7 @@ export function HomeHeader({ name, unread, onBell }: { name?: string; unread: nu
     <div className="flex items-center gap-3">
       <button type="button" aria-label="Profile photo" onClick={() => setPhotoOpen(true)} className="avatar-ring relative shrink-0 rounded-full p-[3px]">
         <span className="flex h-[54px] w-[54px] items-center justify-center overflow-hidden rounded-full bg-[var(--solid)] text-[20px] font-bold text-primary">
-          {url ? <img src={url} alt="" className="h-full w-full object-cover" /> : (name || 'D').slice(0, 1).toUpperCase()}
+          {url ? <img src={url} alt="" className="h-full w-full object-cover" /> : <img src="/logo.png" alt="DeepBoost" className="h-full w-full object-cover" />}
         </span>
         <span className="absolute bottom-0.5 right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[var(--bg)] bg-[var(--tone-income)]" />
       </button>
