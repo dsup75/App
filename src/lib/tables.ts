@@ -6,7 +6,8 @@ export type TableName =
   | 'clients' | 'projects' | 'campaigns' | 'invoices' | 'allocations' | 'loans' | 'loan_repayments'
   | 'savings_goals' | 'savings_entries' | 'groups' | 'group_members' | 'group_expenses' | 'group_settlements'
   | 'habits' | 'events' | 'notes' | 'shopping_items' | 'subjects' | 'chapters' | 'study_sessions' | 'mock_tests' | 'exams'
-  | 'client_contacts' | 'custom_options' | 'budgets' | 'recurring_rules' | 'insurance_policies' | 'credit_scores';
+  | 'client_contacts' | 'custom_options' | 'budgets' | 'recurring_rules' | 'insurance_policies' | 'credit_scores'
+  | 'medicines' | 'medicine_logs' | 'vitals' | 'doctor_appointments' | 'medical_documents' | 'water_logs' | 'sleep_logs';
 
 export type FieldType =
   | 'text' | 'textarea' | 'money' | 'signed_money' | 'date' | 'time' | 'select'
@@ -111,6 +112,19 @@ export const CHAPTER_STATUS = o([['not_started', 'Not started'], ['in_progress',
 export const CLASS_LEVELS = o([['11', 'Class 11'], ['12', 'Class 12'], ['other', 'Other']]);
 export const TEST_EXAMS = o([['jee', 'JEE'], ['board', 'Board'], ['other', 'Other']]);
 export const SESSION_KINDS = o([['manual', 'Manual'], ['pomodoro', 'Pomodoro']]);
+
+
+/* ---------- Health care ---------- */
+export const MED_FORMS = o([['tablet', 'Tablet'], ['capsule', 'Capsule'], ['syrup', 'Syrup'], ['injection', 'Injection'], ['drops', 'Drops'], ['inhaler', 'Inhaler'], ['cream', 'Cream / ointment'], ['other', 'Other']]);
+export const MED_FOOD = o([['after', 'After food'], ['before', 'Before food'], ['with', 'With food'], ['any', 'Any time']]);
+export const MED_STATUS = o([['active', 'Taking now'], ['paused', 'Paused'], ['finished', 'Course finished']]);
+export const MED_SLOTS = o([['morning', 'Morning'], ['afternoon', 'Afternoon'], ['night', 'Night'], ['extra', 'Extra dose']]);
+export const DOSE_STATUS = o([['taken', 'Taken'], ['skipped', 'Skipped']]);
+export const VITAL_KINDS = o([['bp', 'Blood pressure'], ['sugar', 'Blood sugar'], ['pulse', 'Pulse'], ['spo2', 'Oxygen (SpO2)'], ['temperature', 'Temperature']]);
+export const SUGAR_TIMING = o([['fasting', 'Fasting'], ['after_meal', 'After meal (2 hr)'], ['random', 'Random'], ['bedtime', 'Bedtime']]);
+export const APPT_STATUS = o([['upcoming', 'Upcoming'], ['done', 'Visited'], ['cancelled', 'Cancelled'], ['missed', 'Missed']]);
+export const DOC_TYPES = o([['prescription', 'Prescription'], ['report', 'Lab report'], ['scan', 'X-ray / scan'], ['bill', 'Medical bill'], ['vaccination', 'Vaccination'], ['discharge', 'Discharge summary'], ['other', 'Other']]);
+export const SLEEP_QUALITY = o([['poor', 'Poor'], ['okay', 'Okay'], ['good', 'Good'], ['great', 'Great']]);
 
 const notes: Field = { key: 'notes', label: 'Notes', type: 'textarea', placeholder: 'Optional' };
 const area: Field = { key: 'area', label: 'Area', type: 'select', options: AREAS, default: () => 'personal' };
@@ -628,6 +642,131 @@ export const TABLES: Record<TableName, TableDef> = {
     ],
     validate: (v) => (v.score != null && (v.score < 300 || v.score > 900) ? 'Score must be between 300 and 900.' : null),
   },
+  medicines: {
+    table: 'medicines', label: 'Medicine', plural: 'Medicines', titleField: 'name', financial: false,
+    fields: [
+      { key: 'name', label: 'Medicine name', type: 'text', required: true, placeholder: 'e.g. Paracetamol' },
+      { key: 'dose', label: 'Strength / dose', type: 'text', placeholder: 'e.g. 500 mg, 5 ml' },
+      { key: 'form', label: 'Type', type: 'select', options: MED_FORMS, default: () => 'tablet' },
+      { key: 'per_dose', label: 'How many each time', type: 'int', default: () => 1, hint: 'Tablets / capsules per dose' },
+      { key: 'food', label: 'Food', type: 'select', options: MED_FOOD, default: () => 'after' },
+      { key: 'take_morning', label: 'Morning', type: 'bool', default: () => true },
+      { key: 'morning_time', label: 'Morning time', type: 'time', default: () => '08:00', showIf: (v) => v.take_morning === true || v.take_morning === 'true' },
+      { key: 'take_afternoon', label: 'Afternoon', type: 'bool', default: () => false },
+      { key: 'afternoon_time', label: 'Afternoon time', type: 'time', default: () => '14:00', showIf: (v) => v.take_afternoon === true || v.take_afternoon === 'true' },
+      { key: 'take_night', label: 'Night', type: 'bool', default: () => false },
+      { key: 'night_time', label: 'Night time', type: 'time', default: () => '21:00', showIf: (v) => v.take_night === true || v.take_night === 'true' },
+      { key: 'stock_qty', label: 'Tablets in stock (optional)', type: 'int', hint: 'Goes down by itself when you mark a dose as taken.' },
+      { key: 'low_stock_days', label: 'Warn me when stock is left for (days)', type: 'int', default: () => 5 },
+      { key: 'start_date', label: 'Start date', type: 'date', required: true, default: todayISO },
+      { key: 'end_date', label: 'End date (optional)', type: 'date', hint: 'Leave empty for a long-term medicine.' },
+      { key: 'for_person', label: 'For (optional)', type: 'text', placeholder: 'e.g. Self, Mummy, Papa' },
+      { key: 'reminders', label: 'Remind me at dose times', type: 'bool', default: () => true },
+      { key: 'status', label: 'Status', type: 'select', options: MED_STATUS, default: () => 'active' },
+      notes,
+    ],
+    validate: (v) => {
+      if (!v.take_morning && !v.take_afternoon && !v.take_night) return 'Pick at least one time: morning, afternoon or night.';
+      if (v.per_dose != null && (v.per_dose < 1 || v.per_dose > 50)) return 'How many each time must be 1 to 50.';
+      if (v.stock_qty != null && v.stock_qty < 0) return 'Stock cannot be below 0.';
+      if (v.low_stock_days != null && (v.low_stock_days < 1 || v.low_stock_days > 60)) return 'Warning days must be 1 to 60.';
+      if (v.end_date && v.start_date && v.end_date < v.start_date) return 'End date is before the start date.';
+      return null;
+    },
+  },
+  medicine_logs: {
+    table: 'medicine_logs', label: 'Dose', plural: 'Doses', titleField: 'slot', financial: false,
+    fields: [
+      { key: 'medicine_id', label: 'Medicine', type: 'ref', refTable: 'medicines', required: true },
+      { key: 'slot', label: 'Time', type: 'select', options: MED_SLOTS, default: () => 'morning' },
+      { key: 'status', label: 'Status', type: 'select', options: DOSE_STATUS, default: () => 'taken' },
+      { key: 'qty', label: 'How many', type: 'int', default: () => 1 },
+      { key: 'taken_on', label: 'Date', type: 'date', required: true, default: todayISO },
+      notes,
+    ],
+  },
+  vitals: {
+    table: 'vitals', label: 'Vital reading', plural: 'Vitals', titleField: 'kind', financial: false,
+    fields: [
+      { key: 'kind', label: 'What', type: 'select', options: VITAL_KINDS, default: () => 'bp' },
+      { key: 'systolic', label: 'Upper (systolic)', type: 'int', placeholder: 'e.g. 120', showIf: (v) => v.kind === 'bp' },
+      { key: 'diastolic', label: 'Lower (diastolic)', type: 'int', placeholder: 'e.g. 80', showIf: (v) => v.kind === 'bp' },
+      { key: 'pulse', label: 'Pulse (bpm)', type: 'int', placeholder: 'e.g. 72', showIf: (v) => v.kind === 'bp' || v.kind === 'pulse' },
+      { key: 'sugar_mgdl', label: 'Sugar (mg/dL)', type: 'int', placeholder: 'e.g. 95', showIf: (v) => v.kind === 'sugar' },
+      { key: 'sugar_timing', label: 'When', type: 'select', options: SUGAR_TIMING, default: () => 'fasting', showIf: (v) => v.kind === 'sugar' },
+      { key: 'spo2', label: 'Oxygen SpO2 (%)', type: 'int', placeholder: 'e.g. 98', showIf: (v) => v.kind === 'spo2' },
+      { key: 'temperature_f', label: 'Temperature (°F)', type: 'text', placeholder: 'e.g. 98.6', showIf: (v) => v.kind === 'temperature' },
+      { key: 'measured_on', label: 'Date', type: 'date', required: true, default: todayISO },
+      { key: 'measured_time', label: 'Time', type: 'time', default: nowTime },
+      { key: 'for_person', label: 'For (optional)', type: 'text', placeholder: 'e.g. Self, Papa' },
+      notes,
+    ],
+    validate: (v) => {
+      const n = (x: unknown) => x != null && x !== '';
+      if (v.kind === 'bp') {
+        if (!n(v.systolic) || !n(v.diastolic)) return 'Enter both upper and lower BP numbers.';
+        if (v.systolic < 50 || v.systolic > 260 || v.diastolic < 30 || v.diastolic > 180) return 'BP numbers look wrong. Upper 50–260, lower 30–180.';
+        if (v.systolic <= v.diastolic) return 'Upper BP must be more than lower BP.';
+      }
+      if (v.kind === 'sugar' && (!n(v.sugar_mgdl) || v.sugar_mgdl < 20 || v.sugar_mgdl > 700)) return 'Enter sugar between 20 and 700 mg/dL.';
+      if ((v.kind === 'pulse' || (v.kind === 'bp' && n(v.pulse))) && (!n(v.pulse) || v.pulse < 25 || v.pulse > 250)) return 'Enter pulse between 25 and 250.';
+      if (v.kind === 'spo2' && (!n(v.spo2) || v.spo2 < 50 || v.spo2 > 100)) return 'Enter SpO2 between 50 and 100.';
+      if (v.kind === 'temperature') {
+        const t = Number(v.temperature_f);
+        if (!n(v.temperature_f) || !Number.isFinite(t) || t < 90 || t > 110) return 'Enter temperature in °F, e.g. 98.6 (90–110).';
+      }
+      return null;
+    },
+  },
+  doctor_appointments: {
+    table: 'doctor_appointments', label: 'Appointment', plural: 'Appointments', titleField: 'doctor_name', financial: false,
+    fields: [
+      { key: 'doctor_name', label: 'Doctor', type: 'text', required: true, placeholder: 'e.g. Dr. Sharma' },
+      { key: 'speciality', label: 'Speciality', type: 'text', placeholder: 'e.g. Physician, Dentist, Eye' },
+      { key: 'appointment_date', label: 'Date', type: 'date', required: true, default: todayISO },
+      { key: 'appointment_time', label: 'Time', type: 'time' },
+      { key: 'clinic', label: 'Clinic / hospital', type: 'text' },
+      { key: 'address', label: 'Address', type: 'text' },
+      { key: 'phone', label: 'Phone', type: 'text', copy: true },
+      { key: 'for_person', label: 'For (optional)', type: 'text', placeholder: 'e.g. Self, Mummy' },
+      { key: 'reason', label: 'Reason / problem', type: 'textarea' },
+      { key: 'status', label: 'Status', type: 'select', options: APPT_STATUS, default: () => 'upcoming' },
+      { key: 'reminders', label: 'Remind me (1 day before + 2 hours before)', type: 'bool', default: () => true },
+      { key: 'doctor_notes', label: "Doctor's advice / notes", type: 'textarea', placeholder: 'What the doctor said, tests to do, diet…' },
+      { key: 'follow_up_date', label: 'Next follow-up date', type: 'date' },
+      notes,
+    ],
+  },
+  medical_documents: {
+    table: 'medical_documents', label: 'Medical document', plural: 'Medical vault', titleField: 'title', financial: false,
+    fields: [
+      { key: 'title', label: 'Title', type: 'text', required: true, placeholder: 'e.g. Blood test – CBC' },
+      { key: 'doc_type', label: 'Type', type: 'select', options: DOC_TYPES, default: () => 'prescription' },
+      { key: 'doc_date', label: 'Date', type: 'date', required: true, default: todayISO },
+      { key: 'doctor_name', label: 'Doctor / lab', type: 'text' },
+      { key: 'for_person', label: 'For (optional)', type: 'text', placeholder: 'e.g. Self, Papa' },
+      { key: 'appointment_id', label: 'From appointment (optional)', type: 'ref', refTable: 'doctor_appointments' },
+      { key: 'notes', label: 'Notes', type: 'textarea', placeholder: 'Add photos / PDF after saving (Photos section).' },
+    ],
+  },
+  water_logs: {
+    table: 'water_logs', label: 'Water', plural: 'Water', titleField: 'ml', financial: false,
+    fields: [
+      { key: 'ml', label: 'Amount (ml)', type: 'int', required: true, default: () => 250 },
+      { key: 'logged_on', label: 'Date', type: 'date', required: true, default: todayISO },
+    ],
+    validate: (v) => (v.ml != null && (v.ml < 10 || v.ml > 3000) ? 'Enter 10 to 3000 ml.' : null),
+  },
+  sleep_logs: {
+    table: 'sleep_logs', label: 'Sleep', plural: 'Sleep', titleField: 'sleep_date', financial: false,
+    fields: [
+      { key: 'sleep_date', label: 'Night of', type: 'date', required: true, default: todayISO, hint: 'The date you went to bed.' },
+      { key: 'bed_time', label: 'Slept at', type: 'time', required: true, default: () => '23:00' },
+      { key: 'wake_time', label: 'Woke up at', type: 'time', required: true, default: () => '07:00' },
+      { key: 'quality', label: 'How was it', type: 'select', options: SLEEP_QUALITY, default: () => 'good' },
+      notes,
+    ],
+  },
 };
 
 export function isTableName(t: string | undefined): t is TableName {
@@ -642,6 +781,7 @@ export function displayOf(table: TableName, row: Record<string, any>): string {
   if (table === 'incomes' || table === 'expenses') return row.amount_paise !== undefined ? `${row.title} · ${formatINR(row.amount_paise)}` : String(row.title);
   if (table === 'budgets') return `${row.month ?? 'Monthly'} budget · ${formatINR(row.amount_paise)}`;
   if (table === 'loans') return `${row.direction === 'lent' ? 'Lent to' : 'Borrowed from'} ${row.person}`;
+  if (table === 'doctor_appointments' && row.appointment_date) return `${row.doctor_name} · ${row.appointment_date}`;
   return String(row[d.titleField] ?? '—');
 }
 

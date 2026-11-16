@@ -29,6 +29,8 @@ const REF_QUERIES: { table: TableName; cols: string; order: string; asc: boolean
   { table: 'group_members', cols: 'id,name,group_id,is_me,deleted_at', order: 'created_at', asc: true },
   { table: 'subjects', cols: 'id,name,deleted_at', order: 'created_at', asc: true },
   { table: 'chapters', cols: 'id,name,subject_id,deleted_at', order: 'name', asc: true },
+  { table: 'medicines', cols: 'id,name,deleted_at', order: 'name', asc: true },
+  { table: 'doctor_appointments', cols: 'id,doctor_name,appointment_date,deleted_at', order: 'appointment_date', asc: false, limit: 200 },
 ];
 
 let cache: { at: number; data: Data } | null = null;

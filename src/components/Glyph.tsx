@@ -6,7 +6,8 @@ export type GlyphName =
   | 'shoe' | 'moon' | 'phone' | 'earbuds' | 'watch' | 'scale' | 'heart' | 'flame' | 'activity' | 'body'
   | 'calendar' | 'check' | 'book' | 'cap' | 'chart' | 'money' | 'dumbbell' | 'card' | 'bank' | 'shield'
   | 'clock' | 'bell' | 'wallet' | 'handshake' | 'gift' | 'receipt' | 'target' | 'briefcase'
-  | 'gear' | 'barchart' | 'sigma' | 'atom' | 'flask' | 'leaf' | 'globe' | 'grid' | 'lock' | 'sparkle' | 'trash' | 'info' | 'palette' | 'cloud' | 'stopwatch' | 'people' | 'house' | 'plus';
+  | 'gear' | 'barchart' | 'sigma' | 'atom' | 'flask' | 'leaf' | 'globe' | 'grid' | 'lock' | 'sparkle' | 'trash' | 'info' | 'palette' | 'cloud' | 'stopwatch' | 'people' | 'house' | 'plus'
+  | 'pill' | 'drop' | 'stethoscope' | 'folder' | 'bp' | 'bed' | 'care';
 
 type G = (id: (k: string) => string) => ReactNode;
 
@@ -590,6 +591,106 @@ const GLYPHS: Record<GlyphName, G> = {
         {lg(i('a'), [['0', '#ffffff'], ['1', '#dbeafe']])}
       </defs>
       <path d="M20 6h8v14h14v8H28v14h-8V28H6v-8h14z" fill={`url(#${i('a')})`} />
+    </>
+  ),
+  pill: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#7fb4ff'], ['1', '#1f6fff']], '1', '1')}
+        {lg(i('b'), [['0', '#9af0c2'], ['1', '#1fbf74']], '1', '1')}
+      </defs>
+      {floor}
+      <g transform="rotate(-40 24 24)">
+        <path d="M24 9h0a9 9 0 0 1 9 9v6H15v-6a9 9 0 0 1 9-9z" fill={`url(#${i('a')})`} />
+        <path d="M15 24h18v6a9 9 0 0 1-9 9h0a9 9 0 0 1-9-9z" fill={`url(#${i('b')})`} />
+        <path d="M15 24h18" stroke="#fff" strokeOpacity=".7" strokeWidth="1.2" />
+        {shine(20, 15, 2.2, 4, 0.55)}
+      </g>
+    </>
+  ),
+  drop: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#a5e8ff'], ['.55', '#22b8f0'], ['1', '#1f6fff']], '1', '1')}
+      </defs>
+      {floor}
+      <path d="M24 5c6 9 13 16 13 24a13 13 0 0 1-26 0c0-8 7-15 13-24z" fill={`url(#${i('a')})`} />
+      {shine(19, 26, 3, 5.5, 0.5)}
+      <path d="M30 32a7 7 0 0 1-5 6" stroke="#fff" strokeWidth="2" strokeLinecap="round" fill="none" opacity=".7" />
+    </>
+  ),
+  stethoscope: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#5aa1ff'], ['1', '#1f4fd1']], '1', '1')}
+        {lg(i('m'), [['0', '#e9f1ff'], ['1', '#9fb3d1']], '1', '1')}
+        {lg(i('c'), [['0', '#8cf0bd'], ['1', '#14a862']], '1', '1')}
+      </defs>
+      <path d="M12 6v12a9 9 0 0 0 18 0V6" stroke={`url(#${i('a')})`} strokeWidth="3.4" fill="none" strokeLinecap="round" />
+      <path d="M21 27v5a8 8 0 0 0 16 0v-4" stroke={`url(#${i('a')})`} strokeWidth="3.4" fill="none" strokeLinecap="round" />
+      <circle cx="12" cy="6" r="2.4" fill={`url(#${i('m')})`} />
+      <circle cx="30" cy="6" r="2.4" fill={`url(#${i('m')})`} />
+      <circle cx="37" cy="24" r="6" fill={`url(#${i('m')})`} />
+      <circle cx="37" cy="24" r="3.4" fill={`url(#${i('c')})`} />
+      {shine(35.5, 22, 1.6, 1, 0.7)}
+    </>
+  ),
+  folder: (i) => (
+    <>
+      <defs>
+        {lg(i('b'), [['0', '#4f8dff'], ['1', '#1a4fd6']], '1', '1')}
+        {lg(i('f'), [['0', '#8fe8c0'], ['1', '#1fb873']], '1', '1')}
+        {lg(i('p'), [['0', '#ffffff'], ['1', '#dfe8f5']])}
+      </defs>
+      {floor}
+      <path d="M5 12a3 3 0 0 1 3-3h10l4 4h18a3 3 0 0 1 3 3v22a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3z" fill={`url(#${i('b')})`} />
+      <rect x="11" y="14" width="24" height="18" rx="2" fill={`url(#${i('p')})`} transform="rotate(-6 23 23)" />
+      <path d="M16 19h12M16 23h9" stroke="#9fb3d1" strokeWidth="1.6" strokeLinecap="round" transform="rotate(-6 23 23)" />
+      <path d="M5 21a3 3 0 0 1 3-3h32a3 3 0 0 1 3 3l-1.5 17a3 3 0 0 1-3 3H9.5a3 3 0 0 1-3-3z" fill={`url(#${i('f')})`} />
+      <path d="M21 26v8M17 30h8" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
+      {shine(14, 22, 6, 1.4, 0.4)}
+    </>
+  ),
+  bp: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#ff8a9a'], ['1', '#e11d48']], '1', '1')}
+        {lg(i('g'), [['0', '#ffffff'], ['1', '#d6e2f2']], '1', '1')}
+      </defs>
+      {floor}
+      <circle cx="21" cy="22" r="15" fill={`url(#${i('g')})`} stroke="#1f6fff" strokeWidth="2.4" />
+      <path d="M11 22a10 10 0 0 1 20 0" stroke="#c7d5ea" strokeWidth="2.4" fill="none" />
+      <path d="M21 22l6-6" stroke={`url(#${i('a')})`} strokeWidth="2.6" strokeLinecap="round" />
+      <circle cx="21" cy="22" r="2.2" fill="#1f2a44" />
+      <path d="M34 30c4 0 6 2 6 5s-2 6-6 6" stroke="#1fb873" strokeWidth="2.6" fill="none" strokeLinecap="round" />
+      <ellipse cx="34" cy="41" rx="4" ry="3" fill={`url(#${i('a')})`} />
+      {shine(16, 14, 4, 1.8, 0.6)}
+    </>
+  ),
+  bed: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#7aa8ff'], ['1', '#2348c9']], '1', '1')}
+        {lg(i('s'), [['0', '#ffffff'], ['1', '#d9e3f3']])}
+      </defs>
+      {floor}
+      <rect x="4" y="14" width="4" height="27" rx="1.5" fill={`url(#${i('a')})`} />
+      <rect x="40" y="24" width="4" height="17" rx="1.5" fill={`url(#${i('a')})`} />
+      <rect x="6" y="28" width="36" height="8" rx="2" fill={`url(#${i('a')})`} />
+      <rect x="8" y="22" width="12" height="7" rx="3.5" fill={`url(#${i('s')})`} />
+      <path d="M19 24h20a3 3 0 0 1 3 3v2H19z" fill={`url(#${i('s')})`} />
+      <path d="M30 8h6l-6 7h6" stroke="#a78bfa" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
+  care: (i) => (
+    <>
+      <defs>
+        {lg(i('a'), [['0', '#2f7bff'], ['1', '#1fbf74']], '1', '1')}
+      </defs>
+      {floor}
+      <path d="M24 41S7 31 7 18.5A8.5 8.5 0 0 1 24 13a8.5 8.5 0 0 1 17 5.5C41 31 24 41 24 41z" fill={`url(#${i('a')})`} />
+      <path d="M24 19v12M18 25h12" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" />
+      {shine(15, 17, 3.5, 2, 0.5)}
     </>
   ),
 };

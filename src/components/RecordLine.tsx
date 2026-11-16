@@ -4,11 +4,12 @@ import {
   ArrowDownLeft, ArrowUpRight, ArrowLeftRight, ListTodo, FileText, Briefcase, Megaphone, Link2, HandCoins,
   PiggyBank, BookOpen, Timer, ClipboardCheck, CalendarDays, StickyNote, ShoppingCart, Users, Repeat, QrCode,
   Landmark, Tag, GraduationCap, Flame, Gauge, CalendarClock, ShieldCheck, TrendingUp,
+  Pill, HeartPulse, Stethoscope, FolderHeart, GlassWater, BedDouble,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { formatINR } from '../lib/money';
 import { formatDate, relativeDay } from '../lib/dates';
-import { optionLabel, POLICY_TYPES, PREMIUM_FREQ, BUREAUS, UPI_APPS, TASK_STATUS, CHAPTER_STATUS, PROJECT_STATUS, CAMPAIGN_STATUS, PLATFORMS, CLIENT_STATUS, FREQUENCIES, type TableName } from '../lib/tables';
+import { optionLabel, MED_SLOTS, MED_FOOD, VITAL_KINDS, SUGAR_TIMING, APPT_STATUS, DOC_TYPES, SLEEP_QUALITY, POLICY_TYPES, PREMIUM_FREQ, BUREAUS, UPI_APPS, TASK_STATUS, CHAPTER_STATUS, PROJECT_STATUS, CAMPAIGN_STATUS, PLATFORMS, CLIENT_STATUS, FREQUENCIES, type TableName } from '../lib/tables';
 import { IconBubble, ListRow, Badge, type Tone } from './ui';
 import { useUsage } from '../lib/useUsage';
 import { ICONABLE } from '../lib/icons';
@@ -53,6 +54,13 @@ export const TABLE_ICON: Record<TableName, { icon: LucideIcon; tone: Tone }> = {
   recurring_rules: { icon: CalendarClock, tone: 'teal' },
   insurance_policies: { icon: ShieldCheck, tone: 'blue' },
   credit_scores: { icon: TrendingUp, tone: 'income' },
+  medicines: { icon: Pill, tone: 'blue' },
+  medicine_logs: { icon: Pill, tone: 'teal' },
+  vitals: { icon: HeartPulse, tone: 'expense' },
+  doctor_appointments: { icon: Stethoscope, tone: 'blue' },
+  medical_documents: { icon: FolderHeart, tone: 'teal' },
+  water_logs: { icon: GlassWater, tone: 'blue' },
+  sleep_logs: { icon: BedDouble, tone: 'violet' },
 };
 
 /** One generic row for any record type */
@@ -60,7 +68,7 @@ export function RecordLine({ table, row, nameOf }: { table: TableName; row: any;
   const nav = useNavigate();
   const usage = useUsage();
   const { icon: Icon, tone } = TABLE_ICON[table];
-  let title: string = row.title ?? row.name ?? row.invoice_no ?? row.person ?? '—';
+  let title: string = row.title ?? row.name ?? row.doctor_name ?? row.invoice_no ?? row.person ?? '—';
   let sub = '';
   let right: ReactNode = null;
   const money = (p: number, sign?: 'in' | 'out') => (
@@ -178,6 +186,37 @@ export function RecordLine({ table, row, nameOf }: { table: TableName; row: any;
       title = `Score ${row.score}`;
       sub = `${optionLabel(BUREAUS, row.bureau)} · ${formatDate(row.checked_on)}`;
       right = <Badge tone={row.score >= 750 ? 'primary' : row.score >= 650 ? 'amber' : 'danger'}>{row.score >= 750 ? 'Excellent' : row.score >= 700 ? 'Good' : row.score >= 650 ? 'Fair' : 'Poor'}</Badge>;
+      break;
+    case 'medicines': {
+      const slots = [row.take_morning && 'Morning', row.take_afternoon && 'Afternoon', row.take_night && 'Night'].filter(Boolean).join(' · ');
+      sub = [row.dose, slots, optionLabel(MED_FOOD, row.food)].filter(Boolean).join(' · ');
+      if (row.stock_qty != null) right = <Badge tone={row.stock_qty === 0 ? 'danger' : 'muted'}>{row.stock_qty} left</Badge>;
+      break;
+    }
+    case 'medicine_logs':
+      title = `${nameOf(row.medicine_id)} · ${optionLabel(MED_SLOTS, row.slot)}`;
+      sub = formatDate(row.taken_on);
+      right = <Badge tone={row.status === 'taken' ? 'primary' : 'amber'}>{row.status === 'taken' ? 'Taken' : 'Skipped'}</Badge>;
+      break;
+    case 'vitals':
+      title =
+        row.kind === 'bp' ? `BP ${row.systolic}/${row.diastolic}` : row.kind === 'sugar' ? `Sugar ${row.sugar_mgdl} mg/dL` : row.kind === 'pulse' ? `Pulse ${row.pulse} bpm` : row.kind === 'spo2' ? `SpO2 ${row.spo2}%` : `Temp ${row.temperature_f} °F`;
+      sub = [formatDate(row.measured_on), row.measured_time?.slice(0, 5), row.kind === 'sugar' && optionLabel(SUGAR_TIMING, row.sugar_timing), row.for_person].filter(Boolean).join(' · ') || optionLabel(VITAL_KINDS, row.kind);
+      break;
+    case 'doctor_appointments':
+      sub = [row.speciality, `${relativeDay(row.appointment_date)}${row.appointment_time ? ' ' + row.appointment_time.slice(0, 5) : ''}`, row.clinic].filter(Boolean).join(' · ');
+      right = <Badge tone={row.status === 'upcoming' ? 'blue' : row.status === 'done' ? 'primary' : 'muted'}>{optionLabel(APPT_STATUS, row.status)}</Badge>;
+      break;
+    case 'medical_documents':
+      sub = [optionLabel(DOC_TYPES, row.doc_type), formatDate(row.doc_date), row.doctor_name].filter(Boolean).join(' · ');
+      break;
+    case 'water_logs':
+      title = `${row.ml} ml water`;
+      sub = formatDate(row.logged_on);
+      break;
+    case 'sleep_logs':
+      title = `Sleep · ${formatDate(row.sleep_date)}`;
+      sub = `${String(row.bed_time).slice(0, 5)} → ${String(row.wake_time).slice(0, 5)} · ${optionLabel(SLEEP_QUALITY, row.quality)}`;
       break;
     case 'payment_requests':
       sub = [row.client_name, row.status].filter(Boolean).join(' · ');

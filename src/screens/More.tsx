@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ListTodo, Receipt, HandCoins, Users, PiggyBank, TrendingUp, Bot, Settings, Trash2, CalendarDays, QrCode, Flame, StickyNote,
   ShoppingCart, CalendarCheck, Link2, Timer, Megaphone, FolderKanban, Target, Wand2, Gauge, CalendarClock, Search, Sparkles, Wrench, HeartPulse, Briefcase, RotateCcw, Watch, Scale, MonitorSmartphone, CreditCard, AlarmClock, ChevronRight,
+  Pill, Stethoscope, FolderHeart, GlassWater, BedDouble, Activity,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { IconBubble, Page, SectionTitle, type Tone } from '../components/ui';
@@ -73,6 +74,18 @@ const SECTIONS: { title: string; items: Item[] }[] = [
       { label: 'Health', to: '/health', icon: HeartPulse, tone: 'pink' },
       { label: 'Weight', to: '/weight', icon: Scale, tone: 'teal' },
       { label: 'Screen time', to: '/screen-time', icon: MonitorSmartphone, tone: 'amber' },
+    ],
+  },
+  {
+    title: 'Health care',
+    items: [
+      { label: 'Care hub', to: '/care', icon: HeartPulse, tone: 'teal' },
+      { label: 'Medicines', to: '/care/medicines', icon: Pill, tone: 'blue' },
+      { label: 'Vitals', to: '/care/vitals', icon: Activity, tone: 'expense' },
+      { label: 'Doctor visits', to: '/care/appointments', icon: Stethoscope, tone: 'blue' },
+      { label: 'Medical vault', to: '/care/vault', icon: FolderHeart, tone: 'teal' },
+      { label: 'Water', to: '/care/water', icon: GlassWater, tone: 'blue' },
+      { label: 'Sleep', to: '/care/sleep', icon: BedDouble, tone: 'violet' },
     ],
   },
   {

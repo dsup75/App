@@ -48,6 +48,8 @@ import { ClockScreen } from './screens/Clock';
 import { SetupScreen } from './screens/Setup';
 import { onReminderTap, scheduleReminders } from './lib/reminders';
 import { rescheduleAlarms } from './lib/clock';
+import { scheduleCareReminders } from './lib/care';
+import { CareScreen, MedicinesScreen, VitalsScreen, AppointmentsScreen, VaultScreen, WaterScreen, SleepScreen } from './screens/Care';
 import { saveFinishedFocusSession } from './lib/focusGuard';
 import { checkScreenGoalAlert, syncScreenTimeTotals } from './lib/screenTime';
 import { syncAll } from './lib/sheets';
@@ -182,6 +184,7 @@ function ReminderSync() {
     const run = () => {
       scheduleReminders(user.id).catch(() => {});
       rescheduleAlarms().catch(() => {});
+      scheduleCareReminders().catch(() => {});
       saveFinishedFocusSession().catch(() => {});
       syncScreenTimeTotals().catch(() => {});
       checkScreenGoalAlert().catch(() => {});
@@ -259,6 +262,13 @@ function Gate() {
           <Route path="/timeline" element={<TimelineScreen />} />
           <Route path="/credit" element={<CreditScreen />} />
           <Route path="/clock" element={<ClockScreen />} />
+          <Route path="/care" element={<CareScreen />} />
+          <Route path="/care/medicines" element={<MedicinesScreen />} />
+          <Route path="/care/vitals" element={<VitalsScreen />} />
+          <Route path="/care/appointments" element={<AppointmentsScreen />} />
+          <Route path="/care/vault" element={<VaultScreen />} />
+          <Route path="/care/water" element={<WaterScreen />} />
+          <Route path="/care/sleep" element={<SleepScreen />} />
           <Route path="/setup" element={<SetupScreen />} />
           <Route path="/recurring" element={<RecurringScreen />} />
           <Route path="/lists" element={<ListsScreen />} />

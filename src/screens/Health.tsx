@@ -9,6 +9,7 @@ import { Glyph, type GlyphName } from '../components/Glyph';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { todayISO } from '../lib/dates';
+import { CareEntryCard } from './Care';
 
 function Stat({ glyph, label, value, unit }: { glyph: GlyphName; label: string; value: number | null; unit?: string }) {
   return (
@@ -59,6 +60,7 @@ export function HealthScreen() {
 
   return (
     <Page title="Health" subtitle="Healthy You • Happy You" back glyph="heart">
+      <CareEntryCard />
       {state === null ? (
         <Skeleton rows={3} />
       ) : state === 'web' ? (

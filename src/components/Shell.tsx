@@ -122,6 +122,19 @@ const GROUPS: { title: string; items: { label: string; to: string; glyph: GlyphN
       { label: 'Gift / birthday', to: '/r/events/new', glyph: 'gift' },
     ],
   },
+  {
+    title: 'Health care',
+    items: [
+      { label: 'Medicine', to: '/r/medicines/new', glyph: 'pill' },
+      { label: 'Dose taken', to: '/care/medicines', glyph: 'check' },
+      { label: 'BP', to: '/r/vitals/new?kind=bp', glyph: 'bp' },
+      { label: 'Sugar', to: '/r/vitals/new?kind=sugar', glyph: 'drop' },
+      { label: 'Doctor visit', to: '/r/doctor_appointments/new', glyph: 'stethoscope' },
+      { label: 'Prescription', to: '/r/medical_documents/new', glyph: 'folder' },
+      { label: 'Water', to: '/care/water', glyph: 'drop' },
+      { label: 'Sleep', to: '/care/sleep', glyph: 'bed' },
+    ],
+  },
 ];
 
 function QuickAdd({ open, onClose }: { open: boolean; onClose: () => void }) {

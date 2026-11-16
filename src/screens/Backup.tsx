@@ -22,10 +22,11 @@ export const BACKUP_TABLES = [
   // added Nov 2026
   'focus_sessions', 'revision_settings', 'revisions', 'gadgets', 'health_profile', 'body_measurements', 'activity_daily', 'screen_time_daily',
   'custom_icons', 'entity_icons', 'timer_sessions', 'insurance_policies', 'credit_scores',
+  'medicines', 'medicine_logs', 'vitals', 'doctor_appointments', 'medical_documents', 'water_logs', 'sleep_logs', 'wellness_settings',
 ] as const;
 
 /** Tables keyed by user (+ day / record) instead of an "id" column */
-const KEYED_TABLES = new Set(['revision_settings', 'health_profile', 'activity_daily', 'screen_time_daily', 'entity_icons']);
+const KEYED_TABLES = new Set(['revision_settings', 'health_profile', 'wellness_settings', 'activity_daily', 'screen_time_daily', 'entity_icons']);
 
 /** App look & phone settings that can travel with a backup (restored only if you tick the box) */
 const LOCAL_KEYS = ['theme-prefs', 'home-layout', 'focus-mode', 'screen-goal', 'hide-balance'];
